@@ -2,7 +2,7 @@ import Link from "next/link";
 
 const RecentTransactions = () => {
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-t-3xl -mt-4 md:mt-4 pt-4 md:pt-6 pb-20 border border-gray-200 shadow-sm overflow-y-auto max-h-[calc(100vh-350px)] -mx-5 md:mx-auto">
+    <div className="max-w-2xl mx-auto bg-white rounded-t-3xl -mt-4 md:mt-4 pt-4 md:pt-6 pb-20 border border-gray-200 shadow-sm overflow-y-auto max-h-[calc(100vh-350px)] -mx-6 md:mx-auto">
       {/* Top Divider */}
       <div className="flex justify-center mb-2 px-4 md:px-6">
         <div className="w-10 h-1 bg-gray-200 rounded-full"></div>
