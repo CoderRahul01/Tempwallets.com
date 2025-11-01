@@ -85,7 +85,7 @@ const WalletInfo = () => {
             {(fingerprintLoading || loading || error) ? (
               // Show loading state in carousel structure
               <CarouselItem>
-                <div className="rounded-t-3xl p-6 md:p-8 shadow-lg" style={{ backgroundImage: 'url("/04.-Purplies-Gradient-Texture-Background.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                <div className="rounded-t-3xl p-6 md:p-8 shadow-lg" style={{ backgroundImage: 'url("/04.-Purplies-Gradient-Texture-Background.png")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
                   <div className="text-center space-y-1 md:space-y-0">
                     <p className="text-white text-sm md:text-base">
                       Wallet
