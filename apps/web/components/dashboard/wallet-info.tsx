@@ -18,7 +18,16 @@ const WalletInfo = () => {
   // Load wallets when fingerprint is ready
   useEffect(() => {
     if (fingerprint) {
-      loadWallets(fingerprint);
+      // First, try to load from localStorage immediately
+      const cachedAddresses = walletStorage.getAddresses(fingerprint);
+      if (cachedAddresses) {
+        // This will trigger processWallets inside the hook if wallets are empty
+        // But we need to load from cache immediately
+        loadWallets(fingerprint);
+      } else {
+        // No cache, load from API (first time)
+        loadWallets(fingerprint);
+      }
     }
   }, [loadWallets, fingerprint]);
 
@@ -52,12 +61,9 @@ const WalletInfo = () => {
     
     if (action === 'change') {
       if (fingerprint) {
-        // Generate new wallet ID (this updates state and triggers re-render)
-        const newWalletId = generateNewWallet();
-        
-        // Load wallets for the new ID
+        // Generate new wallet ID (this updates fingerprint and triggers useEffect)
+        generateNewWallet();
         // The useEffect will automatically call loadWallets when fingerprint changes
-        // So we don't need to do anything here - React handles it!
       }
     } else if (action === 'copy' && currentWallet) {
       await copyToClipboard(currentWallet.address, currentSlide);
@@ -82,7 +88,7 @@ const WalletInfo = () => {
       {(fingerprintLoading || loading || error || wallets.length > 0) && (
         <Carousel opts={{ loop: wallets.length > 1 }} className="w-full" setApi={setCarouselApi}>
           <CarouselContent>
-            {(fingerprintLoading || loading || error) ? (
+            {(((fingerprintLoading || loading) && wallets.length === 0) || error) ? (
               // Show loading state in carousel structure
               <CarouselItem>
                 <div className="rounded-t-3xl p-6 md:p-8 shadow-lg" style={{ backgroundImage: 'url("/04.-Purplies-Gradient-Texture-Background.png")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
@@ -107,7 +113,7 @@ const WalletInfo = () => {
               // Show actual wallets
               wallets.map((wallet, index) => (
                 <CarouselItem key={index}>
-                  <div className="rounded-t-3xl p-6 md:p-8 shadow-lg" style={{ backgroundImage: 'url("/04.-Purplies-Gradient-Texture-Background.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                  <div className="rounded-t-3xl p-6 md:p-8 shadow-lg" style={{ backgroundImage: 'url("/04.-Purplies-Gradient-Texture-Background.png")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
                     <div className="text-center space-y-1 md:space-y-0">
                       <p className="text-white text-sm md:text-base">
                         {wallet.name}

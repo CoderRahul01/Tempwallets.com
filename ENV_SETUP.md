@@ -54,7 +54,14 @@ This guide explains how to set up environment variables for local development an
    ```env
    NEXT_PUBLIC_API_URL=http://localhost:5005
    NEXT_PUBLIC_DEFAULT_CHAIN=base
+   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your-walletconnect-project-id
    ```
+   
+   **To get a WalletConnect Project ID:**
+   1. Go to https://cloud.walletconnect.com
+   2. Sign up or log in
+   3. Create a new project
+   4. Copy the Project ID and add it to your `.env.local` file
 
 ### Running the App Locally
 
@@ -131,6 +138,9 @@ NEXT_PUBLIC_API_URL=https://your-backend-service.up.railway.app
 
 # Chain Configuration
 NEXT_PUBLIC_DEFAULT_CHAIN=base
+
+# WalletConnect Project ID (get from https://cloud.walletconnect.com)
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your-walletconnect-project-id
 ```
 
 ### Step 4: Configure Build Settings
@@ -200,6 +210,7 @@ railway run npx prisma migrate deploy
 ### Web (`apps/web/.env.local`)
 - ✅ `NEXT_PUBLIC_API_URL` - Backend API URL
 - ✅ `NEXT_PUBLIC_DEFAULT_CHAIN` - Default blockchain
+- ✅ `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` - WalletConnect Project ID (get from https://cloud.walletconnect.com)
 
 ---
 

@@ -57,28 +57,29 @@ const Navbar = () => {
       title: "Features",
       image: "/features-main.png",
       items: [
-        { title: "Feature 1", description: "Description for feature 1" },
-        { title: "Feature 2", description: "Description for feature 2" },
-        { title: "Feature 3", description: "Description for feature 3" },
+        { title: "Easy Wallet Setup", description: "Create multi-chain wallets instantly" },
+        { title: "Secure Sign-In", description: "Seed is encrypted, backend protected" },
+        { title: "DApp Connections", description: "Connect easily to DApps via WalletConnect" }
       ]
     },
     {
       title: "Innovation",
       image: "/innovation-main.png",
       items: [
-        { title: "Innovation 1", description: "Description for innovation 1" },
-        { title: "Innovation 2", description: "Description for innovation 2" },
+        { title: "Multi-Chain Support", description: "Ethereum, Base, Arbitrum, Polygon, Solana, Bitcoin, Tron" },
+        { title: "Gasless ERC-4337", description: "Pay fees with stablecoins, not just native tokens" }
       ]
     },
     {
       title: "Impact",
       image: "/impact-main.png",
       items: [
-        { title: "Impact 1", description: "Description for impact 1" },
-        { title: "Impact 2", description: "Description for impact 2" },
+        { title: "Total Privacy", description: "Private keys never leave backend" },
+        { title: "Global Access", description: "Works in any browser, any device" }
       ]
     }
   ];
+
 
   return (
     <>
