@@ -89,6 +89,14 @@ export interface CreateOrImportSeedResponse {
   ok: boolean;
 }
 
+// Wallet history entry for authenticated users
+export interface WalletHistoryEntry {
+  id: string;
+  label: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
 class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -103,16 +111,26 @@ async function fetchApi<T>(
   const url = `${API_BASE_URL}${endpoint}`;
   const timeout = options?.timeout ?? 30000; // Default 30 seconds, can be overridden
   
+  // Get auth token from localStorage if available
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     const { timeout: _, ...fetchOptions } = options || {};
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(fetchOptions?.headers as Record<string, string>),
+    };
+
+    // Add Authorization header if token exists
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...fetchOptions?.headers,
-      },
+      headers,
       ...fetchOptions,
       signal: controller.signal,
     });
@@ -154,6 +172,32 @@ export const walletApi = {
     return fetchApi<CreateOrImportSeedResponse>('/wallet/seed', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Get wallet history for authenticated users
+   */
+  async getWalletHistory(): Promise<{ wallets: WalletHistoryEntry[] }> {
+    return fetchApi<{ wallets: WalletHistoryEntry[] }>('/wallet/history');
+  },
+
+  /**
+   * Switch to a different wallet from history
+   */
+  async switchWallet(walletId: string): Promise<{ ok: boolean }> {
+    return fetchApi<{ ok: boolean }>('/wallet/switch', {
+      method: 'POST',
+      body: JSON.stringify({ walletId }),
+    });
+  },
+
+  /**
+   * Delete a wallet from history
+   */
+  async deleteWalletHistory(walletId: string): Promise<{ ok: boolean }> {
+    return fetchApi<{ ok: boolean }>(`/wallet/history/${encodeURIComponent(walletId)}`, {
+      method: 'DELETE',
     });
   },
 

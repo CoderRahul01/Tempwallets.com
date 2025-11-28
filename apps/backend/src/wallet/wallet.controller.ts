@@ -2,13 +2,16 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Query,
   Body,
+  Param,
   Logger,
   HttpCode,
   HttpStatus,
   BadRequestException,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { WalletService } from './wallet.service.js';
@@ -19,8 +22,13 @@ import {
 } from './dto/wallet.dto.js';
 import { PolkadotEvmRpcService } from './services/polkadot-evm-rpc.service.js';
 import { SubstrateChainKey } from './substrate/config/substrate-chain.config.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { OptionalAuth } from '../auth/decorators/optional-auth.decorator.js';
+import { UserId } from '../auth/decorators/user-id.decorator.js';
 
 @Controller('wallet')
+@UseGuards(JwtAuthGuard)
+@OptionalAuth()
 export class WalletController {
   private readonly logger = new Logger(WalletController.name);
 
@@ -30,14 +38,22 @@ export class WalletController {
   ) {}
 
   @Post('seed')
-  async createOrImportSeed(@Body() dto: CreateOrImportSeedDto) {
+  async createOrImportSeed(
+    @Body() dto: CreateOrImportSeedDto,
+    @UserId() userId?: string,
+  ) {
+    const finalUserId = userId || dto.userId;
+    if (!finalUserId) {
+      throw new BadRequestException('userId is required');
+    }
+
     this.logger.log(
-      `${dto.mode === 'random' ? 'Creating' : 'Importing'} seed for user ${dto.userId}`,
+      `${dto.mode === 'random' ? 'Creating' : 'Importing'} seed for user ${finalUserId}`,
     );
 
     try {
       await this.walletService.createOrImportSeed(
-        dto.userId,
+        finalUserId,
         dto.mode,
         dto.mnemonic,
       );
@@ -54,11 +70,16 @@ export class WalletController {
   }
 
   @Get('addresses')
-  async getAddresses(@Query('userId') userId: string) {
-    this.logger.log(`Getting addresses for user ${userId}`);
+  async getAddresses(@UserId() userId?: string, @Query('userId') queryUserId?: string) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
+      throw new BadRequestException('userId is required');
+    }
+
+    this.logger.log(`Getting addresses for user ${finalUserId}`);
 
     try {
-      const payload = await this.walletService.getUiWalletAddresses(userId);
+      const payload = await this.walletService.getUiWalletAddresses(finalUserId);
 
       return payload;
     } catch (error) {
@@ -69,16 +90,127 @@ export class WalletController {
     }
   }
 
-  @Get('walletconnect/accounts')
-  async getWalletConnectAccounts(@Query('userId') userId: string) {
+  /**
+   * Get wallet history for authenticated users
+   * GET /wallet/history
+   */
+  @Get('history')
+  async getWalletHistory(@UserId() userId?: string) {
     if (!userId) {
+      throw new BadRequestException('Authentication required');
+    }
+
+    // Only allow for authenticated users (non-temp IDs)
+    if (userId.startsWith('temp-')) {
+      return { wallets: [], message: 'Wallet history is only available for logged-in users' };
+    }
+
+    this.logger.log(`Getting wallet history for user ${userId}`);
+
+    try {
+      const wallets = await this.walletService.getWalletHistory(userId);
+      return { wallets };
+    } catch (error) {
+      this.logger.error(
+        `Failed to get wallet history: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Switch to a different wallet from history
+   * POST /wallet/switch
+   */
+  @Post('switch')
+  @HttpCode(HttpStatus.OK)
+  async switchWallet(
+    @Body() body: { walletId: string },
+    @UserId() userId?: string,
+  ) {
+    if (!userId) {
+      throw new BadRequestException('Authentication required');
+    }
+
+    if (!body.walletId) {
+      throw new BadRequestException('walletId is required');
+    }
+
+    // Only allow for authenticated users (non-temp IDs)
+    if (userId.startsWith('temp-')) {
+      throw new BadRequestException('Wallet switching is only available for logged-in users');
+    }
+
+    this.logger.log(`Switching wallet for user ${userId} to ${body.walletId}`);
+
+    try {
+      const success = await this.walletService.switchWallet(userId, body.walletId);
+      
+      if (!success) {
+        throw new BadRequestException('Wallet not found or switch failed');
+      }
+      
+      return { ok: true };
+    } catch (error) {
+      this.logger.error(
+        `Failed to switch wallet: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a wallet from history
+   * DELETE /wallet/history/:walletId
+   */
+  @Delete('history/:walletId')
+  @HttpCode(HttpStatus.OK)
+  async deleteWalletHistory(
+    @Param('walletId') walletId: string,
+    @UserId() userId?: string,
+  ) {
+    if (!userId) {
+      throw new BadRequestException('Authentication required');
+    }
+
+    if (!walletId) {
+      throw new BadRequestException('walletId is required');
+    }
+
+    // Only allow for authenticated users (non-temp IDs)
+    if (userId.startsWith('temp-')) {
+      throw new BadRequestException('Wallet history deletion is only available for logged-in users');
+    }
+
+    this.logger.log(`Deleting wallet ${walletId} from history for user ${userId}`);
+
+    try {
+      const success = await this.walletService.deleteWalletHistory(userId, walletId);
+      
+      if (!success) {
+        throw new BadRequestException('Wallet not found or deletion failed');
+      }
+      
+      return { ok: true };
+    } catch (error) {
+      this.logger.error(
+        `Failed to delete wallet: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw error;
+    }
+  }
+
+  @Get('walletconnect/accounts')
+  async getWalletConnectAccounts(@UserId() userId?: string, @Query('userId') queryUserId?: string) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
 
-    this.logger.log(`Getting WalletConnect accounts for user ${userId}`);
+    this.logger.log(`Getting WalletConnect accounts for user ${finalUserId}`);
 
     try {
-      const namespaces = await this.walletService.getWalletConnectAccounts(userId);
+      const namespaces = await this.walletService.getWalletConnectAccounts(finalUserId);
       // Return all namespaces (EIP155, Polkadot, etc.)
       return namespaces;
     } catch (error) {
@@ -91,14 +223,20 @@ export class WalletController {
 
   @Get('balances')
   async getBalances(
-    @Query('userId') userId: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
     @Query('refresh') refresh?: string,
   ) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
+      throw new BadRequestException('userId is required');
+    }
+
     const forceRefresh = refresh === 'true';
-    this.logger.log(`Getting balances for user ${userId}${forceRefresh ? ' (force refresh)' : ''}`);
+    this.logger.log(`Getting balances for user ${finalUserId}${forceRefresh ? ' (force refresh)' : ''}`);
 
     try {
-      const balances = await this.walletService.getBalances(userId, forceRefresh);
+      const balances = await this.walletService.getBalances(finalUserId, forceRefresh);
 
       return balances;
     } catch (error) {
@@ -111,15 +249,16 @@ export class WalletController {
 
   @Post('balances/refresh')
   @HttpCode(HttpStatus.OK)
-  async refreshBalances(@Body() body: { userId: string }) {
-    if (!body.userId) {
+  async refreshBalances(@Body() body: { userId: string }, @UserId() userId?: string) {
+    const finalUserId = userId || body.userId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
 
-    this.logger.debug(`Refreshing balances for user ${body.userId}`);
+    this.logger.debug(`Refreshing balances for user ${finalUserId}`);
 
     try {
-      const balances = await this.walletService.refreshBalances(body.userId);
+      const balances = await this.walletService.refreshBalances(finalUserId);
 
       return {
         success: true,
@@ -134,12 +273,17 @@ export class WalletController {
   }
 
   @Get('erc4337/paymaster-balances')
-  async getErc4337PaymasterBalances(@Query('userId') userId: string) {
-    this.logger.log(`Getting ERC-4337 paymaster balances for user ${userId}`);
+  async getErc4337PaymasterBalances(@UserId() userId?: string, @Query('userId') queryUserId?: string) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
+      throw new BadRequestException('userId is required');
+    }
+
+    this.logger.log(`Getting ERC-4337 paymaster balances for user ${finalUserId}`);
 
     try {
       const balances =
-        await this.walletService.getErc4337PaymasterBalances(userId);
+        await this.walletService.getErc4337PaymasterBalances(finalUserId);
 
       return balances;
     } catch (error) {
@@ -152,14 +296,19 @@ export class WalletController {
 
   @Post('send')
   @HttpCode(HttpStatus.OK)
-  async sendCrypto(@Body() dto: SendCryptoDto) {
+  async sendCrypto(@Body() dto: SendCryptoDto, @UserId() userId?: string) {
+    const finalUserId = userId || dto.userId;
+    if (!finalUserId) {
+      throw new BadRequestException('userId is required');
+    }
+
     this.logger.log(
-      `Sending crypto for user ${dto.userId} on chain ${dto.chain}`,
+      `Sending crypto for user ${finalUserId} on chain ${dto.chain}`,
     );
 
     try {
       const result = await this.walletService.sendCrypto(
-        dto.userId,
+        finalUserId,
         dto.chain,
         dto.recipientAddress,
         dto.amount,
@@ -181,25 +330,27 @@ export class WalletController {
 
   @Get('token-balances')
   async getTokenBalances(
-    @Query('userId') userId: string,
-    @Query('chain') chain: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+    @Query('chain') chain?: string,
     @Query('refresh') refresh?: string,
   ) {
-    const forceRefresh = refresh === 'true';
-    this.logger.log(
-      `Getting token balances for user ${userId} on chain ${chain}${forceRefresh ? ' (force refresh)' : ''}`,
-    );
-
-    if (!userId) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
     if (!chain) {
       throw new BadRequestException('chain is required');
     }
 
+    const forceRefresh = refresh === 'true';
+    this.logger.log(
+      `Getting token balances for user ${finalUserId} on chain ${chain}${forceRefresh ? ' (force refresh)' : ''}`,
+    );
+
     try {
       const balances = await this.walletService.getTokenBalances(
-        userId,
+        finalUserId,
         chain,
         forceRefresh,
       );
@@ -215,21 +366,23 @@ export class WalletController {
 
   @Get('assets-any')
   async getAssetsAny(
-    @Query('userId') userId: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
     @Query('refresh') refresh?: string,
   ) {
-    const forceRefresh = refresh === 'true';
-    this.logger.log(
-      `Getting any-chain assets for user ${userId}${forceRefresh ? ' (force refresh)' : ''}`,
-    );
-
-    if (!userId) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
 
+    const forceRefresh = refresh === 'true';
+    this.logger.log(
+      `Getting any-chain assets for user ${finalUserId}${forceRefresh ? ' (force refresh)' : ''}`,
+    );
+
     try {
       const assets = await this.walletService.getTokenBalancesAny(
-        userId,
+        finalUserId,
         forceRefresh,
       );
       return assets;
@@ -243,20 +396,22 @@ export class WalletController {
 
   @Get('transactions')
   async getTransactionHistory(
-    @Query('userId') userId: string,
-    @Query('chain') chain: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+    @Query('chain') chain?: string,
     @Query('limit') limit?: string,
   ) {
-    this.logger.log(
-      `Getting transaction history for user ${userId} on chain ${chain}`,
-    );
-
-    if (!userId) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
     if (!chain) {
       throw new BadRequestException('chain is required');
     }
+
+    this.logger.log(
+      `Getting transaction history for user ${finalUserId} on chain ${chain}`,
+    );
 
     const limitNum = limit ? parseInt(limit, 10) : 50;
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
@@ -265,7 +420,7 @@ export class WalletController {
 
     try {
       const transactions = await this.walletService.getTransactionHistory(
-        userId,
+        finalUserId,
         chain,
         limitNum,
       );
@@ -281,14 +436,16 @@ export class WalletController {
 
   @Get('transactions-any')
   async getTransactionHistoryAny(
-    @Query('userId') userId: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
     @Query('limit') limit?: string,
   ) {
-    this.logger.log(`Getting any-chain transaction history for user ${userId}`);
-
-    if (!userId) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
+
+    this.logger.log(`Getting any-chain transaction history for user ${finalUserId}`);
 
     const limitNum = limit ? parseInt(limit, 10) : 100;
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
@@ -297,7 +454,7 @@ export class WalletController {
 
     try {
       const transactions = await this.walletService.getTransactionsAny(
-        userId,
+        finalUserId,
         limitNum,
       );
       return transactions;
@@ -310,12 +467,17 @@ export class WalletController {
   }
 
   @Get('addresses-stream')
-  async streamAddresses(@Query('userId') userId: string, @Res() res: Response) {
-    if (!userId) {
+  async streamAddresses(
+    @Res() res: Response,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+  ) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
 
-    this.logger.log(`Streaming addresses for user ${userId}`);
+    this.logger.log(`Streaming addresses for user ${finalUserId}`);
 
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -325,7 +487,7 @@ export class WalletController {
 
     try {
       // Stream addresses as they become available
-      for await (const payload of this.walletService.streamAddresses(userId)) {
+      for await (const payload of this.walletService.streamAddresses(finalUserId)) {
         res.write(`data: ${JSON.stringify(payload)}\n\n`);
       }
 
@@ -344,12 +506,17 @@ export class WalletController {
   }
 
   @Get('balances-stream')
-  async streamBalances(@Query('userId') userId: string, @Res() res: Response) {
-    if (!userId) {
+  async streamBalances(
+    @Res() res: Response,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+  ) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
 
-    this.logger.log(`Streaming balances for user ${userId}`);
+    this.logger.log(`Streaming balances for user ${finalUserId}`);
 
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -359,7 +526,7 @@ export class WalletController {
 
     try {
       // Stream balances as they're fetched from Zerion
-      for await (const balance of this.walletService.streamBalances(userId)) {
+      for await (const balance of this.walletService.streamBalances(finalUserId)) {
         res.write(`data: ${JSON.stringify(balance)}\n\n`);
       }
 
@@ -379,14 +546,19 @@ export class WalletController {
 
   @Post('walletconnect/sign')
   @HttpCode(HttpStatus.OK)
-  async signWalletConnectTransaction(@Body() dto: WalletConnectSignDto) {
+  async signWalletConnectTransaction(@Body() dto: WalletConnectSignDto, @UserId() userId?: string) {
+    const finalUserId = userId || dto.userId;
+    if (!finalUserId) {
+      throw new BadRequestException('userId is required');
+    }
+
     this.logger.log(
-      `Signing WalletConnect transaction for user ${dto.userId} on chain ${dto.chainId}`,
+      `Signing WalletConnect transaction for user ${finalUserId} on chain ${dto.chainId}`,
     );
 
     try {
       const result = await this.walletService.signWalletConnectTransaction(
-        dto.userId,
+        finalUserId,
         dto.chainId,
         {
           from: dto.from,
@@ -415,17 +587,19 @@ export class WalletController {
 
   @Get('test-rpc-balance')
   async testRpcBalance(
-    @Query('userId') userId: string,
-    @Query('chain') chain: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+    @Query('chain') chain?: string,
   ) {
-    this.logger.log(`Testing RPC balance for user ${userId} on chain ${chain}`);
-
-    if (!userId) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
     if (!chain) {
       throw new BadRequestException('chain is required');
     }
+
+    this.logger.log(`Testing RPC balance for user ${finalUserId} on chain ${chain}`);
 
     const validChains = ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub'];
     if (!validChains.includes(chain)) {
@@ -435,7 +609,7 @@ export class WalletController {
     }
 
     try {
-      const addresses = await this.walletService.getAddresses(userId);
+      const addresses = await this.walletService.getAddresses(finalUserId);
       const address = addresses.ethereum;
 
       if (!address) {
@@ -462,20 +636,22 @@ export class WalletController {
 
   @Get('test-rpc-transactions')
   async testRpcTransactions(
-    @Query('userId') userId: string,
-    @Query('chain') chain: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+    @Query('chain') chain?: string,
     @Query('limit') limit?: string,
   ) {
-    this.logger.log(
-      `Testing RPC transactions for user ${userId} on chain ${chain}`,
-    );
-
-    if (!userId) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
     if (!chain) {
       throw new BadRequestException('chain is required');
     }
+
+    this.logger.log(
+      `Testing RPC transactions for user ${finalUserId} on chain ${chain}`,
+    );
 
     const validChains = ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub'];
     if (!validChains.includes(chain)) {
@@ -490,7 +666,7 @@ export class WalletController {
     }
 
     try {
-      const addresses = await this.walletService.getAddresses(userId);
+      const addresses = await this.walletService.getAddresses(finalUserId);
       const address = addresses.ethereum;
 
       if (!address) {
@@ -524,10 +700,12 @@ export class WalletController {
    */
   @Get('substrate/addresses')
   async getSubstrateAddresses(
-    @Query('userId') userId: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
     @Query('useTestnet') useTestnet?: string,
   ) {
-    if (!userId) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
 
@@ -535,10 +713,10 @@ export class WalletController {
 
     try {
       // Get Substrate addresses through WalletService
-      const substrateAddresses = await this.walletService.getSubstrateAddresses(userId, useTestnetBool);
+      const substrateAddresses = await this.walletService.getSubstrateAddresses(finalUserId, useTestnetBool);
 
       return {
-        userId,
+        userId: finalUserId,
         useTestnet: useTestnetBool,
         addresses: substrateAddresses,
       };
@@ -556,29 +734,31 @@ export class WalletController {
    */
   @Get('substrate/balances')
   async getSubstrateBalances(
-    @Query('userId') userId: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
     @Query('useTestnet') useTestnet?: string,
     @Query('refresh') refresh?: string,
   ) {
-    if (!userId) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
 
     const useTestnetBool = useTestnet === 'true';
     const forceRefresh = refresh === 'true';
-    this.logger.log(`Getting Substrate balances for user ${userId} (testnet: ${useTestnetBool}${forceRefresh ? ', force refresh' : ''})`);
+    this.logger.log(`Getting Substrate balances for user ${finalUserId} (testnet: ${useTestnetBool}${forceRefresh ? ', force refresh' : ''})`);
 
     try {
-      const balances = await this.walletService.getSubstrateBalances(userId, useTestnetBool, forceRefresh);
-      this.logger.log(`Successfully retrieved Substrate balances for user ${userId}: ${Object.keys(balances).length} chains`);
+      const balances = await this.walletService.getSubstrateBalances(finalUserId, useTestnetBool, forceRefresh);
+      this.logger.log(`Successfully retrieved Substrate balances for user ${finalUserId}: ${Object.keys(balances).length} chains`);
       return {
-        userId,
+        userId: finalUserId,
         useTestnet: useTestnetBool,
         balances,
       };
     } catch (error) {
       this.logger.error(
-        `Failed to get Substrate balances for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to get Substrate balances for user ${finalUserId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
       throw error;
     }
@@ -590,13 +770,15 @@ export class WalletController {
    */
   @Get('substrate/transactions')
   async getSubstrateTransactions(
-    @Query('userId') userId: string,
-    @Query('chain') chain: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+    @Query('chain') chain?: string,
     @Query('useTestnet') useTestnet?: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
-    if (!userId) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
     if (!chain) {
@@ -608,7 +790,7 @@ export class WalletController {
 
     try {
       const history = await this.walletService.getSubstrateTransactions(
-        userId,
+        finalUserId,
         chain as SubstrateChainKey,
         useTestnetBool,
         limitNum,
@@ -616,7 +798,7 @@ export class WalletController {
       );
 
       return {
-        userId,
+        userId: finalUserId,
         chain,
         useTestnet: useTestnetBool,
         history,
@@ -635,21 +817,25 @@ export class WalletController {
    */
   @Post('substrate/send')
   @HttpCode(HttpStatus.OK)
-  async sendSubstrateTransfer(@Body() body: {
-    userId: string;
-    chain: SubstrateChainKey;
-    to: string;
-    amount: string;
-    useTestnet?: boolean;
-    transferMethod?: 'transferAllowDeath' | 'transferKeepAlive';
-  }) {
-    if (!body.userId || !body.chain || !body.to || !body.amount) {
+  async sendSubstrateTransfer(
+    @Body() body: {
+      userId: string;
+      chain: SubstrateChainKey;
+      to: string;
+      amount: string;
+      useTestnet?: boolean;
+      transferMethod?: 'transferAllowDeath' | 'transferKeepAlive';
+    },
+    @UserId() userId?: string,
+  ) {
+    const finalUserId = userId || body.userId;
+    if (!finalUserId || !body.chain || !body.to || !body.amount) {
       throw new BadRequestException('userId, chain, to, and amount are required');
     }
 
     try {
       const result = await this.walletService.sendSubstrateTransfer(
-        body.userId,
+        finalUserId,
         body.chain,
         body.to,
         body.amount,

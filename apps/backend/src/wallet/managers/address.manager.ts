@@ -71,6 +71,21 @@ export class AddressManager implements IAddressManager {
   ) {}
 
   /**
+   * Clear all cached addresses for a user (both in-memory and database)
+   * Called when a new seed is created to ensure fresh addresses are generated
+   * @param userId - The user ID
+   */
+  async clearAddressCache(userId: string): Promise<void> {
+    // Clear in-memory cache
+    this.addressCache.delete(userId);
+    
+    // Clear database cache
+    await this.addressCacheRepository.clearAddresses(userId);
+    
+    this.logger.log(`Cleared all address caches for user ${userId}`);
+  }
+
+  /**
    * Get all wallet addresses for all chains
    * Auto-creates wallet if it doesn't exist
    * Fast path: Returns cached addresses from database instantly

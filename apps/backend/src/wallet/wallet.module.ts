@@ -25,6 +25,7 @@ import { EvmModule } from './evm/evm.module.js';
 // Import cache repositories
 import { AddressCacheRepository } from './repositories/address-cache.repository.js';
 import { BalanceCacheRepository } from './repositories/balance-cache.repository.js';
+import { WalletHistoryRepository } from './repositories/wallet-history.repository.js';
 
 @Module({
   imports: [PrismaModule, CryptoModule, SubstrateModule, EvmModule],
@@ -51,6 +52,7 @@ import { BalanceCacheRepository } from './repositories/balance-cache.repository.
     // Cache repositories
     AddressCacheRepository,
     BalanceCacheRepository,
+    WalletHistoryRepository,
   ],
   exports: [
     WalletService,
@@ -73,6 +75,7 @@ import { BalanceCacheRepository } from './repositories/balance-cache.repository.
     // Export cache repositories
     AddressCacheRepository,
     BalanceCacheRepository,
+    WalletHistoryRepository,
   ],
 })
 export class WalletModule {}

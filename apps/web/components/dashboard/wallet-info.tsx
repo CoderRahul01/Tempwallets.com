@@ -1,12 +1,15 @@
-import { Copy, Check, Loader2, RefreshCw, QrCode, Send } from "lucide-react";
+import { Copy, Check, Loader2, RefreshCw, QrCode, Send, History } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@repo/ui/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useWalletV2 } from "@/hooks/useWalletV2";
 import { walletStorage } from "@/lib/walletStorage";
 import { useBrowserFingerprint } from "@/hooks/useBrowserFingerprint";
+import { useAuth } from "@/hooks/useAuth";
+import { walletApi } from "@/lib/api";
 import { WalletConnectModal } from "./walletconnect-modal";
 import { EvmWalletConnectModal } from "./evm-walletconnect-modal";
+import { WalletHistoryModal } from "./wallet-history-modal";
 import { WalletCard } from "./wallet-card";
 import { ChainSelector } from "./chain-selector";
 import { DEFAULT_CHAIN, getChainById } from "@/lib/chains";
@@ -19,8 +22,12 @@ const WalletInfo = () => {
   const [selectedChainId, setSelectedChainId] = useState(DEFAULT_CHAIN.id);
   const [substrateWalletConnectOpen, setSubstrateWalletConnectOpen] = useState(false);
   const [evmWalletConnectOpen, setEvmWalletConnectOpen] = useState(false);
+  const [walletHistoryOpen, setWalletHistoryOpen] = useState(false);
   const { wallets, loading, error, loadWallets, getWalletByChainType } = useWalletV2();
   const walletConfig = useWalletConfig();
+  
+  // Auth - use Google user ID when authenticated
+  const { user, isAuthenticated, userId: authUserId, loading: authLoading } = useAuth();
   
   // Track chain changes
   const handleChainChange = (chainId: string) => {
@@ -36,8 +43,13 @@ const WalletInfo = () => {
     });
   };
   
-  // Use browser fingerprint as unique user ID
+  // Use browser fingerprint as unique user ID (fallback when not authenticated)
   const { fingerprint, loading: fingerprintLoading, generateNewWallet } = useBrowserFingerprint();
+  
+  // KISS: Use Google user ID when authenticated (from useAuth), otherwise fingerprint
+  // authUserId already handles this logic in useAuth hook
+  const userId = authUserId;
+  const isAuthLoading = authLoading || fingerprintLoading || !userId;
 
   // Get selected chain from new config (fallback to old chains.ts for backward compatibility)
   const selectedChainConfig = walletConfig.getById(selectedChainId);
@@ -65,11 +77,19 @@ const WalletInfo = () => {
     }
   }, [currentWallet, loading, error, selectedChainId, selectedChain, selectedChainConfig]);
 
-  // Load wallets when fingerprint is ready
+  // Load wallets when userId is ready and auth loading is complete
   useEffect(() => {
-    if (fingerprint) {
+    console.log('🔍 Auth state:', { authLoading, isAuthenticated, userId, fingerprint, user: user?.email });
+    
+    // Wait for auth to complete loading before loading wallets
+    if (authLoading) {
+      console.log('⏳ Waiting for auth to complete...');
+      return;
+    }
+    
+    if (userId) {
       // Clear cache if it doesn't have Substrate addresses (one-time migration)
-      const cachedAddresses = walletStorage.getAddresses(fingerprint);
+      const cachedAddresses = walletStorage.getAddresses(userId);
       if (cachedAddresses) {
         const hasSubstrate = cachedAddresses.auxiliary?.some(
           (e) => e.category === 'substrate' && e.address
@@ -80,14 +100,19 @@ const WalletInfo = () => {
         }
       }
       // Always load wallets (will fetch fresh if cache was cleared)
-      loadWallets(fingerprint);
+      console.log('📦 Loading wallets for userId:', userId, isAuthenticated ? '(Google)' : '(fingerprint)');
+      loadWallets(userId);
+    } else {
+      console.log('❌ No userId available');
     }
-  }, [loadWallets, fingerprint]);
+  }, [loadWallets, userId, authLoading, isAuthenticated, fingerprint, user]);
 
+  // Show History button only for authenticated users
   const actions = [
     { icon: QrCode, label: "Connect", action: "connect" },
     { icon: Send, label: "Send", action: "send" },
     { icon: Copy, label: "Copy", action: "copy" },
+    ...(isAuthenticated ? [{ icon: History, label: "History", action: "history" }] : []),
     { icon: RefreshCw, label: "Change", action: "change" },
   ];
 
@@ -98,6 +123,7 @@ const WalletInfo = () => {
         return `${baseStyles} bg-[#4C856F]`;
       case 'send':
       case 'copy':
+      case 'history':
         return `${baseStyles} bg-[#292929]`;
       case 'change':
         return `${baseStyles} bg-transparent`;
@@ -113,13 +139,20 @@ const WalletInfo = () => {
 
   const handleActionClick = async (action: string) => {
     if (action === 'change') {
-      if (fingerprint) {
-        console.log('🔄 Change button clicked - Current fingerprint:', fingerprint);
+      // Get the current values at click time
+      const currentUserId = userId;
+      const currentIsAuthenticated = isAuthenticated;
+      
+      // When authenticated with Google, "Change" creates a new wallet under the same Google account
+      // When not authenticated, it generates a new fingerprint
+      if (currentUserId) {
+        console.log('🔄 Change button clicked - Current userId:', currentUserId, currentIsAuthenticated ? '(Google)' : '(fingerprint)');
         
         // Track wallet change action
         trackMixpanelEvent("V2-Dashboard", {
           action: "wallet_change_initiated",
           previousChainId: selectedChainId,
+          isAuthenticated: currentIsAuthenticated,
           timestamp: new Date().toISOString(),
           source: "web-app",
         });
@@ -128,21 +161,39 @@ const WalletInfo = () => {
         walletStorage.clearAddresses();
         console.log('🧹 Cleared wallet cache');
         
-        // Generate new wallet ID (this updates fingerprint and triggers useEffect)
-        const newWalletId = generateNewWallet();
-        console.log('✨ Generated new wallet ID:', newWalletId);
+        let walletIdToUse = currentUserId;
+        
+        // Only generate new fingerprint if NOT authenticated with Google
+        // When authenticated, we regenerate the seed for the same user ID
+        if (!currentIsAuthenticated) {
+          walletIdToUse = generateNewWallet();
+          console.log('✨ Generated new wallet ID:', walletIdToUse);
+        } else {
+          // When authenticated with Google, create a new seed for the same user ID
+          console.log('🔒 Regenerating seed for Google user:', currentUserId);
+          try {
+            await walletApi.createOrImportSeed({
+              userId: currentUserId,
+              mode: 'random',
+            });
+            console.log('✅ New seed created for Google user');
+          } catch (error) {
+            console.error('❌ Failed to create new seed:', error);
+            return; // Don't continue if seed creation failed
+          }
+        }
         
         // Force refresh to fetch new wallets immediately
-        // The useEffect will also trigger, but this ensures immediate update
         console.log('📡 Fetching new wallets from backend...');
-        await loadWallets(newWalletId, true);
+        await loadWallets(walletIdToUse, true);
         console.log('✅ New wallets loaded successfully');
         
         // Track successful wallet creation
         trackMixpanelEvent("V2-Dashboard", {
           action: "wallet_created",
-          newFingerprint: newWalletId,
+          newFingerprint: walletIdToUse,
           chainId: selectedChainId,
+          isAuthenticated: currentIsAuthenticated,
           timestamp: new Date().toISOString(),
           source: "web-app",
         });
@@ -151,6 +202,9 @@ const WalletInfo = () => {
       await copyToClipboard(currentWallet.address);
     } else if (action === 'send') {
       router.push('/transactions');
+    } else if (action === 'history') {
+      // Open wallet history modal for authenticated users
+      setWalletHistoryOpen(true);
     } else if (action === 'connect') {
       // Open appropriate WalletConnect modal based on chain type
       if (selectedChain.hasWalletConnect) {
@@ -190,14 +244,14 @@ const WalletInfo = () => {
       <WalletCard
         wallet={currentWallet}
         chain={selectedChain}
-        loading={fingerprintLoading || loading}
+        loading={isAuthLoading || loading}
         error={error}
       />
 
   {/* Action Buttons */}
   <div className="rounded-3xl p-4 md:p-6 mt-0 pt-6 md:pt-8" style={{ backgroundColor: '#161616' }}>
         <TooltipProvider>
-          <div className="grid grid-cols-4 gap-2 md:gap-4">
+          <div className={`grid gap-2 md:gap-4 ${isAuthenticated ? 'grid-cols-5' : 'grid-cols-4'}`}>
             {actions.map((action) => {
               const isDisabled = 
                 (loading && action.action === 'change') || 
@@ -266,6 +320,19 @@ const WalletInfo = () => {
         open={evmWalletConnectOpen} 
         onOpenChange={setEvmWalletConnectOpen} 
       />
+
+      {/* Wallet History Modal - Only for authenticated users */}
+      {isAuthenticated && userId && (
+        <WalletHistoryModal
+          open={walletHistoryOpen}
+          onOpenChange={setWalletHistoryOpen}
+          userId={userId}
+          onSwitchWallet={async () => {
+            // Reload wallets after switching
+            await loadWallets(userId, true);
+          }}
+        />
+      )}
     </div>
   );
 };

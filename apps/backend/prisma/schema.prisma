@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,22 +8,29 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
-  wallets   Wallet[]
+  id          String   @id @default(cuid())
+  email       String?  @unique
+  googleId    String?  @unique
+  fingerprint String?  @unique
+  name        String?
+  picture     String?
+  createdAt   DateTime @default(now())
+  lastLoginAt DateTime @updatedAt
+  wallets     Wallet[]
+
+  @@index([googleId])
+  @@index([fingerprint])
 }
 
 model Wallet {
-  id               String         @id @default(cuid())
+  id               String          @id @default(cuid())
   userId           String
   salt             String
-  encryptedSeed    String         // hex-encoded Buffer
-  encryptedEntropy String         // hex-encoded Buffer
-  createdAt        DateTime       @default(now())
+  encryptedSeed    String
+  encryptedEntropy String
+  createdAt        DateTime        @default(now())
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   addresses        WalletAddress[]
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -34,11 +38,10 @@ model Wallet {
 model WalletAddress {
   id        String   @id @default(cuid())
   walletId  String
-  chain     String   // 'base', 'ethereum', 'polygon'
+  chain     String
   address   String
   createdAt DateTime @default(now())
-
-  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
   @@unique([walletId, chain])
   @@index([walletId])
@@ -46,23 +49,40 @@ model WalletAddress {
 }
 
 model WalletSeed {
-  id        String   @id @default(cuid())
-  userId    String   @unique
+  id         String   @id @default(cuid())
+  userId     String   @unique
   ciphertext String
-  iv        String
-  authTag   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  iv         String
+  authTag    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([userId])
 }
 
+// Stores wallet history for authenticated users (Google login)
+// Allows users to switch between previously created wallets
+model WalletHistory {
+  id         String   @id @default(cuid())
+  userId     String   // Google user ID
+  label      String?  // User-friendly name like "Wallet 1", "Savings", etc.
+  ciphertext String   // Encrypted seed phrase
+  iv         String
+  authTag    String
+  isActive   Boolean  @default(false) // Only one wallet should be active per user
+  createdAt  DateTime @default(now())
+  
+  @@index([userId])
+  @@index([userId, isActive])
+  @@map("wallet_history")
+}
+
 model WalletCache {
-  id            String   @id @default(cuid())
-  fingerprint   String   @unique // browser fingerprint (same as userId)
-  cachedBalances Json     // Store balances per chain: { chain: { balance: string, lastUpdated: timestamp } }
-  lastUpdated   DateTime @default(now()) @updatedAt
-  createdAt     DateTime @default(now())
+  id             String   @id @default(cuid())
+  fingerprint    String   @unique
+  cachedBalances Json
+  lastUpdated    DateTime @default(now()) @updatedAt
+  createdAt      DateTime @default(now())
 
   @@index([fingerprint])
   @@map("wallet_cache")
@@ -70,9 +90,9 @@ model WalletCache {
 
 model WalletAddressCache {
   id          String   @id @default(cuid())
-  fingerprint String   // browser fingerprint (same as userId)
-  chain       String   // chain identifier (ethereum, base, solana, etc.)
-  address     String   // public address for this chain
+  fingerprint String
+  chain       String
+  address     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -81,4 +101,3 @@ model WalletAddressCache {
   @@index([chain])
   @@map("wallet_address_cache")
 }
-
