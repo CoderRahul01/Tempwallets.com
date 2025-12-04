@@ -159,8 +159,52 @@ export function WalletDataProvider({
           // Don't fail the whole fetch if Substrate fails
         }
 
+        // Fetch Aptos balances (testnet and mainnet)
+        const aptosBalances: AnyChainAsset[] = [];
+        try {
+          // Fetch testnet balance
+          try {
+            const testnetBalance = await walletApi.getAptosBalance(fingerprint, 'testnet');
+            // Convert APT to octas (8 decimals) for smallest units
+            const balanceInOctas = (parseFloat(testnetBalance.balance) * Math.pow(10, 8)).toString();
+            aptosBalances.push({
+              chain: 'aptosTestnet',
+              address: null,
+              symbol: 'APT',
+              balance: balanceInOctas,
+              decimals: 8,
+              balanceHuman: testnetBalance.balance,
+            });
+          } catch (testnetErr) {
+            console.warn('Failed to load Aptos testnet balance:', testnetErr);
+          }
+
+          // Fetch mainnet balance
+          try {
+            const mainnetBalance = await walletApi.getAptosBalance(fingerprint, 'mainnet');
+            // Convert APT to octas (8 decimals) for smallest units
+            const balanceInOctas = (parseFloat(mainnetBalance.balance) * Math.pow(10, 8)).toString();
+            aptosBalances.push({
+              chain: 'aptos',
+              address: null,
+              symbol: 'APT',
+              balance: balanceInOctas,
+              decimals: 8,
+              balanceHuman: mainnetBalance.balance,
+            });
+          } catch (mainnetErr) {
+            console.warn('Failed to load Aptos mainnet balance:', mainnetErr);
+          }
+        } catch (aptosErr) {
+          console.warn('Failed to load Aptos balances:', aptosErr);
+          // Don't fail the whole fetch if Aptos fails
+        }
+
+        // Combine all assets including Aptos
+        const allAssets = [...assets, ...aptosBalances];
+
         // Merge and normalize all balances
-        const normalized = mergeAndNormalizeBalances(assets, substrateBalances);
+        const normalized = mergeAndNormalizeBalances(allAssets, substrateBalances);
 
         setBalances(normalized);
         setLastFetched((prev) => ({ ...prev, balances: Date.now() }));

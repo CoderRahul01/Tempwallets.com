@@ -8,6 +8,7 @@ import Avalanche from '@thirdweb-dev/chain-icons/dist/avalanche';
 import Tron from '@thirdweb-dev/chain-icons/dist/tron';
 import Arbitrum from '@thirdweb-dev/chain-icons/dist/arbitrum';
 import Base from '../components/icons/BaseIcon';
+import AptosIcon from '../components/icons/AptosIcon';
 
 import {
   WalletConfig,
@@ -327,6 +328,68 @@ export const WALLET_CONFIGS: WalletConfig[] = [
       advancedOnly: false,
     },
     group: 'tron',
+  },
+  {
+    id: 'aptos',
+    name: 'Aptos',
+    symbol: 'APT',
+    description: 'Aptos Mainnet',
+    type: 'aptos',
+    isTestnet: false,
+    category: 'layer1',
+    visible: true,
+    icon: AptosIcon,
+    priority: 24,
+    color: '#00D4FF',
+    capabilities: {
+      walletConnect: false,
+      send: true,
+      receive: true,
+      copy: true,
+      balanceFetch: true,
+      transactionHistory: false, // TODO: Add transaction history support
+      nativeToken: true,
+      tokenTransfers: false, // TODO: Add token transfer support
+    },
+    features: {
+      showInSelector: true,
+      showInWalletList: true,
+      enabledInProd: false, // Start with dev/testnet only
+      enabledInDev: true,
+      advancedOnly: false,
+    },
+    group: 'aptos',
+  },
+  {
+    id: 'aptosTestnet',
+    name: 'Aptos Testnet',
+    symbol: 'APT',
+    description: 'Aptos Testnet',
+    type: 'aptos',
+    isTestnet: true,
+    category: 'layer1',
+    visible: true,
+    icon: AptosIcon,
+    priority: 205,
+    color: '#00D4FF',
+    capabilities: {
+      walletConnect: false,
+      send: true,
+      receive: true,
+      copy: true,
+      balanceFetch: true,
+      transactionHistory: false,
+      nativeToken: true,
+      tokenTransfers: false,
+    },
+    features: {
+      showInSelector: true,
+      showInWalletList: true,
+      enabledInProd: false,
+      enabledInDev: true,
+      advancedOnly: false,
+    },
+    group: 'aptos',
   },
 
   // ========================================

@@ -26,11 +26,6 @@ const CHAIN_NAMES: Record<string, string> = {
   arbitrumErc4337: "Arbitrum (ERC-4337)",
   polygonErc4337: "Polygon (ERC-4337)",
   avalancheErc4337: "Avalanche (ERC-4337)",
-  // Aptos chains
-  aptos: "Aptos",
-  aptosMainnet: "Aptos Mainnet",
-  aptosTestnet: "Aptos Testnet",
-  aptosDevnet: "Aptos Devnet",
   // Polkadot EVM Compatible chains
   moonbeamTestnet: "Moonbeam Testnet",
   astarShibuya: "Astar Shibuya",
@@ -42,6 +37,9 @@ const CHAIN_NAMES: Record<string, string> = {
   uniqueSubstrate: "Unique (Substrate)",
   paseo: "Paseo",
   paseoAssethub: "Paseo AssetHub",
+  // Aptos chains
+  aptos: "Aptos",
+  aptosTestnet: "Aptos Testnet",
 };
 
 const NATIVE_TOKEN_SYMBOLS: Record<string, string> = {
@@ -55,11 +53,6 @@ const NATIVE_TOKEN_SYMBOLS: Record<string, string> = {
   // Legacy/internal fallbacks
   tron: 'TRX',
   bitcoin: 'BTC',
-  // Aptos chains
-  aptos: 'APT',
-  aptosMainnet: 'APT',
-  aptosTestnet: 'APT',
-  aptosDevnet: 'APT',
   ethereumErc4337: 'ETH',
   baseErc4337: 'ETH',
   arbitrumErc4337: 'ETH',
@@ -76,6 +69,9 @@ const NATIVE_TOKEN_SYMBOLS: Record<string, string> = {
   uniqueSubstrate: 'UNQ',
   paseo: 'PAS',
   paseoAssethub: 'PAS',
+  // Aptos chains
+  aptos: 'APT',
+  aptosTestnet: 'APT',
 };
 
 const getNativeTokenSymbol = (chain: string): string => {
@@ -229,6 +225,9 @@ export default function TransactionsPage() {
       uniqueSubstrate: 'uniqueSubstrate',
       paseo: 'paseo',
       paseoAssethub: 'paseoAssethub',
+      // Aptos chains - pass through as-is
+      aptos: 'aptos',
+      aptosTestnet: 'aptosTestnet',
     };
     return m[chain] || null;
   };

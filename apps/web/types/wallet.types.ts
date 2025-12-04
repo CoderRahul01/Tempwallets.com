@@ -3,7 +3,7 @@ import { ComponentType, SVGProps } from 'react';
 /**
  * Chain types that determine wallet compatibility and functionality
  */
-export type ChainType = 'evm' | 'substrate' | 'bitcoin' | 'solana' | 'tron';
+export type ChainType = 'evm' | 'substrate' | 'bitcoin' | 'solana' | 'tron' | 'aptos';
 
 /**
  * Chain category for organizing chains
@@ -21,7 +21,8 @@ export type ChainGroup =
   | 'substrate-testnet'   // Substrate testnet chains
   | 'bitcoin'             // Bitcoin chain
   | 'solana'              // Solana chain
-  | 'tron';               // Tron chain
+  | 'tron'                // Tron chain
+  | 'aptos';              // Aptos chain
 
 /**
  * Wallet capabilities - what actions can be performed

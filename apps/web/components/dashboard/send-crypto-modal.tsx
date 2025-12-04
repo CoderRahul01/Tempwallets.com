@@ -44,11 +44,6 @@ const CHAIN_NAMES: Record<string, string> = {
   polygon: "Polygon",
   avalancheErc4337: "Avalanche (ERC-4337)",
   avalanche: "Avalanche",
-  // Aptos chains
-  aptos: "Aptos",
-  aptosMainnet: "Aptos Mainnet",
-  aptosTestnet: "Aptos Testnet",
-  aptosDevnet: "Aptos Devnet",
   // Polkadot EVM Compatible chains
   moonbeamTestnet: "Moonbeam Testnet",
   astarShibuya: "Astar Shibuya",
@@ -60,6 +55,9 @@ const CHAIN_NAMES: Record<string, string> = {
   uniqueSubstrate: "Unique (Substrate)",
   paseo: "Paseo",
   paseoAssethub: "Paseo AssetHub",
+  // Aptos chains
+  aptos: "Aptos",
+  aptosTestnet: "Aptos Testnet",
 };
 
 // Address validation per chain type
@@ -98,14 +96,6 @@ const validateAddress = (address: string, chain: string): string | null => {
     }
   }
 
-  // Aptos chains (0x + 64 hex characters)
-  const APTOS_CHAINS = ["aptos", "aptosMainnet", "aptosTestnet", "aptosDevnet"];
-  if (APTOS_CHAINS.includes(chain)) {
-    if (!/^0x[a-fA-F0-9]{1,64}$/.test(trimmed)) {
-      return "Invalid Aptos address format (must start with 0x and be 1-64 hex characters)";
-    }
-  }
-
   // Substrate/Polkadot chains (SS58 format)
   const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
   if (SUBSTRATE_CHAINS.includes(chain)) {
@@ -113,6 +103,13 @@ const validateAddress = (address: string, chain: string): string | null => {
     // Basic validation: should be alphanumeric and reasonable length
     if (trimmed.length < 32 || trimmed.length > 50 || !/^[1-9A-HJ-NP-Za-km-z]+$/.test(trimmed)) {
       return "Invalid Substrate address format (SS58 encoded, typically 32-50 characters)";
+    }
+  }
+
+  // Aptos chains (0x-prefixed hex, 64 characters)
+  if (chain === "aptos" || chain === "aptosTestnet") {
+    if (!/^0x[a-fA-F0-9]{64}$/.test(trimmed)) {
+      return "Invalid Aptos address format (must start with 0x and be 66 characters)";
     }
   }
 
@@ -161,44 +158,13 @@ const getExplorerUrl = (txHash: string, chain: string): string => {
     return `${explorer}/tx/${txHash}`;
   }
 
-  // Aptos chains
-  const aptosExplorers: Record<string, { mainnet: string; testnet: string; devnet: string }> = {
-    aptos: {
-      mainnet: 'https://explorer.aptoslabs.com',
-      testnet: 'https://explorer.aptoslabs.com/?network=testnet',
-      devnet: 'https://explorer.aptoslabs.com/?network=devnet',
-    },
-    aptosMainnet: {
-      mainnet: 'https://explorer.aptoslabs.com',
-      testnet: 'https://explorer.aptoslabs.com/?network=testnet',
-      devnet: 'https://explorer.aptoslabs.com/?network=devnet',
-    },
-    aptosTestnet: {
-      mainnet: 'https://explorer.aptoslabs.com',
-      testnet: 'https://explorer.aptoslabs.com/?network=testnet',
-      devnet: 'https://explorer.aptoslabs.com/?network=devnet',
-    },
-    aptosDevnet: {
-      mainnet: 'https://explorer.aptoslabs.com',
-      testnet: 'https://explorer.aptoslabs.com/?network=testnet',
-      devnet: 'https://explorer.aptoslabs.com/?network=devnet',
-    },
-  };
-
-  // Determine network for Aptos chains (default to testnet)
-  const aptosChain = aptosExplorers[chain];
-  if (aptosChain) {
-    // For now, default to testnet (can be enhanced to detect network from chain name)
-    const network = chain.includes('mainnet') ? 'mainnet' : chain.includes('devnet') ? 'devnet' : 'testnet';
-    const explorer = aptosChain[network];
-    return `${explorer}&transaction=${txHash}`;
-  }
-
   // Non-EVM chains
   const nonEvmExplorers: Record<string, string> = {
     tron: `https://tronscan.org/#/transaction/${txHash}`,
     bitcoin: `https://blockstream.info/tx/${txHash}`,
     solana: `https://solscan.io/tx/${txHash}`,
+    aptos: `https://explorer.aptoslabs.com/?network=mainnet&transaction=${txHash}`,
+    aptosTestnet: `https://explorer.aptoslabs.com/?network=testnet&transaction=${txHash}`,
   };
 
   if (nonEvmExplorers[chain]) {
@@ -276,32 +242,15 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
     setLoadingTokens(true);
     setError(null);
     try {
-      // Check if this is an Aptos chain
-      const APTOS_CHAINS = ["aptos", "aptosMainnet", "aptosTestnet", "aptosDevnet"];
-      const isAptos = APTOS_CHAINS.includes(chain);
-
       // Check if this is a Substrate chain
       const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
       const isSubstrate = SUBSTRATE_CHAINS.includes(chain);
 
-      if (isAptos) {
-        // For Aptos, we only support native APT token
-        // Get balance from Aptos API
-        const network = chain.includes('mainnet') ? 'mainnet' : chain.includes('devnet') ? 'devnet' : 'testnet';
-        const balanceData = await walletApi.getAptosBalance(userId, network);
-        const balanceNum = parseFloat(balanceData.balance);
-        const balanceInSmallestUnits = (balanceNum * 1e8).toString(); // APT has 8 decimals (octas)
-        
-        const nativeToken: TokenBalance = {
-          address: null,
-          symbol: 'APT',
-          balance: balanceInSmallestUnits,
-          decimals: 8,
-        };
-        
-        setTokens([nativeToken]);
-        setSelectedToken(nativeToken);
-      } else if (isSubstrate) {
+      // Check if this is an Aptos chain
+      const APTOS_CHAINS = ["aptos", "aptosTestnet"];
+      const isAptos = APTOS_CHAINS.includes(chain);
+
+      if (isSubstrate) {
         // Load Substrate balances
         const balances = await walletApi.getSubstrateBalances(userId, false);
         const chainBalance = balances[chain];
@@ -320,6 +269,20 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
           setTokens([]);
           setError("No address found for this Substrate chain");
         }
+      } else if (isAptos) {
+        // Load Aptos balance
+        const network = chain === "aptosTestnet" ? "testnet" : "mainnet";
+        const balanceData = await walletApi.getAptosBalance(userId, network);
+        
+        // Create a single token entry for native APT token
+        const tokenList: TokenBalance[] = [{
+          address: null, // Native token
+          symbol: "APT",
+          balance: (parseFloat(balanceData.balance) * Math.pow(10, 8)).toString(), // Convert to octas (8 decimals)
+          decimals: 8,
+        }];
+        setTokens(tokenList);
+        setSelectedToken(tokenList[0] ?? null);
       } else {
         // Load aggregated assets once and filter for the selected chain
         const allAssets: AnyChainAsset[] = await walletApi.getAssetsAny(userId);
@@ -422,25 +385,12 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
       const isSubstrate = SUBSTRATE_CHAINS.includes(chain);
 
       // Check if this is an Aptos chain
-      const APTOS_CHAINS = ["aptos", "aptosMainnet", "aptosTestnet", "aptosDevnet"];
+      const APTOS_CHAINS = ["aptos", "aptosTestnet"];
       const isAptos = APTOS_CHAINS.includes(chain);
 
       let result: { txHash: string };
 
-      if (isAptos) {
-        // Determine network from chain name
-        const network = chain.includes('mainnet') ? 'mainnet' : chain.includes('devnet') ? 'devnet' : 'testnet';
-        
-        // Use Aptos send endpoint
-        const aptosResult = await walletApi.sendAptosTransaction({
-          userId,
-          recipientAddress: recipientAddress.trim(),
-          amount: parseFloat(amount), // Amount in APT (human-readable)
-          network,
-        });
-
-        result = { txHash: aptosResult.transactionHash };
-      } else if (isSubstrate) {
+      if (isSubstrate) {
         // Convert human-readable amount to smallest units for Substrate
         const amountInSmallestUnits = (parseFloat(amount) * Math.pow(10, selectedToken.decimals)).toString();
         
@@ -455,6 +405,16 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         });
 
         result = { txHash: substrateResult.txHash };
+      } else if (isAptos) {
+        // Use Aptos send endpoint
+        const network = chain === "aptosTestnet" ? "testnet" : "mainnet";
+        const aptosResult = await walletApi.sendAptosTransaction({
+          userId,
+          recipientAddress: recipientAddress.trim(),
+          amount: parseFloat(amount), // Amount in APT (human-readable)
+          network,
+        });
+        result = { txHash: aptosResult.transactionHash };
       } else {
         // Use regular EVM/other chain send endpoint
         result = await walletApi.sendCrypto({

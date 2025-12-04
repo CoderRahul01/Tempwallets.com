@@ -48,6 +48,7 @@ export function ChainSelector({
       'Gasless': [],
       'EVM Chains': [],
       'Substrate': [],
+      'Aptos': [],
       'Other': [],
     };
 
@@ -55,9 +56,12 @@ export function ChainSelector({
       if (chain.isSmartAccount) {
         groups['Gasless']!.push(chain);
       } else if (chain.type === 'evm') {
+        // Include EOA wallets in EVM Chains group
         groups['EVM Chains']!.push(chain);
       } else if (chain.type === 'substrate') {
         groups['Substrate']!.push(chain);
+      } else if (chain.type === 'aptos') {
+        groups['Aptos']!.push(chain);
       } else {
         groups['Other']!.push(chain);
       }
@@ -134,12 +138,12 @@ export function ChainSelector({
                         Gasless
                       </span>
                     )}
-                    {(!chain.capabilities?.walletConnect) && (
+                    {(!chain.capabilities?.walletConnect && chain.type !== 'aptos') && (
                       <span className="px-1 py-0 text-[8px] bg-orange-500/20 text-orange-400 rounded-full font-rubik-medium leading-tight border border-orange-500/30">
                         Coming Soon
                       </span>
                     )}
-                    {!chain.isSmartAccount && chain.capabilities?.walletConnect && (
+                    {!chain.isSmartAccount && (chain.capabilities?.walletConnect || chain.type === 'aptos') && (
                       <span className="h-[14px]" />
                     )}
                   </div>
@@ -239,7 +243,7 @@ export function ChainSelector({
                                 Gasless
                               </span>
                             )}
-                            {(!chain.capabilities?.walletConnect) && (
+                            {(!chain.capabilities?.walletConnect && chain.type !== 'aptos') && (
                               <span className="px-2 py-0.5 text-[8px] bg-orange-500/20 text-orange-400 rounded-full font-rubik-medium leading-tight whitespace-nowrap border border-orange-500/30">
                                 Coming Soon
                               </span>

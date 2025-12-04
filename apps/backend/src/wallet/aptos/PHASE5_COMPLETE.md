@@ -1,123 +1,146 @@
-# Phase 5: Frontend Integration - Complete! ✅
+# Phase 5: Frontend Integration - Complete ✅
 
 ## Summary
 
-Phase 5 frontend integration for Aptos wallet is now complete. All necessary components have been updated to support Aptos chains.
+All frontend integration for Aptos wallet functionality has been completed. Aptos is now fully integrated into the UI with support for testnet.
 
-## ✅ Implementation Complete
+## Changes Made
 
-### 1. Chain Configuration
-- ✅ Added Aptos to `ChainType` (`'aptos'`)
-- ✅ Added Aptos chain config with icon
-- ✅ Updated category mapping
-- ✅ Added as featured chain
+### 1. Chain Configuration ✅
+- **File**: `apps/web/lib/wallet-config.ts`
+- Added Aptos mainnet and testnet configurations
+- Added Aptos icon import
+- Set priority and capabilities
+- Enabled in dev environment, testnet visible
 
-### 2. API Integration
-- ✅ `getAptosAddress()` - Get address
-- ✅ `getAptosBalance()` - Get balance
-- ✅ `sendAptosTransaction()` - Send APT
-- ✅ `fundAptosAccount()` - Fund from faucet
+### 2. Chain Type Updates ✅
+- **Files**: 
+  - `apps/web/types/wallet.types.ts`
+  - `apps/web/lib/chains.ts`
+- Added `'aptos'` to `ChainType` union type
+- Updated `mapWalletCategoryToChainType` to handle `'aptos'` category
 
-### 3. UI Components
-- ✅ Chain names added to all components
-- ✅ Native token symbols added
-- ✅ Address validation implemented
-- ✅ Explorer URLs configured
-- ✅ Send modal fully integrated
+### 3. Aptos Icon Component ✅
+- **File**: `apps/web/components/icons/AptosIcon.tsx`
+- Created custom SVG icon component for Aptos
+- Uses layered geometric design with Aptos brand colors
 
-### 4. Send Modal
-- ✅ Aptos token loading (native APT)
-- ✅ Network detection (mainnet/testnet/devnet)
-- ✅ Transaction sending
-- ✅ Explorer link generation
+### 4. Chain Selector Integration ✅
+- **File**: `apps/web/components/dashboard/chain-selector.tsx`
+- Added 'Aptos' group to chain selector
+- Aptos chains now appear in the chain selector UI
+- Supports both mainnet and testnet
 
-## Files Modified
+### 5. Send Modal Integration ✅
+- **File**: `apps/web/components/dashboard/send-crypto-modal.tsx`
+- Added Aptos address validation (0x-prefixed, 64 hex chars)
+- Added Aptos token loading (native APT only)
+- Added Aptos transaction sending
+- Added Aptos explorer URLs (mainnet/testnet)
+- Integrated with Aptos API endpoints
 
-1. **`apps/web/lib/chains.ts`**
-   - Added Aptos chain configuration
-   - Updated ChainType
-   - Updated category mapping
+### 6. API Integration ✅
+- **File**: `apps/web/lib/api.ts`
+- Added `getAptosAddress()` - Get Aptos address
+- Added `getAptosBalance()` - Get APT balance
+- Added `sendAptosTransaction()` - Send APT transaction
+- Added `fundAptosAccount()` - Fund from faucet (devnet only)
 
-2. **`apps/web/lib/api.ts`**
-   - Added 4 Aptos API methods
+### 7. Balance Hooks Integration ✅
+- **File**: `apps/web/hooks/useStreamingBalances.ts`
+- Added Aptos balance fetching in batch loading
+- Added Aptos balance refresh support
+- Converts balance from APT to octas (8 decimals)
+- Handles both mainnet and testnet
 
-3. **`apps/web/app/transactions/page.tsx`**
-   - Added Aptos to CHAIN_NAMES
-   - Added APT to NATIVE_TOKEN_SYMBOLS
+### 8. Transactions Page ✅
+- **File**: `apps/web/app/transactions/page.tsx`
+- Added Aptos to `CHAIN_NAMES` mapping
+- Added Aptos to `NATIVE_TOKEN_SYMBOLS` mapping
 
-4. **`apps/web/components/dashboard/recent-transactions.tsx`**
-   - Added Aptos to CHAIN_NAMES
+## Configuration
 
-5. **`apps/web/components/dashboard/send-crypto-modal.tsx`**
-   - Added Aptos address validation
-   - Added Aptos explorer URLs
-   - Added Aptos token loading
-   - Added Aptos transaction sending
+### Aptos Mainnet
+- **ID**: `aptos`
+- **Network**: `mainnet`
+- **Symbol**: `APT`
+- **Priority**: 24
+- **Color**: `#00D4FF`
+- **Enabled in Prod**: `false` (dev/testnet only for now)
 
-## Features
+### Aptos Testnet
+- **ID**: `aptosTestnet`
+- **Network**: `testnet`
+- **Symbol**: `APT`
+- **Priority**: 205
+- **Color**: `#00D4FF`
+- **Enabled in Dev**: `true`
+- **Visible**: `true`
 
-### Address Validation
-- Format: `0x` + 1-64 hex characters
-- Validates: `aptos`, `aptosMainnet`, `aptosTestnet`, `aptosDevnet`
+## Features Implemented
 
-### Network Detection
-- `aptos` → testnet (default)
-- `aptosMainnet` → mainnet
-- `aptosTestnet` → testnet
-- `aptosDevnet` → devnet
+### ✅ Address Management
+- Aptos addresses appear in wallet list
+- Address derivation from seed phrase
+- Address validation (0x-prefixed, 64 hex chars)
 
-### Explorer URLs
-- Mainnet: `https://explorer.aptoslabs.com`
-- Testnet: `https://explorer.aptoslabs.com/?network=testnet`
-- Devnet: `https://explorer.aptoslabs.com/?network=devnet`
+### ✅ Balance Display
+- APT balance fetching from backend
+- Balance display in UI
+- Balance refresh support
+- Caching with TTL
 
-## Testing
+### ✅ Transaction Sending
+- Send APT transactions
+- Address validation
+- Amount validation
+- Transaction hash display
+- Explorer link generation
 
-### Manual Testing Steps
+### ✅ UI Integration
+- Chain selector includes Aptos
+- Send modal supports Aptos
+- Balance hooks fetch Aptos balances
+- Transaction page recognizes Aptos
 
-1. **Chain Selector**
-   - Open dashboard
-   - Verify Aptos appears in chain selector
-   - Select Aptos chain
+## API Endpoints Used
 
-2. **Wallet Display**
-   - Verify Aptos wallet card displays
-   - Verify address is shown correctly
+1. **GET** `/wallet/aptos/address` - Get Aptos address
+2. **GET** `/wallet/aptos/balance` - Get APT balance
+3. **POST** `/wallet/aptos/send` - Send APT transaction
+4. **POST** `/wallet/aptos/faucet` - Fund from faucet (devnet only)
 
-3. **Balance**
-   - Verify APT balance loads
-   - Verify balance format is correct
+## Testing Checklist
 
-4. **Send Modal**
-   - Click send on Aptos wallet
-   - Verify modal opens
-   - Verify APT balance is shown
-   - Enter recipient address
-   - Enter amount
-   - Submit transaction
-   - Verify transaction hash
-   - Verify explorer link works
-
-5. **Error Handling**
-   - Test invalid address
-   - Test insufficient balance
-   - Test network errors
+- [ ] Aptos appears in chain selector
+- [ ] Aptos address displays in wallet list
+- [ ] APT balance displays correctly
+- [ ] Send modal opens for Aptos
+- [ ] Address validation works
+- [ ] Transaction sending works
+- [ ] Transaction hash displays
+- [ ] Explorer link works
+- [ ] Balance refresh works
+- [ ] Testnet functionality verified
 
 ## Next Steps
 
-1. ✅ Frontend integration complete
-2. 🧪 Test in browser
-3. 🐛 Fix any issues found
-4. 🚀 Deploy to production
+1. **Test on Testnet**: Verify all functionality on Aptos Testnet
+2. **User Testing**: Get user feedback on UI/UX
+3. **Mainnet Enable**: Enable mainnet when ready
+4. **Transaction History**: Add transaction history support (future)
+5. **Token Transfers**: Add token transfer support (future)
 
-## All Phases Complete! 🎉
+## Notes
 
-- ✅ Phase 0: Prerequisites & Setup
-- ✅ Phase 1: Core Infrastructure
-- ✅ Phase 2: Account & Address Management
-- ✅ Phase 3: Transaction Service
-- ✅ Phase 4: Manager & Controller
-- ✅ Phase 5: Frontend Integration
+- Aptos uses 8 decimals (octas) for APT
+- Addresses are 0x-prefixed hex strings (66 characters total)
+- Testnet is the default network for now
+- Mainnet is disabled in production until fully tested
+- Transaction history is not yet implemented
+- Token transfers are not yet implemented
 
-**Aptos wallet integration is now complete end-to-end!**
+## Status: ✅ Complete
+
+All Phase 5 tasks have been completed. Aptos is fully integrated into the frontend and ready for testing on testnet.
 
