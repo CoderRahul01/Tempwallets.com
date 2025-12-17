@@ -43,7 +43,7 @@ export class AptosAccountFactory {
     const wordCount = trimmedSeed.split(/\s+/).length;
     if (![12, 15, 18, 21, 24].includes(wordCount)) {
       throw new Error(
-        `Invalid seed phrase: expected 12/15/18/21/24 words, got ${wordCount}`
+        `Invalid seed phrase: expected 12/15/18/21/24 words, got ${wordCount}`,
       );
     }
 
@@ -113,17 +113,19 @@ export class AptosAccountFactory {
       // Validate length (Ed25519 private key must be 32 bytes = 64 hex chars)
       if (cleanKey.length !== 64) {
         throw new Error(
-          `Invalid private key length: ${cleanKey.length} chars (expected 64 hex chars for Ed25519)`
+          `Invalid private key length: ${cleanKey.length} chars (expected 64 hex chars for Ed25519)`,
         );
       }
 
       // Create Ed25519PrivateKey from hex string
-      const ed25519PrivateKey = new Ed25519PrivateKey(`0x${cleanKey.toLowerCase()}`);
-      
+      const ed25519PrivateKey = new Ed25519PrivateKey(
+        `0x${cleanKey.toLowerCase()}`,
+      );
+
       // Create account from private key using SDK's proper API
-      const account = Account.fromPrivateKey({ 
+      const account = Account.fromPrivateKey({
         privateKey: ed25519PrivateKey,
-        legacy: true,  // Use legacy Ed25519Account for compatibility
+        legacy: true, // Use legacy Ed25519Account for compatibility
       });
 
       // Get normalized address
@@ -168,4 +170,3 @@ export class AptosAccountFactory {
     return this.createAccountFromSeed(mnemonic, accountIndex);
   }
 }
-

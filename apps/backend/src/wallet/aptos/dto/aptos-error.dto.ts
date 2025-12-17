@@ -19,4 +19,3 @@ export class AptosErrorDto {
     this.details = details;
   }
 }
-

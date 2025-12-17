@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AccountAddress, Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
+import {
+  AccountAddress,
+  Aptos,
+  AptosConfig,
+  Network,
+} from '@aptos-labs/ts-sdk';
 import { getNetworkConfig } from '../config/aptos-chain.config.js';
 import { normalizeAddress } from '../utils/address.utils.js';
 
@@ -9,7 +14,7 @@ export class AptosFaucetService {
 
   /**
    * Fund account from faucet (testnet/devnet only)
-   * 
+   *
    * NOTE: Testnet faucet requires manual interaction via https://aptos.dev/network/faucet
    * Only devnet supports programmatic funding via SDK.
    */
@@ -18,7 +23,6 @@ export class AptosFaucetService {
     network: 'testnet' | 'devnet',
     amount?: number, // Amount in APT (default: 100)
   ): Promise<{ success: boolean; message: string; hash?: string }> {
-
     // Testnet faucet doesn't support programmatic funding via SDK
     if (network === 'testnet') {
       const normalizedAddress = normalizeAddress(address);
@@ -54,7 +58,8 @@ export class AptosFaucetService {
       });
 
       // The SDK returns an array of transaction hashes
-      const hash = Array.isArray(result) && result.length > 0 ? result[0] : undefined;
+      const hash =
+        Array.isArray(result) && result.length > 0 ? result[0] : undefined;
 
       this.logger.log(
         `Successfully funded account ${normalizedAddress} with ${faucetAmount} APT. Hash: ${hash}`,
@@ -87,4 +92,3 @@ export class AptosFaucetService {
     return !!config.faucetUrl;
   }
 }
-

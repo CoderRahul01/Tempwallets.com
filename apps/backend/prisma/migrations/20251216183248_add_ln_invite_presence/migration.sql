@@ -1,0 +1,8 @@
+-- Intentionally left blank.
+--
+-- This migration was created accidentally by prisma migrate dev during local development.
+-- It originally contained DROP INDEX statements that would remove indexes created by
+-- 20251216235900_add_ln_invite_presence.
+--
+-- Keeping this file as a no-op prevents schema/index flapping if the migration is present
+-- in the database migration history.

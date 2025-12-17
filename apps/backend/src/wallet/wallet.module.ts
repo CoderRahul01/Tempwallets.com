@@ -38,7 +38,13 @@ import { AptosTransactionService } from './aptos/services/aptos-transaction.serv
 import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
 
 @Module({
-  imports: [PrismaModule, CryptoModule, SubstrateModule, EvmModule, AptosModule],
+  imports: [
+    PrismaModule,
+    CryptoModule,
+    SubstrateModule,
+    EvmModule,
+    AptosModule,
+  ],
   controllers: [WalletController],
   providers: [
     WalletService,

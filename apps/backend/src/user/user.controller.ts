@@ -34,10 +34,7 @@ export class UserController {
   }
 
   @Patch('profile')
-  async updateProfile(
-    @UserId() userId: string,
-    @Body() dto: UpdateProfileDto,
-  ) {
+  async updateProfile(@UserId() userId: string, @Body() dto: UpdateProfileDto) {
     if (!userId) {
       throw new BadRequestException('User ID is required');
     }
@@ -53,10 +50,7 @@ export class UserController {
   }
 
   @Get('activity')
-  async getActivity(
-    @UserId() userId: string,
-    @Query('limit') limit?: string,
-  ) {
+  async getActivity(@UserId() userId: string, @Query('limit') limit?: string) {
     if (!userId) {
       throw new BadRequestException('User ID is required');
     }
@@ -82,14 +76,10 @@ export class UserController {
   }
 
   @Post('xp/award')
-  async awardXP(
-    @UserId() userId: string,
-    @Body() dto: AwardXpDto,
-  ) {
+  async awardXP(@UserId() userId: string, @Body() dto: AwardXpDto) {
     if (!userId) {
       throw new BadRequestException('User ID is required');
     }
     return this.userService.awardXP(userId, dto.amount, dto.reason);
   }
 }
-

@@ -63,7 +63,9 @@ export class AptosSequenceManager {
       } catch (error) {
         // Invalidate cache on error to force fresh fetch on retry
         this.invalidateCache(normalizedAddress);
-        this.logger.error(`Transaction failed for ${normalizedAddress}, cache invalidated`);
+        this.logger.error(
+          `Transaction failed for ${normalizedAddress}, cache invalidated`,
+        );
         throw error; // Re-throw after cleanup
       } finally {
         this.logger.debug(`Released lock for address: ${normalizedAddress}`);
@@ -176,7 +178,9 @@ export class AptosSequenceManager {
     }
 
     if (addressesToClean.length > 0) {
-      this.logger.debug(`Cleaned up ${addressesToClean.length} stale locks/caches`);
+      this.logger.debug(
+        `Cleaned up ${addressesToClean.length} stale locks/caches`,
+      );
     }
   }
 }

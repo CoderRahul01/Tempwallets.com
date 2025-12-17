@@ -6,4 +6,3 @@ export class UserStatsDto {
   createdAt: Date;
   lastLoginAt: Date;
 }
-

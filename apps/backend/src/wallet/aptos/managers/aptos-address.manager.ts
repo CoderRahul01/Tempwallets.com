@@ -115,4 +115,3 @@ export class AptosAddressManager {
     return account.publicKey.toString();
   }
 }
-

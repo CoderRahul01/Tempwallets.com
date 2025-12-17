@@ -17,10 +17,12 @@ model User {
   xp          Int      @default(0) // Experience points
   createdAt   DateTime @default(now())
   lastLoginAt DateTime @updatedAt
-  wallets     Wallet[]
-  preferences UserPreferences?
-  activities  UserActivity[]
-  sessions    UserSession[]
+  wallets         Wallet[]
+  preferences     UserPreferences?
+  activities      UserActivity[]
+  sessions        UserSession[]
+  paymentChannels PaymentChannel[]
+  lightningNodes  LightningNode[]
 
   @@index([googleId])
   @@index([fingerprint])
@@ -206,4 +208,112 @@ model UserSession {
   @@index([userId])
   @@index([userId, lastActiveAt])
   @@map("user_session")
+}
+
+// ============================================================================
+// Lightning Node (Yellow Network Integration)
+// ============================================================================
+
+// Payment Channels - 2-party channels between user and clearnode
+// One channel per user per chain (one-time setup for unified balance access)
+model PaymentChannel {
+  id          String   @id @default(cuid())
+  userId      String
+  channelId   String   @unique // Yellow Network channel ID (bytes32)
+  chain       String   // ethereum, base, polygon, etc.
+  chainId     Int      // Blockchain chain ID
+  token       String   // Token address
+  status      String   // active, closed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  closedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chainId])
+  @@index([userId])
+  @@index([channelId])
+  @@index([status])
+  @@map("payment_channel")
+}
+
+// Lightning Nodes - Multi-party app sessions built on unified balance
+// Core feature for gasless off-chain transactions
+model LightningNode {
+  id              String   @id @default(cuid())
+  userId          String   // Creator of the Lightning Node
+  appSessionId    String   @unique // Yellow Network app session ID (bytes32)
+  uri             String   // Shareable URI (lightning://...)
+  chain           String   // ethereum, base, polygon, etc.
+  token           String   // USDC, USDT, etc.
+  status          String   // pending, open, closing, closed
+  maxParticipants Int      @default(10)
+  quorum          Int      // Minimum weight required for approval
+  protocol        String   @default("NitroRPC/0.4") // Protocol version
+  challenge       Int      @default(3600) // Challenge period in seconds
+  sessionData     String?  // Application-specific state (JSON)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  closedAt        DateTime?
+
+  user         User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participants LightningNodeParticipant[]
+  transactions LightningNodeTransaction[]
+
+  @@index([userId])
+  @@index([appSessionId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("lightning_node")
+}
+
+// Lightning Node Participants - Tracks all participants in a Lightning Node
+model LightningNodeParticipant {
+  id              String   @id @default(cuid())
+  lightningNodeId String
+  address         String   // Participant wallet address
+  weight          Int      // Voting weight for governance
+  balance         String   @default("0") // Current balance in session
+  asset           String   // USDC, USDT, etc.
+  // Invitation / membership state
+  // - invited: included in the app session definition but hasn't accepted yet
+  // - joined: user accepted and we validated membership against Yellow
+  status          String   @default("invited")
+  joinedAt        DateTime?
+  // Presence heartbeat (best-effort)
+  lastSeenAt      DateTime?
+  leftAt          DateTime?
+
+  lightningNode LightningNode @relation(fields: [lightningNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([lightningNodeId, address, asset])
+  @@index([lightningNodeId])
+  @@index([address])
+  @@map("lightning_node_participant")
+}
+
+// Lightning Node Transactions - Historical record of all operations
+model LightningNodeTransaction {
+  id              String   @id @default(cuid())
+  lightningNodeId String
+  from            String   // Sender address
+  to              String   // Recipient address
+  amount          String   // Amount transferred
+  asset           String   // USDC, USDT, etc.
+  type            String   // deposit, transfer, withdraw
+  intent          String?  // DEPOSIT, OPERATE, WITHDRAW (for app session operations)
+  txHash          String?  // On-chain tx hash (for deposits via resize_channel)
+  status          String   // pending, confirmed, failed
+  metadata        Json?    // Additional transaction data
+  createdAt       DateTime @default(now())
+
+  lightningNode LightningNode @relation(fields: [lightningNodeId], references: [id], onDelete: Cascade)
+
+  @@index([lightningNodeId])
+  @@index([from])
+  @@index([to])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@map("lightning_node_transaction")
 }

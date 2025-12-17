@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 
 /**
  * Metrics Service for Backend Observability
- * 
+ *
  * Separates metrics from logs for better observability.
  * Use this for:
  * - Counting events (API requests, errors, successes)
  * - Measuring performance (duration, latency)
  * - Tracking values (queue size, active connections)
- * 
+ *
  * In production, this would integrate with Prometheus, DataDog, etc.
  * For now, it provides a consistent interface for metrics collection.
  */
@@ -28,7 +28,7 @@ export class MetricsService {
   /**
    * Increment a counter by 1 (or specified value)
    * Use for: counting events, requests, errors
-   * 
+   *
    * @example
    * ```ts
    * this.metricsService.increment('api.request.count', { endpoint: '/balance', status: 200 });
@@ -51,7 +51,7 @@ export class MetricsService {
   /**
    * Set a gauge value (current state)
    * Use for: tracking current values like queue size, active connections
-   * 
+   *
    * @example
    * ```ts
    * this.metricsService.gauge('wallet.balance.usd', 1234.56, { walletAddress: '0x...' });
@@ -72,7 +72,7 @@ export class MetricsService {
   /**
    * Record a histogram value (for distributions)
    * Use for: measuring durations, request sizes, response times
-   * 
+   *
    * @example
    * ```ts
    * this.metricsService.histogram('api.request.duration', 123.45, { endpoint: '/balance' });
@@ -92,7 +92,7 @@ export class MetricsService {
   /**
    * Start a timer for measuring operation duration
    * Returns a function to call when the operation completes
-   * 
+   *
    * @example
    * ```ts
    * const endTimer = this.metricsService.startTimer('api.fetch_balance');
@@ -117,7 +117,7 @@ export class MetricsService {
 
   /**
    * Time an async operation
-   * 
+   *
    * @example
    * ```ts
    * const result = await this.metricsService.time(

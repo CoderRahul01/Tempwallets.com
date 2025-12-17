@@ -1,6 +1,9 @@
 import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
-import { getNetworkConfig, AptosNetwork } from '../config/aptos-chain.config.js';
+import {
+  getNetworkConfig,
+  AptosNetwork,
+} from '../config/aptos-chain.config.js';
 
 interface ConnectionPool {
   clients: Aptos[];

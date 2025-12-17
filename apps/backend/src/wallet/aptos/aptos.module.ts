@@ -46,4 +46,3 @@ import { PrismaModule } from '../../database/prisma.module.js';
   ],
 })
 export class AptosModule {}
-

@@ -94,7 +94,13 @@ export class WalletService {
     'bifrostTestnet',
   ];
   private readonly NON_EVM_CHAIN_KEYS: Array<
-    'tron' | 'bitcoin' | 'solana' | 'aptos' | 'aptosMainnet' | 'aptosTestnet' | 'aptosDevnet'
+    | 'tron'
+    | 'bitcoin'
+    | 'solana'
+    | 'aptos'
+    | 'aptosMainnet'
+    | 'aptosTestnet'
+    | 'aptosDevnet'
   > = [
     'tron',
     'bitcoin',
@@ -502,7 +508,11 @@ export class WalletService {
         let category: string | undefined;
         if (chain.startsWith('aptos')) {
           category = 'aptos';
-        } else if (chain === 'tron' || chain === 'bitcoin' || chain === 'solana') {
+        } else if (
+          chain === 'tron' ||
+          chain === 'bitcoin' ||
+          chain === 'solana'
+        ) {
           category = 'non-evm';
         }
 

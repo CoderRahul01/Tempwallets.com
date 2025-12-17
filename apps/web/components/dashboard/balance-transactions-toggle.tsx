@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RotateCw } from 'lucide-react';
 import { BalanceView } from './balance-view';
 import RecentTransactions from './recent-transactions';
 import { LightningNodesView } from './lightning-nodes-view';
 import { useWalletData } from '@/hooks/useWalletData';
+import { LightningNodesProvider } from '@/hooks/lightning-nodes-context';
 import { useLightningNodes } from '@/hooks/useLightningNodes';
 
 type ViewType = 'balance' | 'transactions' | 'lightningNodes';
@@ -70,7 +71,7 @@ export function BalanceTransactionsToggle() {
           <button
             onClick={() => setActiveView('lightningNodes')}
             type="button"
-            className={`font-rubik-medium transition-all cursor-pointer select-none py-2 px-3 -mx-3 rounded-lg relative z-10 ${
+            className={`font-rubik-medium transition-all cursor-pointer select-none py-2 px-2 -mx-2 rounded-lg relative z-10 text-sm sm:text-base ${
               activeView === 'lightningNodes'
                 ? 'text-gray-800 font-semibold'
                 : 'text-gray-300 hover:text-gray-400'
@@ -86,16 +87,14 @@ export function BalanceTransactionsToggle() {
           onClick={handleRefresh}
           disabled={isLoading}
           type="button"
-          className="text-gray-500 text-sm hover:opacity-70 transition-opacity disabled:opacity-50 flex items-center gap-2 py-2 px-2 -mx-2 rounded-lg relative z-10 select-none"
+          className="text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 hover:border-gray-300 bg-white shadow-sm hover:shadow active:scale-[0.98]"
           style={{ touchAction: 'manipulation' }}
+          aria-label="Refresh"
         >
           {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Refresh</span>
-            </>
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            'Refresh'
+            <RotateCw className="h-4 w-4" />
           )}
         </button>
       </div>
@@ -107,7 +106,9 @@ export function BalanceTransactionsToggle() {
         ) : activeView === 'transactions' ? (
           <RecentTransactions showAll={false} hideHeader />
         ) : (
-          <LightningNodesView />
+          <LightningNodesProvider>
+            <LightningNodesView />
+          </LightningNodesProvider>
         )}
       </div>
     </div>

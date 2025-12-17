@@ -13,4 +13,3 @@ export class GetBalanceDto {
   @IsIn(['mainnet', 'testnet', 'devnet'])
   network?: 'mainnet' | 'testnet' | 'devnet';
 }
-

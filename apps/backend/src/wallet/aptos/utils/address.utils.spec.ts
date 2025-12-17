@@ -21,7 +21,9 @@ describe('Address Utils', () => {
 
     it('should reject addresses without 0x prefix', () => {
       expect(() => normalizeAddress('1')).toThrow('must start with 0x prefix');
-      expect(() => normalizeAddress('abc123')).toThrow('must start with 0x prefix');
+      expect(() => normalizeAddress('abc123')).toThrow(
+        'must start with 0x prefix',
+      );
     });
 
     it('should reject invalid hex characters', () => {
@@ -93,4 +95,3 @@ describe('Address Utils', () => {
     });
   });
 });
-

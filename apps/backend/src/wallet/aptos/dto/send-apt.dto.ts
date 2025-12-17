@@ -20,7 +20,8 @@ export class SendAptDto {
   @IsString()
   @IsNotEmpty()
   @Matches(/^0x[a-fA-F0-9]{1,64}$/, {
-    message: 'Recipient address must be a valid Aptos address (0x + 1-64 hex chars)',
+    message:
+      'Recipient address must be a valid Aptos address (0x + 1-64 hex chars)',
   })
   recipientAddress: string;
 
@@ -38,4 +39,3 @@ export class SendAptDto {
   @IsOptional()
   idempotencyKey?: string;
 }
-

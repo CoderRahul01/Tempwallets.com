@@ -45,7 +45,12 @@ export interface WalletAddresses {
 
 export type WalletAddressKey = keyof WalletAddresses;
 
-export type WalletAddressKind = 'eoa' | 'erc4337' | 'nonEvm' | 'substrate' | 'aptos';
+export type WalletAddressKind =
+  | 'eoa'
+  | 'erc4337'
+  | 'nonEvm'
+  | 'substrate'
+  | 'aptos';
 
 export interface WalletAddressMetadata {
   chain: WalletAddressKey;

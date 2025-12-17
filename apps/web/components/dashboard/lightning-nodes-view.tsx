@@ -1,60 +1,147 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Loader2, Zap, Copy, QrCode } from 'lucide-react';
-import { useLightningNodes } from '@/hooks/useLightningNodes';
+import { Loader2, Zap, Copy, ChevronRight, Search, Mail, CheckCircle2, AlertCircle, Wallet } from 'lucide-react';
+import { useLightningNodes } from '@/hooks/lightning-nodes-context';
 import { CreateLightningNodeModal } from './create-lightning-node-modal';
+import { LightningNodeDetails } from './lightning-node-details';
 import { LightningNode } from '@/lib/api';
+
+const LAST_SELECTED_LN_NODE_ID_KEY = 'tempwallets:lastSelectedLightningNodeId';
 
 const CHAIN_NAMES: Record<string, string> = {
   ethereum: 'Ethereum',
+  ethereumErc4337: 'Ethereum Gasless',
   base: 'Base',
+  baseErc4337: 'Base Gasless',
   arbitrum: 'Arbitrum',
+  arbitrumErc4337: 'Arbitrum Gasless',
   polygon: 'Polygon',
+  polygonErc4337: 'Polygon Gasless',
 };
 
 /**
- * Lightning Node Card Component
- * Displays information about a single Lightning Node (Nitrolite Channel)
+ * Authentication Status Banner Component
+ * Shows wallet authentication status at the top
  */
-function LightningNodeCard({ node }: { node: LightningNode }) {
+function AuthenticationBanner({
+  authenticated,
+  authenticating,
+  walletAddress,
+  error,
+}: {
+  authenticated: boolean;
+  authenticating: boolean;
+  walletAddress: string | null;
+  error: string | null;
+}) {
+  if (authenticating) {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-gray-600" />
+        <div>
+          <p className="font-rubik-medium text-gray-900">Authenticating Wallet</p>
+          <p className="text-sm text-gray-700">Connecting to Yellow Network...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !authenticated) {
+    return (
+      <div className="bg-gray-100 border border-gray-300 rounded-xl p-4 mb-4 flex items-center gap-3">
+        <AlertCircle className="h-5 w-5 text-gray-700" />
+        <div>
+          <p className="font-rubik-medium text-gray-900">Authentication Failed</p>
+          <p className="text-sm text-gray-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authenticated && walletAddress) {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+        <CheckCircle2 className="h-5 w-5 text-gray-700" />
+        <div className="flex-1">
+          <p className="font-rubik-medium text-gray-900 flex items-center gap-2">
+            <Wallet className="h-4 w-4" />
+            Wallet Connected
+          </p>
+          <p className="text-sm text-gray-700 font-mono">
+            {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+          </p>
+        </div>
+        <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded-full">Base</span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// Join search input removed; join is now inside the Create modal.
+
+/**
+ * Lightning Node Card Component
+ * Displays information about a single Lightning Node
+ */
+function LightningNodeCard({
+  node,
+  onClick,
+  isInvitation = false,
+}: {
+  node: LightningNode;
+  onClick?: () => void;
+  isInvitation?: boolean;
+}) {
   const [copiedId, setCopiedId] = useState(false);
   const [copiedUri, setCopiedUri] = useState(false);
 
-  const handleCopyChannelId = () => {
-    navigator.clipboard.writeText(node.channelId);
+  const handleCopyChannelId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(node.appSessionId);
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
   };
 
-  const handleCopyUri = () => {
+  const handleCopyUri = (e: React.MouseEvent) => {
+    e.stopPropagation();
     navigator.clipboard.writeText(node.uri);
     setCopiedUri(true);
     setTimeout(() => setCopiedUri(false), 2000);
   };
 
-  const statusColor = {
-    open: 'bg-green-100 text-green-800',
-    joining: 'bg-yellow-100 text-yellow-800',
-    closing: 'bg-orange-100 text-orange-800',
-    closed: 'bg-gray-100 text-gray-800',
-  }[node.status];
+  const participantCount = node.participants.length;
+  const totalBalance = node.participants.reduce((sum, p) => sum + BigInt(p.balance), BigInt(0));
+  const balanceHuman = (Number(totalBalance) / 1e6).toFixed(2);
+
+  const statusColor = 'bg-gray-200 text-gray-800';
 
   const statusText = {
     open: 'Open',
-    joining: 'Joining',
-    closing: 'Closing',
     closed: 'Closed',
-  }[node.status];
+  }[node.status] || 'Unknown';
 
   return (
-    <div className="bg-gray-50 rounded-2xl p-4 space-y-3 border border-gray-200">
+    <div
+      className={`bg-white rounded-2xl p-4 space-y-3 border transition-colors cursor-pointer group ${
+        isInvitation
+          ? 'border-gray-200 hover:border-gray-300'
+          : 'border-gray-200 hover:border-gray-300'
+      }`}
+      onClick={onClick}
+    >
       {/* Header with Status */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
-          <div className="bg-yellow-100 p-2 rounded-lg">
-            <Zap className="h-5 w-5 text-yellow-600" />
+          <div className="p-2 rounded-lg bg-gray-100">
+            {isInvitation ? (
+              <Mail className="h-5 w-5 text-gray-700" />
+            ) : (
+              <Zap className="h-5 w-5 text-gray-700" />
+            )}
           </div>
           <div>
             <h3 className="font-rubik-medium text-gray-900">
@@ -63,16 +150,21 @@ function LightningNodeCard({ node }: { node: LightningNode }) {
             <p className="text-sm text-gray-500">{node.token}</p>
           </div>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}>
-          {statusText}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+            {statusText}
+          </span>
+          {isInvitation && (
+            <span className="text-xs text-gray-700 font-medium">New Invitation</span>
+          )}
+        </div>
       </div>
 
       {/* Balance */}
-      <div className="bg-white rounded-xl p-3">
-        <p className="text-xs text-gray-500 mb-1">Channel Balance</p>
+      <div className="bg-gray-50 rounded-xl p-3">
+        <p className="text-xs text-gray-500 mb-1">Total Channel Balance</p>
         <p className="text-lg font-rubik-medium text-gray-900">
-          {node.balanceHuman} {node.token}
+          {balanceHuman} {node.token}
         </p>
       </div>
 
@@ -80,49 +172,55 @@ function LightningNodeCard({ node }: { node: LightningNode }) {
       <div className="flex items-center justify-between text-sm">
         <span className="text-gray-600">Participants</span>
         <span className="font-rubik-medium text-gray-900">
-          {node.participantCount} / {node.maxParticipants}
+          {participantCount} / {node.maxParticipants}
         </span>
       </div>
 
-      {/* Channel ID */}
-      <div className="bg-white rounded-xl p-3">
+      {/* App Session ID */}
+      <div className="bg-gray-50 rounded-xl p-3">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-xs text-gray-500">Channel ID</p>
+          <p className="text-xs text-gray-500">Session ID</p>
           <button
             onClick={handleCopyChannelId}
-            className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            className="text-xs text-gray-700 hover:text-gray-900 flex items-center gap-1"
           >
             <Copy className="h-3 w-3" />
             {copiedId ? 'Copied!' : 'Copy'}
           </button>
         </div>
         <p className="text-xs font-mono text-gray-700 break-all">
-          {node.channelId}
+          {node.appSessionId}
         </p>
       </div>
 
       {/* Lightning URI (for sharing) */}
-      {node.status === 'joining' && (
-        <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+      {node.status === 'open' && participantCount < node.maxParticipants && (
+        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-blue-700 font-medium">Share to join</p>
+            <p className="text-xs text-gray-700 font-medium">Share this link</p>
             <button
               onClick={handleCopyUri}
-              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              className="text-xs text-gray-700 hover:text-gray-900 flex items-center gap-1"
             >
               <Copy className="h-3 w-3" />
               {copiedUri ? 'Copied!' : 'Copy URI'}
             </button>
           </div>
-          <p className="text-xs font-mono text-blue-600 break-all">
+          <p className="text-xs font-mono text-gray-700 break-all">
             {node.uri}
           </p>
         </div>
       )}
 
-      {/* Created Date */}
-      <div className="text-xs text-gray-500">
-        Created {new Date(node.createdAt).toLocaleDateString()}
+      {/* View Details */}
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-gray-500">
+          Created {new Date(node.createdAt).toLocaleDateString()}
+        </div>
+  <div className="flex items-center gap-1 text-xs text-gray-700 group-hover:text-black">
+          <span>{isInvitation ? 'View Invitation' : 'View Details'}</span>
+          <ChevronRight className="h-3 w-3" />
+        </div>
       </div>
     </div>
   );
@@ -130,41 +228,117 @@ function LightningNodeCard({ node }: { node: LightningNode }) {
 
 /**
  * Lightning Nodes View Component
- * Displays all Lightning Nodes and allows creating new ones
+ * Main dashboard view with authentication, invitations, search, and active sessions
  */
 export function LightningNodesView() {
-  const { nodes, loading, error } = useLightningNodes();
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const {
+    authenticated,
+    authenticating,
+    walletAddress,
+    allSessions,
+    activeSessions,
+    invitations,
+    searchSession,
+    loading,
+    error,
+  } = useLightningNodes();
 
-  // Show loading state
-  if (loading && nodes.length === 0) {
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Restore last-opened node after refresh
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(LAST_SELECTED_LN_NODE_ID_KEY);
+      if (saved) setSelectedNodeId(saved);
+    } catch {
+      // ignore (SSR / privacy mode)
+    }
+  }, []);
+
+  // Persist selection
+  useEffect(() => {
+    try {
+      if (selectedNodeId) {
+        window.localStorage.setItem(LAST_SELECTED_LN_NODE_ID_KEY, selectedNodeId);
+      } else {
+        window.localStorage.removeItem(LAST_SELECTED_LN_NODE_ID_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }, [selectedNodeId]);
+
+  // Deep link handling - auto-search if session param is present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionParam = params.get('session');
+
+    if (sessionParam && authenticated && !selectedNodeId) {
+      console.log('[Lightning] Deep link detected:', sessionParam);
+      handleSearch(sessionParam);
+
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [authenticated, selectedNodeId]);
+
+  const handleSearch = async (sessionId: string) => {
+    setSearchError(null);
+
+    try {
+      const node = await searchSession(sessionId);
+      if (node) {
+        setSelectedNodeId(node.id);
+      } else {
+        setSearchError('Session not found or you are not a participant');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to search for session';
+      setSearchError(errorMessage);
+    }
+  };
+
+  // Show Lightning Node details if one is selected
+  if (selectedNodeId) {
+    return (
+      <LightningNodeDetails
+        lightningNodeId={selectedNodeId}
+        onClose={() => setSelectedNodeId(null)}
+      />
+    );
+  }
+
+  // Show loading state while authenticating
+  if (authenticating && !authenticated) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-4" />
-        <p className="text-gray-500 font-rubik-normal">Loading Lightning Nodes...</p>
+        <p className="text-gray-500 font-rubik-normal">Authenticating wallet...</p>
+        <p className="text-sm text-gray-400 mt-2">Connecting to Yellow Network</p>
       </div>
     );
   }
 
-  // Show error state
-  if (error && nodes.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 md:py-20">
-        <div className="text-red-500 mb-4">⚠️</div>
-        <p className="text-gray-600 text-lg font-rubik-medium mb-2">
-          Failed to load Lightning Nodes
-        </p>
-        <p className="text-gray-500 text-sm">{error}</p>
-      </div>
-    );
-  }
+  const safeActiveSessions = activeSessions || [];
+  const safeInvitations = invitations || [];
+  const hasAnySessions = safeActiveSessions.length > 0 || safeInvitations.length > 0;
 
-  // Show empty state
-  if (nodes.length === 0) {
+  // Show empty state if no sessions
+  if (!hasAnySessions && !loading) {
     return (
       <>
+        {/* Authentication Banner */}
+        <AuthenticationBanner
+          authenticated={authenticated}
+          authenticating={authenticating}
+          walletAddress={walletAddress}
+          error={error}
+        />
+
+        {/* Empty State */}
         <div className="flex flex-col items-center justify-center py-16 md:py-20">
-          {/* Empty state illustration */}
           <div className="-mt-32">
             <Image
               src="/empty-mailbox-illustration-with-spiderweb-and-flie-2025-10-20-04-28-09-utc.gif"
@@ -175,20 +349,26 @@ export function LightningNodesView() {
             />
           </div>
           <p className="text-gray-600 text-lg md:text-xl font-rubik-medium z-10 -mt-16 mb-4">
-            No Lightning Node Available
+            No Lightning Nodes Available
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            Create a new Lightning Node or join an existing one using the button below
           </p>
           <button
             onClick={() => setCreateModalOpen(true)}
-            className="bg-black text-white px-6 py-3 rounded-xl font-rubik-medium hover:bg-gray-800 transition-colors flex items-center gap-2"
+            className="bg-black text-white px-6 py-3 rounded-xl font-rubik-medium hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-lg shadow-gray-300/50 border border-gray-300 active:scale-[0.99]"
           >
             <Zap className="h-4 w-4" />
-            Create Lightning Node
+            Create / Join Lightning Node
           </button>
         </div>
 
         <CreateLightningNodeModal
           open={createModalOpen}
           onOpenChange={setCreateModalOpen}
+          onJoined={(node) => {
+            setSelectedNodeId(node.id);
+          }}
         />
       </>
     );
@@ -197,29 +377,84 @@ export function LightningNodesView() {
   // Show list of Lightning Nodes
   return (
     <>
-      <div className="space-y-4">
-        {/* Create button at top when nodes exist */}
-        <div className="flex justify-end mb-2">
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="bg-black text-white px-4 py-2 rounded-xl font-rubik-medium hover:bg-gray-800 transition-colors flex items-center gap-2 text-sm"
-          >
-            <Zap className="h-4 w-4" />
-            New Node
-          </button>
-        </div>
+      {/* Authentication Banner */}
+      <AuthenticationBanner
+        authenticated={authenticated}
+        authenticating={authenticating}
+        walletAddress={walletAddress}
+        error={error}
+      />
 
-        {/* Lightning Nodes List */}
-        {nodes.map((node) => (
-          <LightningNodeCard key={node.channelId} node={node} />
-        ))}
+      <div className="space-y-6">
+        {/* New Invitations Section */}
+        {safeInvitations.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-rubik-medium text-gray-900">
+                  New Invitations
+                </h2>
+                <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 rounded-full">
+                  {safeInvitations.length}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {safeInvitations.map((node) => (
+                <LightningNodeCard
+                  key={node.appSessionId}
+                  node={node}
+                  onClick={() => setSelectedNodeId(node.id)}
+                  isInvitation={true}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Active Sessions Section */}
+        {safeActiveSessions.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-gray-700" />
+                <h2 className="text-base sm:text-lg font-rubik-medium text-gray-900">
+                  My Lightning Nodes
+                  <span className="ml-2 bg-gray-100 text-gray-700 text-[10px] sm:text-xs font-medium px-2 py-1 rounded-full">
+                    {safeActiveSessions.length}
+                  </span>
+                </h2>
+              </div>
+              <button
+                onClick={() => setCreateModalOpen(true)}
+                className="bg-black text-white px-4 py-2 rounded-xl font-rubik-medium hover:bg-gray-800 transition-colors flex items-center gap-2 text-sm shadow-lg shadow-gray-300/50 border border-gray-300 active:scale-[0.99]"
+              >
+                <Zap className="h-4 w-4" />
+                Create / Join
+              </button>
+            </div>
+            <div className="space-y-3">
+              {safeActiveSessions.map((node) => (
+                <LightningNodeCard
+                  key={node.appSessionId}
+                  node={node}
+                  onClick={() => setSelectedNodeId(node.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <CreateLightningNodeModal
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
+        onJoined={(node) => {
+          setSelectedNodeId(node.id);
+          setCreateModalOpen(false);
+        }}
       />
     </>
   );
 }
-

@@ -10,7 +10,11 @@ import { AptosRpcService } from './aptos-rpc.service.js';
 import { AptosSequenceManager } from '../managers/aptos-sequence.manager.js';
 import { AptosAccountService } from './aptos-account.service.js';
 import { normalizeAddress, validateAddress } from '../utils/address.utils.js';
-import { TransferParams, TransactionResult, SimulationResult } from '../types/transaction.types.js';
+import {
+  TransferParams,
+  TransactionResult,
+  SimulationResult,
+} from '../types/transaction.types.js';
 
 @Injectable()
 export class AptosTransactionService {
@@ -60,7 +64,11 @@ export class AptosTransactionService {
             );
 
             // 2. Simulate (validates before submitting)
-            await this.simulateTransaction(client, params.senderAccount, transaction);
+            await this.simulateTransaction(
+              client,
+              params.senderAccount,
+              transaction,
+            );
 
             // 3. Sign transaction
             const senderAuthenticator = client.transaction.sign({
@@ -167,6 +175,4 @@ export class AptosTransactionService {
       throw new Error(`Transaction would fail: ${message}`);
     }
   }
-
 }
-

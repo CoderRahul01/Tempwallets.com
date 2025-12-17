@@ -49,7 +49,9 @@ export class AptosWalletController {
     const index = accountIndex ? parseInt(accountIndex, 10) : 0;
 
     if (isNaN(index) || index < 0) {
-      throw new BadRequestException('accountIndex must be a non-negative integer');
+      throw new BadRequestException(
+        'accountIndex must be a non-negative integer',
+      );
     }
 
     try {
@@ -90,7 +92,10 @@ export class AptosWalletController {
     const networkName = network || 'testnet';
 
     try {
-      const balance = await this.aptosManager.getBalance(finalUserId, networkName);
+      const balance = await this.aptosManager.getBalance(
+        finalUserId,
+        networkName,
+      );
 
       return {
         balance,
@@ -111,10 +116,7 @@ export class AptosWalletController {
    */
   @Post('send')
   @HttpCode(HttpStatus.OK)
-  async sendAPT(
-    @Body() dto: SendAptDto,
-    @UserId() userId?: string,
-  ) {
+  async sendAPT(@Body() dto: SendAptDto, @UserId() userId?: string) {
     const finalUserId = userId || dto.userId;
     if (!finalUserId) {
       throw new BadRequestException('userId is required');
@@ -212,4 +214,3 @@ export class AptosWalletController {
     }
   }
 }
-

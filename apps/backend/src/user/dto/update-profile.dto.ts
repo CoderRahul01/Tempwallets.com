@@ -11,4 +11,3 @@ export class UpdateProfileDto {
   @IsUrl()
   picture?: string;
 }
-

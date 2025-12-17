@@ -105,29 +105,63 @@ export interface WalletHistoryEntry {
 }
 
 // Lightning Node (Yellow Network Nitrolite Channel) types
-export interface LightningNode {
-  channelId: string; // Hex string
-  chain: string; // e.g., 'ethereum', 'base', 'arbitrum', 'polygon'
-  chainId: number;
-  token: string; // Token symbol (e.g., 'USDC', 'USDT')
-  tokenAddress: string | null; // Contract address or null for native
-  balance: string; // Balance in smallest units
-  balanceHuman: string; // Human-readable balance
-  status: 'open' | 'joining' | 'closing' | 'closed';
-  participants: string[]; // Array of wallet addresses
-  participantCount: number;
-  maxParticipants: number; // Max 9
-  uri: string; // Lightning Node URI (for sharing/joining)
-  createdAt: string; // ISO timestamp
-  updatedAt: string; // ISO timestamp
+// Lightning Node Participant
+export interface LightningNodeParticipant {
+  id: string;
+  address: string;
+  weight: number; // Voting power (0-100)
+  balance: string; // Off-chain balance in smallest units
+  asset: string;
+  status?: 'invited' | 'joined' | 'left' | string;
+  joinedAt: string | null;
+  lastSeenAt?: string | null;
+  leftAt: string | null;
 }
 
+// Lightning Node Transaction
+export interface LightningNodeTransaction {
+  id: string;
+  from: string;
+  to: string;
+  amount: string;
+  asset: string;
+  type: 'deposit' | 'transfer' | 'withdraw';
+  intent: 'DEPOSIT' | 'OPERATE' | 'WITHDRAW';
+  status: 'pending' | 'confirmed' | 'failed';
+  txHash: string | null;
+  createdAt: string;
+}
+
+// Lightning Node (matches backend response)
+export interface LightningNode {
+  id: string;
+  userId: string;
+  appSessionId: string; // Yellow Network session ID
+  uri: string; // lightning://{appSessionId}
+  chain: string; // e.g., 'base', 'ethereum'
+  token: string; // e.g., 'USDC'
+  status: 'open' | 'closed';
+  maxParticipants: number;
+  quorum: number;
+  protocol: string; // 'NitroRPC/0.4'
+  challenge: number;
+  sessionData: string | null;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+  participants: LightningNodeParticipant[];
+  transactions?: LightningNodeTransaction[];
+}
+
+// Create Lightning Node
 export interface CreateLightningNodeRequest {
   userId: string;
-  chain: string; // e.g., 'ethereumErc4337', 'baseErc4337'
-  token: string; // e.g., 'USDC', 'USDT'
-  amount?: string; // Optional initial deposit amount
-  recipientAddress?: string; // Optional counterparty address
+  participants?: string[]; // Optional wallet addresses (creator added automatically)
+  token: string; // e.g., 'USDC'
+  chain?: string; // e.g., 'base', 'ethereum'
+  weights?: number[]; // Optional custom weights
+  quorum?: number; // Optional quorum (default: 50)
+  sessionData?: string; // Optional metadata
 }
 
 export interface CreateLightningNodeResponse {
@@ -135,12 +169,111 @@ export interface CreateLightningNodeResponse {
   node: LightningNode;
 }
 
+// Authenticate Wallet (Yellow Network Native Flow - Step 1)
+export interface AuthenticateWalletRequest {
+  userId: string;
+  chain?: string; // optional, defaults to 'base'
+}
+
+export interface AuthenticateWalletResponse {
+  ok: boolean;
+  authenticated: boolean;
+  walletAddress: string;
+  chain: string;
+  isEOA: boolean;
+  timestamp: number;
+  message: string;
+}
+
+// Search Session (Yellow Network Native Flow - Step 2a)
+export interface SearchSessionRequest {
+  userId: string;
+  sessionId: string; // app_session_id or lightning:// URI
+  chain?: string; // optional
+}
+
+export interface SearchSessionResponse {
+  ok: boolean;
+  session: any; // Yellow Network AppSession
+  localMetadata?: LightningNode;
+  message: string;
+}
+
+// Discover Sessions (Yellow Network Native Flow - Step 2b)
+export interface DiscoverSessionsResponse {
+  ok: boolean;
+  sessions: LightningNode[];
+  activeSessions: LightningNode[];
+  invitations: LightningNode[];
+  discovered: number;
+  message: string;
+}
+
+// Join Lightning Node (DEPRECATED - use authenticate + search instead)
 export interface JoinLightningNodeRequest {
   userId: string;
-  uri: string; // Lightning Node URI to join
+  uri: string;
 }
 
 export interface JoinLightningNodeResponse {
+  ok: boolean;
+  node: LightningNode;
+}
+
+// Deposit Funds
+export interface DepositFundsRequest {
+  userId: string;
+  appSessionId: string;
+  participantAddress: string;
+  amount: string;
+  asset: string;
+}
+
+export interface DepositFundsResponse {
+  ok: boolean;
+  newBalance: string;
+}
+
+// Transfer Funds
+export interface TransferFundsRequest {
+  userId: string;
+  appSessionId: string;
+  fromAddress: string;
+  toAddress: string;
+  amount: string;
+  asset: string;
+}
+
+export interface TransferFundsResponse {
+  ok: boolean;
+  senderNewBalance: string;
+  recipientNewBalance: string;
+}
+
+// Close Lightning Node
+export interface CloseLightningNodeRequest {
+  userId: string;
+  appSessionId: string;
+}
+
+export interface CloseLightningNodeResponse {
+  ok: boolean;
+  finalAllocations: Array<{
+    participant: string;
+    asset: string;
+    amount: string;
+  }>;
+  message: string;
+}
+
+// Get Lightning Nodes Response
+export interface GetLightningNodesResponse {
+  ok: boolean;
+  nodes: LightningNode[];
+}
+
+// Get Lightning Node By ID Response
+export interface GetLightningNodeByIdResponse {
   ok: boolean;
   node: LightningNode;
 }
@@ -1010,96 +1143,124 @@ export function subscribeToSSE<T>(
 
 export const lightningNodeApi = {
   /**
-   * Get all Lightning Nodes (Nitrolite channels) for a user
+   * Get all Lightning Nodes for a user
    */
-  async getLightningNodes(userId: string): Promise<{ nodes: LightningNode[] }> {
-    // Mock implementation - returns empty array for now
-    // TODO: Replace with actual API call when backend is ready
-    // return fetchApi<{ nodes: LightningNode[] }>(`/lightning-nodes?userId=${encodeURIComponent(userId)}`);
-    
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ nodes: [] });
-      }, 500);
+  async getLightningNodes(userId: string): Promise<GetLightningNodesResponse> {
+    return fetchApi<GetLightningNodesResponse>(`/lightning-node/${encodeURIComponent(userId)}`);
+  },
+
+  /**
+   * Get Lightning Nodes where the user is an invited participant.
+   */
+  async getInvitedLightningNodes(userId: string): Promise<GetLightningNodesResponse> {
+    return fetchApi<GetLightningNodesResponse>(`/lightning-node/invited/${encodeURIComponent(userId)}`);
+  },
+
+  /**
+   * Get Lightning Node by ID
+   */
+  async getLightningNodeById(id: string): Promise<GetLightningNodeByIdResponse> {
+    return fetchApi<GetLightningNodeByIdResponse>(`/lightning-node/detail/${encodeURIComponent(id)}`);
+  },
+
+  /**
+   * Create a new Lightning Node
+   */
+  async createLightningNode(data: CreateLightningNodeRequest): Promise<CreateLightningNodeResponse> {
+    return fetchApi<CreateLightningNodeResponse>('/lightning-node/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // ============================================================================
+  // Yellow Network Native Flow API Functions
+  // ============================================================================
+
+  /**
+   * Authenticate user's wallet with Yellow Network (Step 1)
+   * This creates/reuses an authenticated NitroliteClient for the user.
+   * Should be called once when app starts or when user first accesses Lightning Nodes.
+   */
+  async authenticateWallet(data: AuthenticateWalletRequest): Promise<AuthenticateWalletResponse> {
+    return fetchApi<AuthenticateWalletResponse>('/lightning-node/authenticate', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 
   /**
-   * Create a new Lightning Node (Nitrolite channel)
+   * Search for a specific Lightning Node session by ID (Step 2a)
+   * Uses Yellow Network's getLightningNode() to query a session.
+   * User must be authenticated and must be a participant.
    */
-  async createLightningNode(data: CreateLightningNodeRequest): Promise<CreateLightningNodeResponse> {
-    // Mock implementation - creates a mock channel
-    // TODO: Replace with actual API call when backend is ready
-    // return fetchApi<CreateLightningNodeResponse>('/lightning-nodes/create', {
-    //   method: 'POST',
-    //   body: JSON.stringify(data),
-    // });
-    
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockNode: LightningNode = {
-          channelId: `0x${Math.random().toString(16).substring(2)}`,
-          chain: data.chain.replace('Erc4337', ''),
-          chainId: data.chain === 'ethereumErc4337' ? 1 : data.chain === 'baseErc4337' ? 8453 : data.chain === 'arbitrumErc4337' ? 42161 : 137,
-          token: data.token,
-          tokenAddress: data.token === 'ETH' ? null : `0x${Math.random().toString(16).substring(2)}`,
-          balance: data.amount || '0',
-          balanceHuman: data.amount ? (parseFloat(data.amount) / 1e6).toString() : '0',
-          status: 'joining',
-          participants: [data.recipientAddress || `0x${Math.random().toString(16).substring(2)}`],
-          participantCount: 1,
-          maxParticipants: 9,
-          uri: `lightning:${Math.random().toString(36).substring(2)}`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        
-        resolve({
-          ok: true,
-          node: mockNode,
-        });
-      }, 1000);
+  async searchSession(data: SearchSessionRequest): Promise<SearchSessionResponse> {
+    return fetchApi<SearchSessionResponse>('/lightning-node/search', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
+  },
+
+  /**
+   * Discover all Lightning Node sessions where user is a participant (Step 2b)
+   * Uses Yellow Network's getLightningNodes() to find all sessions.
+   * Returns active sessions and new invitations separately.
+   */
+  async discoverSessions(userId: string, chain?: string): Promise<DiscoverSessionsResponse> {
+    const params = chain ? `?chain=${encodeURIComponent(chain)}` : '';
+    return fetchApi<DiscoverSessionsResponse>(
+      `/lightning-node/discover/${encodeURIComponent(userId)}${params}`
+    );
   },
 
   /**
    * Join an existing Lightning Node by URI
+   * @deprecated Use authenticateWallet() + searchSession() or discoverSessions() instead
    */
   async joinLightningNode(data: JoinLightningNodeRequest): Promise<JoinLightningNodeResponse> {
-    // Mock implementation
-    // TODO: Replace with actual API call when backend is ready
-    // return fetchApi<JoinLightningNodeResponse>('/lightning-nodes/join', {
-    //   method: 'POST',
-    //   body: JSON.stringify(data),
-    // });
-    
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockNode: LightningNode = {
-          channelId: `0x${Math.random().toString(16).substring(2)}`,
-          chain: 'ethereum',
-          chainId: 1,
-          token: 'USDC',
-          tokenAddress: `0x${Math.random().toString(16).substring(2)}`,
-          balance: '0',
-          balanceHuman: '0',
-          status: 'open',
-          participants: [
-            `0x${Math.random().toString(16).substring(2)}`,
-            `0x${Math.random().toString(16).substring(2)}`,
-          ],
-          participantCount: 2,
-          maxParticipants: 9,
-          uri: data.uri,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        
-        resolve({
-          ok: true,
-          node: mockNode,
-        });
-      }, 1000);
+    return fetchApi<JoinLightningNodeResponse>('/lightning-node/join', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Best-effort presence heartbeat for a node.
+   */
+  async heartbeatLightningNode(appSessionId: string, userId: string): Promise<{ ok: boolean }>{
+    return fetchApi<{ ok: boolean }>(
+      `/lightning-node/presence/${encodeURIComponent(appSessionId)}/${encodeURIComponent(userId)}`,
+      { method: 'POST' }
+    );
+  },
+
+  /**
+   * Deposit funds to Lightning Node
+   */
+  async depositFunds(data: DepositFundsRequest): Promise<DepositFundsResponse> {
+    return fetchApi<DepositFundsResponse>('/lightning-node/deposit', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Transfer funds between participants in Lightning Node
+   */
+  async transferFunds(data: TransferFundsRequest): Promise<TransferFundsResponse> {
+    return fetchApi<TransferFundsResponse>('/lightning-node/transfer', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Close Lightning Node
+   */
+  async closeLightningNode(data: CloseLightningNodeRequest): Promise<CloseLightningNodeResponse> {
+    return fetchApi<CloseLightningNodeResponse>('/lightning-node/close', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 };

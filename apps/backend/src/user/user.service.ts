@@ -172,7 +172,11 @@ export class UserService {
     return { xp: user.xp || 0 };
   }
 
-  async awardXP(userId: string, amount: number, reason: string): Promise<{ xp: number; totalXP: number }> {
+  async awardXP(
+    userId: string,
+    amount: number,
+    reason: string,
+  ): Promise<{ xp: number; totalXP: number }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { xp: true },
@@ -200,8 +204,9 @@ export class UserService {
       },
     });
 
-    this.logger.log(`User ${userId} awarded ${amount} XP (${reason}). Total: ${newXP}`);
+    this.logger.log(
+      `User ${userId} awarded ${amount} XP (${reason}). Total: ${newXP}`,
+    );
     return { xp: amount, totalXP: newXP };
   }
 }
-

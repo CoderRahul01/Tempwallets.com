@@ -58,8 +58,7 @@ describe('AptosAccountFactory', () => {
   describe('createAccountFromPrivateKey', () => {
     it('should create account from valid private key', () => {
       // Valid 64-char hex private key
-      const privateKey =
-        '0x' + 'a'.repeat(64); // 32 bytes = 64 hex chars
+      const privateKey = '0x' + 'a'.repeat(64); // 32 bytes = 64 hex chars
 
       const account = factory.createAccountFromPrivateKey(privateKey);
 
@@ -106,4 +105,3 @@ describe('AptosAccountFactory', () => {
     });
   });
 });
-

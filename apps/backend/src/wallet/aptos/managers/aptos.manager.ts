@@ -7,7 +7,10 @@ import { AptosAccountService } from '../services/aptos-account.service.js';
 import { AptosTransactionService } from '../services/aptos-transaction.service.js';
 import { AptosSequenceManager } from './aptos-sequence.manager.js';
 import { normalizeAddress } from '../utils/address.utils.js';
-import { TransferParams, TransactionResult } from '../types/transaction.types.js';
+import {
+  TransferParams,
+  TransactionResult,
+} from '../types/transaction.types.js';
 import { Account } from '@aptos-labs/ts-sdk';
 
 /**
@@ -173,4 +176,3 @@ export class AptosManager {
     });
   }
 }
-

@@ -1,17 +1,24 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  // Extract searchParams values immediately using useMemo to avoid serialization issues
+  const { token, user, error } = useMemo(() => {
+    return {
+      token: searchParams.get('token'),
+      user: searchParams.get('user'),
+      error: searchParams.get('error'),
+    };
+  }, [searchParams]);
+  
   const [status, setStatus] = useState('Processing...');
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    const user = searchParams.get('user');
-    const error = searchParams.get('error');
 
     // Check if this was opened as a popup by looking at localStorage marker
     // window.opener is null due to COOP restrictions after Google redirect
@@ -61,7 +68,7 @@ function AuthCallbackContent() {
         router.push('/dashboard');
       }
     }
-  }, [searchParams, router]);
+  }, [token, user, error, router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-black">
@@ -90,6 +97,7 @@ export default function AuthCallbackPage() {
     </Suspense>
   );
 }
+
 
 
 

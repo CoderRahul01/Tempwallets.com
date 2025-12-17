@@ -568,7 +568,12 @@ export class AddressManager implements IAddressManager {
         `Error streaming Aptos addresses: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
       // Yield null addresses for all Aptos chains on error (only if not cached)
-      const aptosChainNames = ['aptos', 'aptosMainnet', 'aptosTestnet', 'aptosDevnet'];
+      const aptosChainNames = [
+        'aptos',
+        'aptosMainnet',
+        'aptosTestnet',
+        'aptosDevnet',
+      ];
       for (const name of aptosChainNames) {
         if (!cachedAddresses[name]) {
           yield { chain: name, address: null };

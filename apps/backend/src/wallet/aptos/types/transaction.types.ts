@@ -1,4 +1,8 @@
-import { Account, SimpleTransaction, AccountAuthenticator } from '@aptos-labs/ts-sdk';
+import {
+  Account,
+  SimpleTransaction,
+  AccountAuthenticator,
+} from '@aptos-labs/ts-sdk';
 
 export interface TransferParams {
   senderAccount: Account;
@@ -20,4 +24,3 @@ export interface SimulationResult {
   gasUsed: string;
   vmStatus: string;
 }
-

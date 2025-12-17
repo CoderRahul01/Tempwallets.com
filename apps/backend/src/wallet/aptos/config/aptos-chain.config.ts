@@ -18,14 +18,14 @@ function parseRpcUrls(
   fallback: string[],
 ): string[] {
   if (!envVar || envVar.trim() === '') return fallback;
-  
+
   const urls = envVar
     .split(',')
     .map((url) => url.trim())
     .filter((url) => url.length > 0);
-  
+
   // Validate URLs have basic structure
-  const validUrls = urls.filter(url => {
+  const validUrls = urls.filter((url) => {
     try {
       new URL(url);
       return true;
@@ -34,7 +34,7 @@ function parseRpcUrls(
       return false;
     }
   });
-  
+
   // Fallback if no valid URLs parsed
   return validUrls.length > 0 ? validUrls : fallback;
 }
@@ -84,14 +84,14 @@ export function getNetworkConfig(network: AptosNetwork): AptosNetworkConfig {
       `Unknown network: ${network}. Use: mainnet, testnet, or devnet`,
     );
   }
-  
+
   // Validate config has at least one RPC URL
   if (!config.rpcUrls || config.rpcUrls.length === 0) {
     throw new Error(
       `No RPC URLs configured for network: ${network}. Check environment variables.`,
     );
   }
-  
+
   return config;
 }
 

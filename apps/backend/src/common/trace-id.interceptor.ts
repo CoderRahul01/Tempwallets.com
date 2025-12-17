@@ -12,7 +12,7 @@ export const TRACE_ID_KEY = 'traceId';
 
 /**
  * Interceptor to handle trace ID propagation across requests
- * 
+ *
  * - Extracts trace ID from request headers (if present)
  * - Generates new trace ID if not present
  * - Adds trace ID to response headers
@@ -43,11 +43,11 @@ export class TraceIdInterceptor implements NestInterceptor {
 /**
  * Helper to extract trace ID from request
  * Use this in your services to get the current trace ID
- * 
+ *
  * @example
  * ```ts
  * import { getTraceId } from './common/trace-id.interceptor';
- * 
+ *
  * @Injectable()
  * export class MyService {
  *   async doSomething(@Req() request) {

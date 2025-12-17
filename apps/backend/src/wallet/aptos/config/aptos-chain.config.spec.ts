@@ -38,7 +38,9 @@ describe('Aptos Chain Config', () => {
 
     it('should throw error for invalid network', () => {
       // Cast to bypass type checking for testing invalid input
-      expect(() => getNetworkConfig('invalid' as 'mainnet')).toThrow('Unknown network');
+      expect(() => getNetworkConfig('invalid' as 'mainnet')).toThrow(
+        'Unknown network',
+      );
     });
   });
 
@@ -82,4 +84,3 @@ describe('Aptos Chain Config', () => {
     });
   });
 });
-
