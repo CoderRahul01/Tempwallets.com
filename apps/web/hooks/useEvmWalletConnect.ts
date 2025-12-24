@@ -49,7 +49,9 @@ export interface UseEvmWalletConnectReturn {
 }
 
 // Global client instance to prevent multiple initializations
+// Track which userId the client was initialized with
 let globalWalletKit: IWalletKit | null = null;
+let globalWalletKitUserId: string | null = null;
 let isInitializingGlobal = false;
 
 export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectReturn {
@@ -58,6 +60,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isInitializedRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
   const initialize = useCallback(async () => {
     if (!userId) {
@@ -65,8 +68,19 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       return;
     }
 
-    // Use existing client if available
-    if (globalWalletKit) {
+    // Update current userId ref
+    currentUserIdRef.current = userId;
+
+    // If userId changed, reset the global client to force re-initialization
+    if (globalWalletKit && globalWalletKitUserId !== userId) {
+      logger.log(`UserId changed from ${globalWalletKitUserId} to ${userId}, resetting WalletConnect client`);
+      globalWalletKit = null;
+      globalWalletKitUserId = null;
+      isInitializedRef.current = false;
+    }
+
+    // Use existing client if available and userId matches
+    if (globalWalletKit && globalWalletKitUserId === userId) {
       setClient(globalWalletKit);
       setIsInitializing(false);
       isInitializedRef.current = true;
@@ -106,6 +120,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       });
 
       globalWalletKit = walletKit;
+      globalWalletKitUserId = userId;
       setClient(walletKit);
       setIsInitializing(false);
       isInitializedRef.current = true;
@@ -121,10 +136,16 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       // Listen for session proposals
       walletKit.on('session_proposal', async (proposal) => {
         // Session proposal received - only log errors
+        // Use current userId from ref to ensure we always use the latest userId
+        const currentUserId = currentUserIdRef.current;
+        if (!currentUserId) {
+          logger.error('No userId available for session proposal');
+          return;
+        }
 
         // Save proposal to backend
         await walletApi.saveWcProposal(
-          userId,
+          currentUserId,
           proposal.id,
           proposal.params.proposer,
           proposal.params.requiredNamespaces,
@@ -136,7 +157,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
         const eip155Required = proposal.params.requiredNamespaces?.eip155;
         const eip155Optional = proposal.params.optionalNamespaces?.eip155;
         trackWalletConnectProposalReceived({
-          userId,
+          userId: currentUserId,
           proposalId: proposal.id,
           dappName: proposal.params.proposer.metadata?.name || 'Unknown',
           dappUrl: proposal.params.proposer.metadata?.url || 'Unknown',
@@ -182,8 +203,8 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
 
             // ✅ CRITICAL: If no chains specified, use ALL user's chains
             if (approvedChainIds.length === 0) {
-              // Get user's EIP-7702 accounts
-              const accountsResponse = await walletApi.getWcAccounts(userId);
+              // Get user's EIP-7702 accounts (use current userId from ref)
+              const accountsResponse = await walletApi.getWcAccounts(currentUserId);
 
               // Extract unique chain IDs
               approvedChainIds = [...new Set(
@@ -196,9 +217,9 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
               throw new Error('No chains available. Please create a wallet first.');
             }
 
-            // Request approval from backend
+            // Request approval from backend (use current userId from ref)
             const { namespaces, session: sessionData } = await walletApi.approveWcProposal(
-              userId,
+              currentUserId,
               proposal.id,
               approvedChainIds,
             );
@@ -209,21 +230,21 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
               namespaces,
             });
 
-            // Save full session to backend
+            // Save full session to backend (use current userId from ref)
             const sessions = walletKit.getActiveSessions();
             const session = sessions[topic];
             if (session) {
-              await walletApi.saveWcSession(userId, session, namespaces);
+              await walletApi.saveWcSession(currentUserId, session, namespaces);
             }
 
             // Update local sessions
             setSessions(Object.values(walletKit.getActiveSessions()));
 
-            // Track session approval
-            const accountsResponse = await walletApi.getWcAccounts(userId);
+            // Track session approval (use current userId from ref)
+            const accountsResponse = await walletApi.getWcAccounts(currentUserId);
             const hasEip7702 = accountsResponse.accounts.some((acc: any) => acc.hasEip7702);
             trackWalletConnectSessionApproved({
-              userId,
+              userId: currentUserId,
               proposalId: proposal.id,
               dappName: proposal.params.proposer.metadata?.name || 'Unknown',
               dappUrl: proposal.params.proposer.metadata?.url || 'Unknown',
@@ -236,15 +257,15 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
           } catch (err) {
             logger.error('Failed to approve session', err as Error);
 
-            // Track approval failure
+            // Track approval failure (use current userId from ref)
             trackWalletConnectApprovalFailed({
-              userId,
+              userId: currentUserId,
               proposalId: proposal.id,
               dappName: proposal.params.proposer.metadata?.name || 'Unknown',
               errorMessage: err instanceof Error ? err.message : 'Failed to approve',
             });
 
-            await walletApi.rejectWcProposal(userId, proposal.id, err instanceof Error ? err.message : 'Failed to approve');
+            await walletApi.rejectWcProposal(currentUserId, proposal.id, err instanceof Error ? err.message : 'Failed to approve');
             await walletKit.rejectSession({
               id: proposal.id,
               reason: {
@@ -254,15 +275,15 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
             });
           }
         } else {
-          // Track session rejection
+          // Track session rejection (use current userId from ref)
           trackWalletConnectSessionRejected({
-            userId,
+            userId: currentUserId,
             proposalId: proposal.id,
             dappName: proposal.params.proposer.metadata?.name || 'Unknown',
             reason: 'User rejected',
           });
 
-          await walletApi.rejectWcProposal(userId, proposal.id, 'User rejected');
+          await walletApi.rejectWcProposal(currentUserId, proposal.id, 'User rejected');
           await walletKit.rejectSession({
             id: proposal.id,
             reason: {
@@ -276,6 +297,12 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       // Listen for session requests
       walletKit.on('session_request', async (event) => {
         // Session request received - only log errors
+        // Use current userId from ref to ensure we always use the latest userId
+        const currentUserId = currentUserIdRef.current;
+        if (!currentUserId) {
+          logger.error('No userId available for session request');
+          return;
+        }
 
         const { id, topic, params } = event;
         const { request, chainId } = params;
@@ -287,7 +314,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
 
         // Track request received
         trackWalletConnectRequestReceived({
-          userId,
+          userId: currentUserId,
           requestId: id,
           dappName,
           method: request.method,
@@ -309,9 +336,9 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
             throw new Error('User rejected request');
           }
 
-          // Request signature from backend
+          // Request signature from backend (use current userId from ref)
           const { signature } = await walletApi.signWcRequest(
-            userId,
+            currentUserId,
             topic,
             id,
             request.method,
@@ -329,10 +356,10 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
             },
           });
 
-          // Track successful signing
+          // Track successful signing (use current userId from ref)
           const signatureDuration = Date.now() - requestStartTime;
           trackWalletConnectRequestSigned({
-            userId,
+            userId: currentUserId,
             requestId: id,
             dappName,
             method: request.method,
@@ -348,10 +375,10 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
           const errorMessage = err instanceof Error ? err.message : 'Failed to sign';
           const isUserRejection = errorMessage.includes('rejected');
 
-          // Track signing failure
+          // Track signing failure (use current userId from ref)
           if (isUserRejection) {
             trackWalletConnectRequestRejected({
-              userId,
+              userId: currentUserId,
               requestId: id,
               dappName,
               method: request.method,
@@ -359,7 +386,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
             });
           } else {
             trackWalletConnectSigningFailed({
-              userId,
+              userId: currentUserId,
               requestId: id,
               dappName,
               method: request.method,
@@ -388,6 +415,12 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       // Listen for session delete
       walletKit.on('session_delete', async (event) => {
         // Session deleted - only log errors
+        // Use current userId from ref to ensure we always use the latest userId
+        const currentUserId = currentUserIdRef.current;
+        if (!currentUserId) {
+          logger.error('No userId available for session delete');
+          return;
+        }
 
         // Get dApp name before deletion
         const sessions = walletKit.getActiveSessions();
@@ -396,14 +429,14 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
 
         // Track session disconnection (initiated by dApp)
         trackWalletConnectSessionDisconnected({
-          userId,
+          userId: currentUserId,
           topic: event.topic,
           dappName,
           initiatedBy: 'dapp',
         });
 
         try {
-          await walletApi.disconnectWcSession(userId, event.topic);
+          await walletApi.disconnectWcSession(currentUserId, event.topic);
         } catch (err) {
           logger.warn('Failed to delete session from backend', {
             error: err instanceof Error ? err.message : 'Unknown error',
@@ -424,14 +457,33 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
     }
   }, [userId]);
 
-  // Auto-initialize if client already exists
+  // Re-initialize when userId changes (e.g., after Google auth)
   useEffect(() => {
     if (!userId) {
       setIsInitializing(false);
       return;
     }
 
-    if (globalWalletKit) {
+    // Update current userId ref
+    currentUserIdRef.current = userId;
+
+    // If userId changed, reset and re-initialize
+    if (globalWalletKit && globalWalletKitUserId !== userId) {
+      logger.log(`UserId changed from ${globalWalletKitUserId} to ${userId}, re-initializing WalletConnect`);
+      globalWalletKit = null;
+      globalWalletKitUserId = null;
+      isInitializedRef.current = false;
+      setClient(null);
+      setSessions([]);
+      // Re-initialize with new userId
+      initialize().catch((err) => {
+        logger.error('Failed to re-initialize WalletConnect after userId change', err);
+      });
+      return;
+    }
+
+    // Use existing client if userId matches
+    if (globalWalletKit && globalWalletKitUserId === userId) {
       setClient(globalWalletKit);
       setIsInitializing(false);
       const existingSessions = globalWalletKit.getActiveSessions();
@@ -439,7 +491,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
     } else {
       setIsInitializing(false);
     }
-  }, [userId]);
+  }, [userId, initialize]);
 
   const pair = useCallback(async (uri: string) => {
     if (!client) {
@@ -450,12 +502,14 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       throw new Error('Invalid WalletConnect URI');
     }
 
+    const currentUserId = currentUserIdRef.current;
+
     try {
       await client.pair({ uri });
 
       // Track pairing success
       trackWalletConnectPairingSuccess({
-        userId: userId || '',
+        userId: currentUserId || '',
         method: 'uri',
       });
 
@@ -473,6 +527,8 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       throw new Error('WalletKit not initialized');
     }
 
+    const currentUserId = currentUserIdRef.current;
+
     // Get dApp name before disconnection
     const sessions = client.getActiveSessions();
     const session = sessions[topic];
@@ -489,7 +545,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
 
       // Track user-initiated disconnection
       trackWalletConnectSessionDisconnected({
-        userId: userId || '',
+        userId: currentUserId || '',
         topic,
         dappName,
         initiatedBy: 'user',
@@ -497,7 +553,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
 
       // Also disconnect from backend
       try {
-        await walletApi.disconnectWcSession(userId || '', topic);
+        await walletApi.disconnectWcSession(currentUserId || '', topic);
       } catch (err) {
         logger.warn('Failed to disconnect from backend', {
           error: err instanceof Error ? err.message : 'Unknown error',
@@ -513,12 +569,14 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       metrics.increment('walletconnect.disconnect.failed');
       throw err;
     }
-  }, [client, userId]);
+  }, [client]);
 
   const approveSession = useCallback(async (proposalId: number, namespaces: SessionTypes.Namespaces) => {
     if (!client) {
       throw new Error('WalletKit not initialized');
     }
+
+    const currentUserId = currentUserIdRef.current;
 
     try {
       const { topic } = await client.approveSession({
@@ -529,7 +587,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       const sessions = client.getActiveSessions();
       const session = sessions[topic];
       if (session) {
-        await walletApi.saveWcSession(userId || '', session, namespaces);
+        await walletApi.saveWcSession(currentUserId || '', session, namespaces);
       }
 
       setSessions(Object.values(client.getActiveSessions()));
@@ -539,15 +597,17 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       metrics.increment('walletconnect.session.approve_failed_manual');
       throw err;
     }
-  }, [client, userId]);
+  }, [client]);
 
   const rejectSession = useCallback(async (proposalId: number) => {
     if (!client) {
       throw new Error('WalletKit not initialized');
     }
 
+    const currentUserId = currentUserIdRef.current;
+
     try {
-      await walletApi.rejectWcProposal(userId || '', proposalId);
+      await walletApi.rejectWcProposal(currentUserId || '', proposalId);
       await client.rejectSession({
         id: proposalId,
         reason: {
@@ -561,7 +621,7 @@ export function useEvmWalletConnect(userId: string | null): UseEvmWalletConnectR
       metrics.increment('walletconnect.session.reject_failed');
       throw err;
     }
-  }, [client, userId]);
+  }, [client]);
 
   return {
     client,

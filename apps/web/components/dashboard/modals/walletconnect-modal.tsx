@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSubstrateWalletConnect } from '@/hooks/useSubstrateWalletConnect';
-import { useBrowserFingerprint } from '@/hooks/useBrowserFingerprint';
+import { useAuth } from '@/hooks/useAuth';
 import { Loader2, X } from 'lucide-react';
 import {
   Dialog,
@@ -24,14 +24,15 @@ interface WalletConnectModalProps {
 }
 
 export function WalletConnectModal({ open, onOpenChange }: WalletConnectModalProps) {
-  const { fingerprint } = useBrowserFingerprint();
+  // Use authenticated user ID (Google user) or fallback to fingerprint
+  const { userId } = useAuth();
   const { 
     isInitializing, 
     sessions, 
     pair, 
     disconnect,
     initialize
-  } = useSubstrateWalletConnect(fingerprint);
+  } = useSubstrateWalletConnect(userId);
   
   const [uriInput, setUriInput] = useState('');
   const [isPairing, setIsPairing] = useState(false);
@@ -45,12 +46,12 @@ export function WalletConnectModal({ open, onOpenChange }: WalletConnectModalPro
   // Initialize WalletConnect when modal opens (runs in background)
   // Only initialize if not already initializing or initialized
   useEffect(() => {
-    if (open && fingerprint && !isInitializing) {
+    if (open && userId && !isInitializing) {
       initialize().catch((err) => {
         console.error('Failed to initialize WalletConnect:', err);
       });
     }
-  }, [open, fingerprint, initialize, isInitializing]);
+  }, [open, userId, initialize, isInitializing]);
 
   // Cleanup scanner on unmount or when modal closes
   useEffect(() => {
@@ -255,7 +256,7 @@ export function WalletConnectModal({ open, onOpenChange }: WalletConnectModalPro
                 />
                 <button
                   onClick={() => handleConnect()}
-                  disabled={isPairing || !uriInput.trim() || !fingerprint}
+                  disabled={isPairing || !uriInput.trim() || !userId}
                   className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg transition-colors text-sm font-medium text-white"
                 >
                   {isPairing ? (
