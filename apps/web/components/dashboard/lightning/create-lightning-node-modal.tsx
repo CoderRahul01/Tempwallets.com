@@ -216,7 +216,7 @@ export function CreateLightningNodeModal({ open, onOpenChange, onJoined }: Creat
             <span className="font-rubik-medium">Yellow Network Nitrolite Channel</span>
           </DialogTitle>
           <DialogDescription className="text-gray-600">
-            Create or join a Nitrolite Channel (Lightning Node) for instant, gasless off-chain transactions.
+            Create or join a Nitrolite Channel for instant, gasless off-chain transactions. Powered by Yellow Network.
           </DialogDescription>
         </DialogHeader>
 
@@ -315,7 +315,7 @@ export function CreateLightningNodeModal({ open, onOpenChange, onJoined }: Creat
                   <div className="flex items-center justify-center text-gray-700 mb-2">
                     <CheckCircle2 className="h-12 w-12" />
                   </div>
-                  <p className="text-center font-medium text-gray-900">Lightning Node Created!</p>
+                  <p className="text-center font-medium text-gray-900">Lightning Node Ready!</p>
                   <p className="text-center text-sm text-gray-600">
                     Share this QR code or URI with others to join the channel. Max {createdNode.maxParticipants} participants.
                   </p>

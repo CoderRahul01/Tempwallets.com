@@ -280,7 +280,58 @@ export function useLightningNodes() {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, discoverSessions]);
+
+  /**
+   * Deposit funds to a Lightning Node
+   */
+  const depositFunds = useCallback(async (params: {
+    appSessionId: string;
+    participantAddress: string;
+    amount: string;
+    asset: string;
+  }): Promise<boolean> => {
+    if (!userId) {
+      throw new Error('User ID is required to deposit funds');
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('[Lightning] Depositing funds');
+      const response = await lightningNodeApi.depositFunds({
+        ...params,
+        userId,
+      });
+
+      if (response.ok) {
+        console.log('[Lightning] ✅ Deposit successful');
+
+        // Track collateral deposit
+        const { trackLightningCollateralDeposit } = require('@/lib/mixpanel-events');
+        trackLightningCollateralDeposit({
+          userId,
+          sessionId: params.appSessionId,
+          amount: params.amount,
+          token: params.asset,
+        });
+
+        // Trigger a refresh to get new balances
+        await discoverSessions();
+        return true;
+      }
+
+      throw new Error('Failed to deposit funds');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to deposit funds';
+      setError(errorMessage);
+      console.error('[Lightning] Deposit error:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, discoverSessions]);
 
   /**
    * Join an existing Lightning Node by URI (DEPRECATED - use searchSession instead)
@@ -328,6 +379,7 @@ export function useLightningNodes() {
     // Actions
     createNode,
     joinNode, // deprecated but kept for backward compatibility
+    depositFunds,
     refreshNodes,
     heartbeat,
 

@@ -1758,3 +1758,1160 @@ Error: listen EADDRINUSE: address already in use :::5005
 }
 
 Node.js v24.11.0
+[2J[3J[H[[90m4:49:47 PM[0m] File change detected. Starting incremental compilation...
+
+[[90m4:49:53 PM[0m] Found 0 errors. Watching for file changes.
+
+Loaded Aptos Network Configurations: { mainnet: '1 RPC(s)', testnet: '1 RPC(s)', devnet: '1 RPC(s)' }
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[33m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [33m   WARN[39m [38;5;3m[TokenListService] [39m[33mToken list file not found: /Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/dist/wallet/tokens/polkadot-evm-tokens.json[39m
+[33m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [33m   WARN[39m [38;5;3m[TokenListService] [39m[33mToken list file not found: /Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/dist/wallet/tokens/all-tokens.json[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[TokenListService] [39m[32mIndexed tokens for 0 unique chain identifiers[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEvmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCryptoModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUserModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWalletConnectModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAptosModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSubstrateModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLightningNodeModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWalletModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mWalletController {/wallet}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/eip7702/send, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/eip7702/test/:chain, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/seed, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/addresses, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/history, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/switch, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/history/:walletId, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/walletconnect/accounts, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/balances, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/balances/refresh, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/erc4337/paymaster-balances, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/send, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/token-balances, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/assets-any, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/transactions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/transactions-any, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/addresses-stream, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/balances-stream, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/walletconnect/sign, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/test-rpc-balance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/test-rpc-transactions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/addresses, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/balances, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/transactions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/send, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/health, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSubstrateTestController {/wallet/substrate/test}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/wasm, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/chains, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/ss58, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/derivation, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/rpc, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/cache, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/ensure-address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/addresses, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/account, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/balance, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/nonce, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/all, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/detect, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/balance-detect, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/decode, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/construct, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/estimate-fee, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/sign, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/send, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/history, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/check-pallet, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSubstrateWalletConnectController {/wallet/substrate/walletconnect}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/walletconnect/accounts, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/walletconnect/sign-transaction, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/walletconnect/sign-message, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAptosWalletController {/wallet/aptos}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/aptos/address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/aptos/balance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/aptos/send, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/aptos/faucet, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/google, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/google/callback, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/logout, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUserController {/user}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/profile, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/stats, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/activity, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/account, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/xp, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/xp/award, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLightningNodeController {/lightning-node}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/authenticate, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/search, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/discover/:userId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/create, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/join, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/deposit, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/transfer, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/close, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/invited/:userId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/presence/:appSessionId/:userId, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/detail/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/:userId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mWalletConnectController {/walletconnect}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/accounts, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/sessions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/approve-proposal, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/reject-proposal, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/save-proposal, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/save-session, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/sign, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/sessions/:topic, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/proposals/pending, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/sessions/:topic/requests/pending, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[PrismaService] [39m[32mSuccessfully connected to database[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[SubstrateRpcService] [39m[32mStarted connection health checks every 60s[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +2ms[39m
+🚀 Application is running on: http://localhost:5005
+📊 Health check available at: http://localhost:5005/health
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m[AUTH] Authenticating wallet for user temp-test-123[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mEnsuring wallet exists for user temp-test-123...[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [32m    LOG[39m [38;5;3m[CryptoInitUtil] [39m[32mInitializing WASM crypto (lazy loading)...[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [32m    LOG[39m [38;5;3m[CryptoInitUtil] [39m[32m✓ WASM crypto initialized in 0ms[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mGenerated address for polkadot (testnet: false): 14yyBtduRbM3rA1DbBzCqbTiV3fdFT9aRtBet1uVm7kGnizS, expected prefix: 0[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mCreated account for polkadot (index 0): 14yyBtduRbM3rA1DbBzCqbTiV3fdFT9aRtBet1uVm7kGnizS[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mGenerated address for hydration (testnet: false): 7MaXUPkJdvSqgrVSejQhdNDVCcg9hzpNK95ve5RTvzCzXMdu, expected prefix: 63[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mCreated account for hydration (index 0): 7MaXUPkJdvSqgrVSejQhdNDVCcg9hzpNK95ve5RTvzCzXMdu[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mGenerated address for unique (testnet: false): mVazqRj7dU8wZqTvv9NUuKh1SfgdjZDkU4aBoQc16ugmBKk, expected prefix: 7[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mCreated account for unique (index 0): mVazqRj7dU8wZqTvv9NUuKh1SfgdjZDkU4aBoQc16ugmBKk[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mGenerated address for paseo (testnet: false): 5G3g3ZNqZp5aQczhdYwChSdZdRfyZ9bSMPTAiiv9D2ikcJQe, expected prefix: 42[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mCreated account for paseo (index 0): 5G3g3ZNqZp5aQczhdYwChSdZdRfyZ9bSMPTAiiv9D2ikcJQe[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mGenerated address for paseoAssethub (testnet: false): 14yyBtduRbM3rA1DbBzCqbTiV3fdFT9aRtBet1uVm7kGnizS, expected prefix: 0[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAccountFactory] [39m[95mCreated account for paseoAssethub (index 0): 14yyBtduRbM3rA1DbBzCqbTiV3fdFT9aRtBet1uVm7kGnizS[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAddressManager] [39m[95mDerived and validated address for polkadot: 14yyBtduRbM3rA1DbBzCqbTiV3fdFT9aRtBet1uVm7kGnizS[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAddressManager] [39m[95mDerived and validated address for hydration: 7MaXUPkJdvSqgrVSejQhdNDVCcg9hzpNK95ve5RTvzCzXMdu[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAddressManager] [39m[95mDerived and validated address for unique: mVazqRj7dU8wZqTvv9NUuKh1SfgdjZDkU4aBoQc16ugmBKk[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAddressManager] [39m[95mDerived and validated address for paseo: 5G3g3ZNqZp5aQczhdYwChSdZdRfyZ9bSMPTAiiv9D2ikcJQe[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[SubstrateAddressManager] [39m[95mDerived and validated address for paseoAssethub: 14yyBtduRbM3rA1DbBzCqbTiV3fdFT9aRtBet1uVm7kGnizS[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[AptosAddressManager] [39m[95mDerived Aptos address for account index 0: 0x3a346f0d98911c417144df5f798c55cd06eb165cc9fbffa88cca0a900ed0a969[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[AddressManager] [39m[95mWallet addresses ready for user temp-test-123: {"ethereum":"0x129b...6A58","base":"0x129b...6A58","arbitrum":"0x129b...6A58","polygon":"0x129b...6A58","avalanche":"0x129b...6A58","moonbeamTestnet":null,"astarShibuya":null,"paseoPassetHub":null,"hydration":null,"unique":null,"bifrost":null,"bifrostTestnet":null,"polkadot":"14yyBt...nizS","hydrationSubstrate":"7MaXUP...XMdu","bifrostSubstrate":null,"uniqueSubstrate":"mVazqR...mBKk","paseo":"5G3g3Z...cJQe","paseoAssethub":"14yyBt...nizS","tron":"TWj76Z...63pu","bitcoin":"1Cbqyx...7FtN","solana":"Cdt4CD...keFM","aptos":"0x3a34...a969","aptosMainnet":"0x3a34...a969","aptosTestnet":"0x3a34...a969","aptosDevnet":"0x3a34...a969"}[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mGot addresses for user temp-test-123:[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39mArray(18) [
+  [32m'ethereum'[39m,
+  [32m'base'[39m,
+  [32m'arbitrum'[39m,
+  [32m'polygon'[39m,
+  [32m'avalanche'[39m,
+  [32m'tron'[39m,
+  [32m'bitcoin'[39m,
+  [32m'solana'[39m,
+  [32m'polkadot'[39m,
+  [32m'hydrationSubstrate'[39m,
+  [32m'uniqueSubstrate'[39m,
+  [32m'paseo'[39m,
+  [32m'paseoAssethub'[39m,
+  [32m'aptos'[39m,
+  [32m'aptosMainnet'[39m,
+  [32m'aptosTestnet'[39m,
+  [32m'aptosDevnet'[39m,
+  [32m'bifrostSubstrate'[39m
+]
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mFound wallet address 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 for user temp-test-123 on base (EOA)[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m[AUTH] User wallet address: 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 (base)[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mCreated EOA signer account 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 for user temp-test-123 on base[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:43 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32mUsing EOA address 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 for authentication (wallet address: 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58)[39m
+[NitroliteClient] Initializing...
+[WebSocket] Connecting to wss://clearnet-sandbox.yellow.com/ws...
+[WebSocket] Connected to Clearnode
+[NitroliteClient] ✅ Connected to Clearnode
+[ConfigLoader] Fetching fresh config from Clearnode...
+[WebSocket] Connecting to wss://clearnet-sandbox.yellow.com/ws...
+[WebSocket] Notification received: assets
+[Notification] Assets catalog received (6 assets)
+[WebSocket] Connected to Clearnode
+[WebSocket] Notification received: assets
+[Notification] Assets catalog received (6 assets)
+[ConfigLoader] Config loaded successfully:
+  - Clearnode: 0xc7E6827ad9DA2c89188fAEd836F9285E6bFdCCCC
+  - Networks: 5
+    • polygon_amoy (80002)
+    • base_sepolia (84532)
+    • ethereum_sepolia (11155111)
+    • linea_sepolia (59141)
+    • xrpl_evm_testnet (1449000)
+[NitroliteClient] ✅ Config loaded
+[NitroliteClient] Authenticating with session key...
+[SessionKeyAuth] Starting authentication flow...
+[SessionKeyAuth] Generated session key: 0x96b52978Cf835B17Fba058d881Db8C151651dcD1
+[SessionKeyAuth] Step 1/3: Sending auth_request...
+[SessionKeyAuth] Step 2/3: Received challenge: b19d9fb8-06a6-4164-a670-8b2eead55686
+[SessionKeyAuth] Step 3/3: Requesting main wallet signature...
+[SessionKeyAuth] Typed data message: {
+  "challenge": "b19d9fb8-06a6-4164-a670-8b2eead55686",
+  "scope": "transfer,app.create,app.submit",
+  "wallet": "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+  "session_key": "0x96b52978Cf835B17Fba058d881Db8C151651dcD1",
+  "expires_at": 1767612106,
+  "allowances": []
+}
+[SessionKeyAuth] Main wallet address: 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58
+[SessionKeyAuth] Typed data wallet field: 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58
+[SessionKeyAuth] Address match check: ✅ (message: 0x129b2d86323b8231a19ff7a6be6627278fce6a58, main: 0x129b2d86323b8231a19ff7a6be6627278fce6a58)
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:47 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mSigning EIP-712 with address 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58, typed data message wallet: 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:47 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mSigned EIP-712 message for wallet 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58[39m
+[SessionKeyAuth] Signature generated: 0x8aeba67a64fad37a9c...
+[SessionKeyAuth] Sending auth_verify...
+[SessionKeyAuth] ✅ Authentication successful
+  - Session expires at: 2026-01-05T11:21:46.660Z
+  - Allowances: unrestricted
+[NitroliteClient] ✅ Authenticated
+[NitroliteClient] ✅ Initialization complete
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:47 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m✅ Created NitroliteClient for user temp-test-123 with wallet 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 (EOA)[39m
+[WebSocket] Notification received: channels
+[Notification] Unknown notification type: channels { channels: [] }
+[WebSocket] Notification received: bu
+[Notification] Balance updated: { balance_updates: [] }
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:47 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m[AUTH] ✅ Wallet authenticated successfully[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:47 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m[AUTH] Ping response: pong (1767525707992)[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32mCreating Lightning Node for user temp-test-123[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mEnsuring wallet exists for user temp-test-123...[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[AptosAddressManager] [39m[95mDerived Aptos address for account index 0: 0x3a346f0d98911c417144df5f798c55cd06eb165cc9fbffa88cca0a900ed0a969[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[AddressManager] [39m[95mWallet addresses ready for user temp-test-123: {"ethereum":"0x129b...6A58","base":"0x129b...6A58","arbitrum":"0x129b...6A58","polygon":"0x129b...6A58","avalanche":"0x129b...6A58","moonbeamTestnet":null,"astarShibuya":null,"paseoPassetHub":null,"hydration":null,"unique":null,"bifrost":null,"bifrostTestnet":null,"polkadot":"14yyBt...nizS","hydrationSubstrate":"7MaXUP...XMdu","bifrostSubstrate":null,"uniqueSubstrate":"mVazqR...mBKk","paseo":"5G3g3Z...cJQe","paseoAssethub":"14yyBt...nizS","tron":"TWj76Z...63pu","bitcoin":"1Cbqyx...7FtN","solana":"Cdt4CD...keFM","aptos":"0x3a34...a969","aptosMainnet":"0x3a34...a969","aptosTestnet":"0x3a34...a969","aptosDevnet":"0x3a34...a969"}[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mGot addresses for user temp-test-123:[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39mArray(18) [
+  [32m'ethereum'[39m,
+  [32m'base'[39m,
+  [32m'arbitrum'[39m,
+  [32m'polygon'[39m,
+  [32m'avalanche'[39m,
+  [32m'tron'[39m,
+  [32m'bitcoin'[39m,
+  [32m'solana'[39m,
+  [32m'polkadot'[39m,
+  [32m'hydrationSubstrate'[39m,
+  [32m'uniqueSubstrate'[39m,
+  [32m'paseo'[39m,
+  [32m'paseoAssethub'[39m,
+  [32m'aptos'[39m,
+  [32m'aptosMainnet'[39m,
+  [32m'aptosTestnet'[39m,
+  [32m'aptosDevnet'[39m,
+  [32m'bifrostSubstrate'[39m
+]
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mFound wallet address 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 for user temp-test-123 on base (EOA)[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32mCreating app session on Yellow Network...[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m  - Participants: 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58, 0x0000000000000000000000000000000000000001[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m  - Weights: 50, 50[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m  - Quorum: 50[39m
+[AppSessionService] Creating app session...
+  - Protocol: NitroRPC/0.4
+  - Participants: 2
+  - Quorum: 50
+[AppSessionService] RPC Request before signing: {
+  "req": [
+    4,
+    "create_app_session",
+    {
+      "definition": {
+        "protocol": "NitroRPC/0.4",
+        "participants": [
+          "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+          "0x0000000000000000000000000000000000000001"
+        ],
+        "weights": [
+          50,
+          50
+        ],
+        "quorum": 50,
+        "challenge": 3600,
+        "nonce": 1767525708069,
+        "application": "tempwallets-lightning"
+      },
+      "allocations": [],
+      "session_data": "{}"
+    },
+    1767525708069
+  ],
+  "sig": []
+}
+[WebSocket] Notification received: bu
+[Notification] Balance updated: { balance_updates: [] }
+[AppSessionService] Full response: {
+  "res": [
+    4,
+    "create_app_session",
+    {
+      "app_session_id": "0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c",
+      "application": "",
+      "status": "open",
+      "participants": null,
+      "protocol": "",
+      "challenge": 0,
+      "weights": null,
+      "quorum": 0,
+      "version": 1,
+      "nonce": 0,
+      "created_at": "",
+      "updated_at": ""
+    },
+    1767525708267
+  ],
+  "sig": [
+    "0xa35da2333b749d581b2e57f7acae98a00fbb5c120e135b8c981328ecfb77ad4a285d79d7021457c4b74c4e3e6746b9286da00e979c856d522139da749d8426d21c"
+  ]
+}
+[AppSessionService] Session response: {
+  "app_session_id": "0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c",
+  "application": "",
+  "status": "open",
+  "participants": null,
+  "protocol": "",
+  "challenge": 0,
+  "weights": null,
+  "quorum": 0,
+  "version": 1,
+  "nonce": 0,
+  "created_at": "",
+  "updated_at": ""
+}
+[AppSessionService] ✅ App session created!
+  - Session ID: 0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c
+  - Status: open
+  - Version: 1
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m✅ App session created on Yellow Network: 0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c[39m
+[32m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [32m    LOG[39m [38;5;3m[LightningNodeService] [39m[32m✅ Lightning Node created: cmjzn656v0001rqw0xidbnwln[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mEnsuring wallet exists for user temp-test-123...[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[AptosAddressManager] [39m[95mDerived Aptos address for account index 0: 0x3a346f0d98911c417144df5f798c55cd06eb165cc9fbffa88cca0a900ed0a969[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[AddressManager] [39m[95mWallet addresses ready for user temp-test-123: {"ethereum":"0x129b...6A58","base":"0x129b...6A58","arbitrum":"0x129b...6A58","polygon":"0x129b...6A58","avalanche":"0x129b...6A58","moonbeamTestnet":null,"astarShibuya":null,"paseoPassetHub":null,"hydration":null,"unique":null,"bifrost":null,"bifrostTestnet":null,"polkadot":"14yyBt...nizS","hydrationSubstrate":"7MaXUP...XMdu","bifrostSubstrate":null,"uniqueSubstrate":"mVazqR...mBKk","paseo":"5G3g3Z...cJQe","paseoAssethub":"14yyBt...nizS","tron":"TWj76Z...63pu","bitcoin":"1Cbqyx...7FtN","solana":"Cdt4CD...keFM","aptos":"0x3a34...a969","aptosMainnet":"0x3a34...a969","aptosTestnet":"0x3a34...a969","aptosDevnet":"0x3a34...a969"}[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mGot addresses for user temp-test-123:[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39mArray(18) [
+  [32m'ethereum'[39m,
+  [32m'base'[39m,
+  [32m'arbitrum'[39m,
+  [32m'polygon'[39m,
+  [32m'avalanche'[39m,
+  [32m'tron'[39m,
+  [32m'bitcoin'[39m,
+  [32m'solana'[39m,
+  [32m'polkadot'[39m,
+  [32m'hydrationSubstrate'[39m,
+  [32m'uniqueSubstrate'[39m,
+  [32m'paseo'[39m,
+  [32m'paseoAssethub'[39m,
+  [32m'aptos'[39m,
+  [32m'aptosMainnet'[39m,
+  [32m'aptosTestnet'[39m,
+  [32m'aptosDevnet'[39m,
+  [32m'bifrostSubstrate'[39m
+]
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:48 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mFound wallet address 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 for user temp-test-123 on base (EOA)[39m
+[QueryService] Fetching app session 0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c...
+[QueryService] Fetching app sessions...
+[QueryService] Raw app sessions response: {
+  "app_sessions": [
+    {
+      "app_session_id": "0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767525708069,
+      "created_at": "2026-01-04T11:21:48Z",
+      "updated_at": "2026-01-04T11:21:48Z"
+    },
+    {
+      "app_session_id": "0x8b7a024f5ad23092a6875d5392daa1411d5c391580a5ef68ddad5486b6191c1b",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767522392054,
+      "created_at": "2026-01-04T10:26:32Z",
+      "updated_at": "2026-01-04T10:26:32Z"
+    },
+    {
+      "app_session_id": "0xa089f7a777149f0ed7879d4c0e3c1b182aac6b7d8d21c9e8d425b2992147cfa4",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767522179637,
+      "created_at": "2026-01-04T10:23:00Z",
+      "updated_at": "2026-01-04T10:23:00Z"
+    },
+    {
+      "app_session_id": "0x48ced5f98246e20efff8c2d295b6b4055a6aaf0b53a34cfa1e6f8ec569d0dea4",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767522080123,
+      "created_at": "2026-01-04T10:21:20Z",
+      "updated_at": "2026-01-04T10:21:20Z"
+    },
+    {
+      "app_session_id": "0xbbac79b1946a55db40e232969e3a1d6f3f8a87dc3d6141aed7444a65372577ce",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521716321,
+      "created_at": "2026-01-04T10:15:16Z",
+      "updated_at": "2026-01-04T10:15:16Z"
+    },
+    {
+      "app_session_id": "0xdf4e11204b779c95225e6ae0ad2ca7baf6977b3c7fb3e15a350b1647bd4ef9d3",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521647450,
+      "created_at": "2026-01-04T10:14:07Z",
+      "updated_at": "2026-01-04T10:14:07Z"
+    },
+    {
+      "app_session_id": "0xf7edcfd1fc893492eeb343c504960aff4d33ee2b0d538f813a2d643d0f03373f",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521429479,
+      "created_at": "2026-01-04T10:10:29Z",
+      "updated_at": "2026-01-04T10:10:29Z"
+    },
+    {
+      "app_session_id": "0xbcd855cc04d3b586fab190d6001b79bfb47b3da85b889466a343a5c81241ae47",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521375120,
+      "created_at": "2026-01-04T10:09:35Z",
+      "updated_at": "2026-01-04T10:09:35Z"
+    },
+    {
+      "app_session_id": "0x01125d2a579541d5d2856326a7a27182daaf639ef550be035d6337011b8b4833",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521272618,
+      "created_at": "2026-01-04T10:07:53Z",
+      "updated_at": "2026-01-04T10:07:53Z"
+    },
+    {
+      "app_session_id": "0x468aefaea9af15a0305de26898afa9e3f69be4fa5200e20eaf0671654d09cc42",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521213250,
+      "created_at": "2026-01-04T10:06:53Z",
+      "updated_at": "2026-01-04T10:06:53Z"
+    }
+  ]
+}
+[QueryService] Found 10 app sessions
+[QueryService] Fetching app definition for 0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c...
+[QueryService] Raw app definition response: {
+  "application": "",
+  "protocol": "NitroRPC/0.4",
+  "participants": [
+    "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+    "0x0000000000000000000000000000000000000001"
+  ],
+  "weights": [
+    50,
+    50
+  ],
+  "quorum": 50,
+  "challenge": 3600,
+  "nonce": 1767525708069
+}
+[QueryService] ✅ Got app definition with 2 participants
+[QueryService] ✅ Merged definition with 2 participants
+[AppSessionService] Deposit: 50.0 usdc from 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58
+[AppSessionService] addAllocation: 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 += 50.0 usdc
+  - Created new allocation for participant
+[AppSessionService] Submitting DEPOSIT intent...
+  - Session: 0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c
+  - Allocations: 1
+  - Allocations Detail: [
+  {
+    "participant": "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+    "asset": "usdc",
+    "amount": "50.0"
+  }
+]
+[WebSocket] Notification received: bu
+[Notification] Balance updated: { balance_updates: [] }
+[AppSessionService] Raw state update response: {
+  "error": "incorrect app state: incorrect version: expected 2, got 0"
+}
+[AppSessionService] ✅ DEPOSIT completed!
+  - New version: undefined
+[QueryService] Fetching app session 0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c...
+[QueryService] Fetching app sessions...
+[QueryService] Raw app sessions response: {
+  "app_sessions": [
+    {
+      "app_session_id": "0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767525708069,
+      "created_at": "2026-01-04T11:21:48Z",
+      "updated_at": "2026-01-04T11:21:48Z"
+    },
+    {
+      "app_session_id": "0x8b7a024f5ad23092a6875d5392daa1411d5c391580a5ef68ddad5486b6191c1b",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767522392054,
+      "created_at": "2026-01-04T10:26:32Z",
+      "updated_at": "2026-01-04T10:26:32Z"
+    },
+    {
+      "app_session_id": "0xa089f7a777149f0ed7879d4c0e3c1b182aac6b7d8d21c9e8d425b2992147cfa4",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767522179637,
+      "created_at": "2026-01-04T10:23:00Z",
+      "updated_at": "2026-01-04T10:23:00Z"
+    },
+    {
+      "app_session_id": "0x48ced5f98246e20efff8c2d295b6b4055a6aaf0b53a34cfa1e6f8ec569d0dea4",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767522080123,
+      "created_at": "2026-01-04T10:21:20Z",
+      "updated_at": "2026-01-04T10:21:20Z"
+    },
+    {
+      "app_session_id": "0xbbac79b1946a55db40e232969e3a1d6f3f8a87dc3d6141aed7444a65372577ce",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521716321,
+      "created_at": "2026-01-04T10:15:16Z",
+      "updated_at": "2026-01-04T10:15:16Z"
+    },
+    {
+      "app_session_id": "0xdf4e11204b779c95225e6ae0ad2ca7baf6977b3c7fb3e15a350b1647bd4ef9d3",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521647450,
+      "created_at": "2026-01-04T10:14:07Z",
+      "updated_at": "2026-01-04T10:14:07Z"
+    },
+    {
+      "app_session_id": "0xf7edcfd1fc893492eeb343c504960aff4d33ee2b0d538f813a2d643d0f03373f",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521429479,
+      "created_at": "2026-01-04T10:10:29Z",
+      "updated_at": "2026-01-04T10:10:29Z"
+    },
+    {
+      "app_session_id": "0xbcd855cc04d3b586fab190d6001b79bfb47b3da85b889466a343a5c81241ae47",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521375120,
+      "created_at": "2026-01-04T10:09:35Z",
+      "updated_at": "2026-01-04T10:09:35Z"
+    },
+    {
+      "app_session_id": "0x01125d2a579541d5d2856326a7a27182daaf639ef550be035d6337011b8b4833",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521272618,
+      "created_at": "2026-01-04T10:07:53Z",
+      "updated_at": "2026-01-04T10:07:53Z"
+    },
+    {
+      "app_session_id": "0x468aefaea9af15a0305de26898afa9e3f69be4fa5200e20eaf0671654d09cc42",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521213250,
+      "created_at": "2026-01-04T10:06:53Z",
+      "updated_at": "2026-01-04T10:06:53Z"
+    }
+  ]
+}
+[QueryService] Found 10 app sessions
+[QueryService] Fetching app definition for 0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c...
+[QueryService] Raw app definition response: {
+  "application": "",
+  "protocol": "NitroRPC/0.4",
+  "participants": [
+    "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+    "0x0000000000000000000000000000000000000001"
+  ],
+  "weights": [
+    50,
+    50
+  ],
+  "quorum": 50,
+  "challenge": 3600,
+  "nonce": 1767525708069
+}
+[QueryService] ✅ Got app definition with 2 participants
+[QueryService] ✅ Merged definition with 2 participants
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:50 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mEnsuring wallet exists for user temp-test-123...[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:50 PM [95m  DEBUG[39m [38;5;3m[AptosAddressManager] [39m[95mDerived Aptos address for account index 0: 0x3a346f0d98911c417144df5f798c55cd06eb165cc9fbffa88cca0a900ed0a969[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:50 PM [95m  DEBUG[39m [38;5;3m[AddressManager] [39m[95mWallet addresses ready for user temp-test-123: {"ethereum":"0x129b...6A58","base":"0x129b...6A58","arbitrum":"0x129b...6A58","polygon":"0x129b...6A58","avalanche":"0x129b...6A58","moonbeamTestnet":null,"astarShibuya":null,"paseoPassetHub":null,"hydration":null,"unique":null,"bifrost":null,"bifrostTestnet":null,"polkadot":"14yyBt...nizS","hydrationSubstrate":"7MaXUP...XMdu","bifrostSubstrate":null,"uniqueSubstrate":"mVazqR...mBKk","paseo":"5G3g3Z...cJQe","paseoAssethub":"14yyBt...nizS","tron":"TWj76Z...63pu","bitcoin":"1Cbqyx...7FtN","solana":"Cdt4CD...keFM","aptos":"0x3a34...a969","aptosMainnet":"0x3a34...a969","aptosTestnet":"0x3a34...a969","aptosDevnet":"0x3a34...a969"}[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:50 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mGot addresses for user temp-test-123:[39m
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:50 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39mArray(18) [
+  [32m'ethereum'[39m,
+  [32m'base'[39m,
+  [32m'arbitrum'[39m,
+  [32m'polygon'[39m,
+  [32m'avalanche'[39m,
+  [32m'tron'[39m,
+  [32m'bitcoin'[39m,
+  [32m'solana'[39m,
+  [32m'polkadot'[39m,
+  [32m'hydrationSubstrate'[39m,
+  [32m'uniqueSubstrate'[39m,
+  [32m'paseo'[39m,
+  [32m'paseoAssethub'[39m,
+  [32m'aptos'[39m,
+  [32m'aptosMainnet'[39m,
+  [32m'aptosTestnet'[39m,
+  [32m'aptosDevnet'[39m,
+  [32m'bifrostSubstrate'[39m
+]
+[95m[Nest] 2448  - [39m01/04/2026, 4:51:50 PM [95m  DEBUG[39m [38;5;3m[LightningNodeService] [39m[95mFound wallet address 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 for user temp-test-123 on base (EOA)[39m
+[QueryService] Fetching app session 0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c...
+[QueryService] Fetching app sessions...
+[QueryService] Raw app sessions response: {
+  "app_sessions": [
+    {
+      "app_session_id": "0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767525708069,
+      "created_at": "2026-01-04T11:21:48Z",
+      "updated_at": "2026-01-04T11:21:48Z"
+    },
+    {
+      "app_session_id": "0x8b7a024f5ad23092a6875d5392daa1411d5c391580a5ef68ddad5486b6191c1b",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767522392054,
+      "created_at": "2026-01-04T10:26:32Z",
+      "updated_at": "2026-01-04T10:26:32Z"
+    },
+    {
+      "app_session_id": "0xa089f7a777149f0ed7879d4c0e3c1b182aac6b7d8d21c9e8d425b2992147cfa4",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767522179637,
+      "created_at": "2026-01-04T10:23:00Z",
+      "updated_at": "2026-01-04T10:23:00Z"
+    },
+    {
+      "app_session_id": "0x48ced5f98246e20efff8c2d295b6b4055a6aaf0b53a34cfa1e6f8ec569d0dea4",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 50,
+      "version": 1,
+      "nonce": 1767522080123,
+      "created_at": "2026-01-04T10:21:20Z",
+      "updated_at": "2026-01-04T10:21:20Z"
+    },
+    {
+      "app_session_id": "0xbbac79b1946a55db40e232969e3a1d6f3f8a87dc3d6141aed7444a65372577ce",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521716321,
+      "created_at": "2026-01-04T10:15:16Z",
+      "updated_at": "2026-01-04T10:15:16Z"
+    },
+    {
+      "app_session_id": "0xdf4e11204b779c95225e6ae0ad2ca7baf6977b3c7fb3e15a350b1647bd4ef9d3",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521647450,
+      "created_at": "2026-01-04T10:14:07Z",
+      "updated_at": "2026-01-04T10:14:07Z"
+    },
+    {
+      "app_session_id": "0xf7edcfd1fc893492eeb343c504960aff4d33ee2b0d538f813a2d643d0f03373f",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521429479,
+      "created_at": "2026-01-04T10:10:29Z",
+      "updated_at": "2026-01-04T10:10:29Z"
+    },
+    {
+      "app_session_id": "0xbcd855cc04d3b586fab190d6001b79bfb47b3da85b889466a343a5c81241ae47",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521375120,
+      "created_at": "2026-01-04T10:09:35Z",
+      "updated_at": "2026-01-04T10:09:35Z"
+    },
+    {
+      "app_session_id": "0x01125d2a579541d5d2856326a7a27182daaf639ef550be035d6337011b8b4833",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521272618,
+      "created_at": "2026-01-04T10:07:53Z",
+      "updated_at": "2026-01-04T10:07:53Z"
+    },
+    {
+      "app_session_id": "0x468aefaea9af15a0305de26898afa9e3f69be4fa5200e20eaf0671654d09cc42",
+      "application": "tempwallets-lightning",
+      "status": "open",
+      "participants": [
+        "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+        "0x0000000000000000000000000000000000000001"
+      ],
+      "session_data": "{}",
+      "protocol": "NitroRPC/0.4",
+      "challenge": 3600,
+      "weights": [
+        50,
+        50
+      ],
+      "quorum": 100,
+      "version": 1,
+      "nonce": 1767521213250,
+      "created_at": "2026-01-04T10:06:53Z",
+      "updated_at": "2026-01-04T10:06:53Z"
+    }
+  ]
+}
+[QueryService] Found 10 app sessions
+[QueryService] Fetching app definition for 0x8f22f6d7382ad0403461a811f1fa05949666db2fcd7bd5a34037ad877e9fe56c...
+[QueryService] Raw app definition response: {
+  "application": "",
+  "protocol": "NitroRPC/0.4",
+  "participants": [
+    "0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58",
+    "0x0000000000000000000000000000000000000001"
+  ],
+  "weights": [
+    50,
+    50
+  ],
+  "quorum": 50,
+  "challenge": 3600,
+  "nonce": 1767525708069
+}
+[QueryService] ✅ Got app definition with 2 participants
+[QueryService] ✅ Merged definition with 2 participants
+[AppSessionService] Transfer: 30.0 usdc from 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 to 0x0000000000000000000000000000000000000001
+[AppSessionService] subtractAllocation: 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 -= 30.0 usdc
+[AppSessionService] Current allocations: []
+[31m[Nest] 2448  - [39m01/04/2026, 4:51:51 PM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39mError: Participant 0x129b2D86323B8231a19Ff7A6Be6627278FCE6A58 has no usdc allocation
+    at AppSessionService.subtractAllocation [90m(/Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/[39msrc/services/yellow-network/app-session-service.ts:426:13[90m)[39m
+    at AppSessionService.transferAllocation [90m(/Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/[39msrc/services/yellow-network/app-session-service.ts:455:31[90m)[39m
+    at AppSessionService.transferInAppSession [90m(/Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/[39msrc/services/yellow-network/app-session-service.ts:264:33[90m)[39m
+    at NitroliteClient.transferInLightningNode [90m(/Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/[39msrc/services/yellow-network/nitrolite-client.ts:325:34[90m)[39m
+    at LightningNodeService.transfer [90m(/Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/[39msrc/lightning-node/lightning-node.service.ts:1435:27[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+    at async LightningNodeController.transfer [90m(/Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/[39msrc/lightning-node/lightning-node.controller.ts:115:12[90m)[39m
+[WebSocket] Disconnected (code: 1006, reason: )
+[WebSocket] Reconnecting in 1000ms (attempt 1/3)
+[WebSocket] Connecting to wss://clearnet-sandbox.yellow.com/ws...
+[WebSocket] Connected to Clearnode
+[WebSocket] Notification received: assets
+[Notification] Assets catalog received (6 assets)
+[WebSocket] Disconnected (code: 1006, reason: )
+[WebSocket] Reconnecting in 1000ms (attempt 1/5)
+[WebSocket] Connecting to wss://clearnet-sandbox.yellow.com/ws...
+[WebSocket] Connected to Clearnode
+[WebSocket] Notification received: assets
+[Notification] Assets catalog received (6 assets)
+[WebSocket] Disconnected (code: 1006, reason: )
+[WebSocket] Reconnecting in 1000ms (attempt 1/3)
+[WebSocket] Connecting to wss://clearnet-sandbox.yellow.com/ws...
+[WebSocket] Connected to Clearnode
+[WebSocket] Notification received: assets
+[Notification] Assets catalog received (6 assets)
+[WebSocket] Disconnected (code: 1006, reason: )
+[WebSocket] Reconnecting in 1000ms (attempt 1/5)
+[WebSocket] Connecting to wss://clearnet-sandbox.yellow.com/ws...
+[WebSocket] Connected to Clearnode
+[WebSocket] Notification received: assets
+[Notification] Assets catalog received (6 assets)
+[WebSocket] Disconnected (code: 1006, reason: )
+[WebSocket] Reconnecting in 1000ms (attempt 1/3)
+[WebSocket] Connecting to wss://clearnet-sandbox.yellow.com/ws...
+[WebSocket] Connected to Clearnode
+[WebSocket] Notification received: assets
+[Notification] Assets catalog received (6 assets)
+[WebSocket] Disconnected (code: 1006, reason: )
+[WebSocket] Reconnecting in 1000ms (attempt 1/5)
+[WebSocket] Connecting to wss://clearnet-sandbox.yellow.com/ws...
+[WebSocket] Connected to Clearnode
+[WebSocket] Notification received: assets
+[Notification] Assets catalog received (6 assets)

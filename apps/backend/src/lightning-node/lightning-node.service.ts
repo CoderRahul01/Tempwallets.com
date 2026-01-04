@@ -391,9 +391,9 @@ export class LightningNodeService {
       pushUnique(userWalletAddress);
       requestedParticipants.forEach(pushUnique);
 
-      if (participants.length < 2) {
+      if (participants.length < 1) {
         throw new BadRequestException(
-          'Lightning Nodes require at least 1 participant address besides the creator.',
+          'Lightning Nodes require at least 1 participant address.',
         );
       }
 

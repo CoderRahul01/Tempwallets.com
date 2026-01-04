@@ -1367,3 +1367,152 @@ Error: listen EADDRINUSE: address already in use :::5005
 }
 
 Node.js v24.11.0
+[2J[3J[H[[90m4:49:48 PM[0m] File change detected. Starting incremental compilation...
+
+[[90m4:49:54 PM[0m] Found 0 errors. Watching for file changes.
+
+Loaded Aptos Network Configurations: { mainnet: '1 RPC(s)', testnet: '1 RPC(s)', devnet: '1 RPC(s)' }
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[33m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [33m   WARN[39m [38;5;3m[TokenListService] [39m[33mToken list file not found: /Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/dist/wallet/tokens/polkadot-evm-tokens.json[39m
+[33m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [33m   WARN[39m [38;5;3m[TokenListService] [39m[33mToken list file not found: /Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/dist/wallet/tokens/all-tokens.json[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[TokenListService] [39m[32mIndexed tokens for 0 unique chain identifiers[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +6ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEvmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +3ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +2ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCryptoModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +2ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUserModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWalletConnectModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAptosModule dependencies initialized[39m[38;5;3m +2ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:49:59 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSubstrateModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLightningNodeModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWalletModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mWalletController {/wallet}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/eip7702/send, POST} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/eip7702/test/:chain, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/seed, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/addresses, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/history, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/switch, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/history/:walletId, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/walletconnect/accounts, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/balances, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/balances/refresh, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/erc4337/paymaster-balances, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/send, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/token-balances, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/assets-any, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/transactions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/transactions-any, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/addresses-stream, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/balances-stream, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/walletconnect/sign, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/test-rpc-balance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/test-rpc-transactions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/addresses, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/balances, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/transactions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/send, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/health, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSubstrateTestController {/wallet/substrate/test}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/wasm, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/chains, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/ss58, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/derivation, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/rpc, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/cache, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/ensure-address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/addresses, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/account, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/balance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/nonce, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/all, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/detect, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/balance-detect, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/decode, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/construct, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/estimate-fee, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/sign, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/send, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/history, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/test/check-pallet, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSubstrateWalletConnectController {/wallet/substrate/walletconnect}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/walletconnect/accounts, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/walletconnect/sign-transaction, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/substrate/walletconnect/sign-message, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAptosWalletController {/wallet/aptos}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/aptos/address, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/aptos/balance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/aptos/send, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/wallet/aptos/faucet, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/google, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/google/callback, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/logout, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUserController {/user}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/profile, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/stats, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/activity, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/account, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/xp, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/xp/award, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLightningNodeController {/lightning-node}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/authenticate, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/search, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/discover/:userId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/create, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/join, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/deposit, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/transfer, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/close, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/invited/:userId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/presence/:appSessionId/:userId, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/detail/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/lightning-node/:userId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mWalletConnectController {/walletconnect}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/accounts, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/sessions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/approve-proposal, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/reject-proposal, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/save-proposal, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/save-session, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/sign, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/sessions/:topic, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/proposals/pending, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/walletconnect/sessions/:topic/requests/pending, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[PrismaService] [39m[32mSuccessfully connected to database[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[SubstrateRpcService] [39m[32mStarted connection health checks every 60s[39m
+[32m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +2ms[39m
+[31m[Nest] 2464  - [39m01/04/2026, 4:50:00 PM [31m  ERROR[39m [38;5;3m[NestApplication] [39m[31mError: listen EADDRINUSE: address already in use :::5005[39m[38;5;3m +1ms[39m
+node:net:1940
+    const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+               ^
+
+Error: listen EADDRINUSE: address already in use :::5005
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at ExpressAdapter.listen (/Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/node_modules/.pnpm/@nestjs+platform-express@11.1.8_@nestjs+common@11.1.8_class-transformer@0.5.1_class-validator_6e5i2axxr4qyvusvh2ussz6zhy/node_modules/@nestjs/platform-express/adapters/express-adapter.js:127:32)
+    at /Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/node_modules/.pnpm/@nestjs+core@11.1.8_@nestjs+common@11.1.8_class-transformer@0.5.1_class-validator@0.14.2_refl_zqfxmf2cyj6wwzbyrqnreltwti/node_modules/@nestjs/core/nest-application.js:188:30
+    at new Promise (<anonymous>)
+    at NestApplication.listen (/Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/node_modules/.pnpm/@nestjs+core@11.1.8_@nestjs+common@11.1.8_class-transformer@0.5.1_class-validator@0.14.2_refl_zqfxmf2cyj6wwzbyrqnreltwti/node_modules/@nestjs/core/nest-application.js:178:16)
+    at async bootstrap (/Users/rahulpandey187/Library/Mobile Documents/com~apple~CloudDocs/tw-contri/Tempwallets.com/apps/backend/src/main.ts:57:3) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '::',
+  port: 5005
+}
+
+Node.js v24.11.0

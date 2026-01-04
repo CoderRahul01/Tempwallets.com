@@ -7,6 +7,7 @@ import { lightningNodeApi, LightningNode, LightningNodeParticipant, walletApi } 
 import { trackLightningFinalSettlement } from '@/lib/mixpanel-events';
 import { TransferFundsModal } from '../modals/transfer-funds-modal';
 import { useAuth } from '@/hooks/useAuth';
+import { useLightningNodes } from '@/hooks/useLightningNodes';
 
 
 interface LightningNodeDetailsProps {
@@ -27,6 +28,7 @@ const CHAIN_NAMES: Record<string, string> = {
 
 export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNodeDetailsProps) {
   const { userId } = useAuth();
+  const { depositFunds } = useLightningNodes();
   const [lightningNode, setLightningNode] = useState<LightningNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -165,6 +167,34 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to settle Lightning Node');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeposit = async () => {
+    if (!lightningNode || !userId || !currentParticipant) return;
+
+    const amount = window.prompt('Enter amount to deposit (USDC):', '10');
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) return;
+
+    try {
+      setLoading(true);
+      const success = await depositFunds({
+        appSessionId: lightningNode.appSessionId,
+        participantAddress: currentParticipant.address,
+        amount: (parseFloat(amount) * 1e6).toString(),
+        asset: lightningNode.token,
+      });
+
+      if (success) {
+        alert('Deposit successful!');
+        await refreshDetails();
+      } else {
+        alert('Failed to deposit funds');
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to deposit funds');
     } finally {
       setLoading(false);
     }
@@ -309,13 +339,21 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
 
         {/* Action Buttons */}
         {lightningNode.status === 'open' && currentParticipant && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              onClick={handleDeposit}
+              className="bg-gray-900 hover:bg-gray-800 text-white"
+              disabled={loading}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Deposit
+            </Button>
             <Button
               onClick={() => setTransferModalOpen(true)}
               className="bg-gray-900 hover:bg-gray-800 text-white"
-              disabled={Number(myBalance) === 0}
+              disabled={Number(myBalance) === 0 || loading}
             >
-              <ArrowRightLeft className="mr-2 h-4 w-4" />
+              <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
               Transfer
             </Button>
             <Button
@@ -325,11 +363,11 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
               disabled={loading}
             >
               {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <X className="mr-2 h-4 w-4" />
+                <X className="mr-1 h-3.5 w-3.5" />
               )}
-              Settlement
+              Settle
             </Button>
           </div>
         )}

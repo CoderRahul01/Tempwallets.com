@@ -17,8 +17,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { fingerprint } = useBrowserFingerprint();
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const { fingerprint, loading: fingerprintLoading } = useBrowserFingerprint();
 
   useEffect(() => {
     // Load from localStorage on mount
@@ -35,8 +35,10 @@ export function useAuth() {
         localStorage.removeItem('auth_user');
       }
     }
-    setLoading(false);
+    setLoadingInitial(false);
   }, []);
+
+  const loading = loadingInitial || (fingerprintLoading && !user);
 
   const login = useCallback(() => {
     if (!fingerprint) {
@@ -61,7 +63,7 @@ export function useAuth() {
   const logout = useCallback(async () => {
     // Track logout event
     trackAuth.logout();
-    
+
     // Reset Mixpanel on logout
     resetMixpanel();
 
@@ -84,6 +86,14 @@ export function useAuth() {
 
   // Compute userId directly - use Google user ID when authenticated, otherwise fingerprint
   const userId = user?.id || fingerprint || null;
+
+  // Track registered user on login
+  useEffect(() => {
+    if (user?.id) {
+      const { trackActiveRegisteredUser } = require('@/lib/mixpanel-events');
+      trackActiveRegisteredUser({ userId: user.id });
+    }
+  }, [user?.id]);
 
   return {
     user,
