@@ -108,7 +108,7 @@ export const chains: Chain[] = [
     category: 'layer1',
     featured: true,
   },
-  
+
   // Other EVM chains
   {
     id: 'polygon',
@@ -286,7 +286,7 @@ export const getChainsByType = (type: ChainType): Chain[] => {
  */
 export const mapWalletCategoryToChainType = (category?: string): ChainType | null => {
   if (!category) return 'evm'; // Default to EVM for backward compatibility
-  
+
   switch (category.toLowerCase()) {
     case 'evm':
     case 'ethereum':
@@ -362,9 +362,23 @@ export const gaslessChainIdMap: Record<string, number> = {
   baseSepoliaGasless: 84532,
 };
 
+
 /**
  * Get EVM chain ID for a gasless chain
  */
 export const getGaslessChainId = (chainId: string): number | undefined => {
   return gaslessChainIdMap[chainId];
+};
+
+/**
+ * Strict list of chains supported by both Pimlico (Gasless) and Yellow Network.
+ * This filters the UI to ONLY show these chains for the "Reset" requirements.
+ */
+export const GASLESS_SUPPORTED_CHAINS = ['base', 'arbitrum'];
+
+/**
+ * Check if a chain is in the strict supported list
+ */
+export const isGaslessSupportedChain = (chainId: string): boolean => {
+  return GASLESS_SUPPORTED_CHAINS.includes(chainId);
 };

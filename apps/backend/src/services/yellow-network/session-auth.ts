@@ -125,7 +125,7 @@ export class SessionKeyAuth {
         runId: 'run1',
         hypothesisId: 'C',
       }),
-    }).catch(() => {});
+    }).catch(() => { });
     // #endregion
 
     const authParams: AuthRequestParams = {
@@ -204,7 +204,7 @@ export class SessionKeyAuth {
         runId: 'run2',
         hypothesisId: 'B',
       }),
-    }).catch(() => {});
+    }).catch(() => { });
     // #endregion
 
     // Sign with main wallet
@@ -232,7 +232,7 @@ export class SessionKeyAuth {
         runId: 'run1',
         hypothesisId: 'A',
       }),
-    }).catch(() => {});
+    }).catch(() => { });
     // #endregion
 
     // Step 4: auth_verify - Submit signatures
@@ -266,7 +266,7 @@ export class SessionKeyAuth {
         runId: 'run1',
         hypothesisId: 'F',
       }),
-    }).catch(() => {});
+    }).catch(() => { });
     // #endregion
 
     console.log('[SessionKeyAuth] Sending auth_verify...');
@@ -308,7 +308,7 @@ export class SessionKeyAuth {
             hypothesisId: 'E',
           }),
         },
-      ).catch(() => {});
+      ).catch(() => { });
       // #endregion
 
       if (isErrorResponse || !hasSuccess) {
@@ -373,9 +373,9 @@ export class SessionKeyAuth {
     // Build message hash from request
     const messageHash = keccak256(toBytes(JSON.stringify(request.req)));
 
-    // Sign with session key
-    const signature = await this.sessionKey.account.signMessage({
-      message: { raw: messageHash },
+    // Sign with session key (RAW hash, no Ethereum prefix)
+    const signature = await this.sessionKey.account.sign({
+      hash: messageHash,
     });
 
     return {
@@ -512,7 +512,7 @@ export class SessionKeyAuth {
         runId: 'run1',
         hypothesisId: 'B',
       }),
-    }).catch(() => {});
+    }).catch(() => { });
     // #endregion
 
     return typedData;

@@ -279,6 +279,7 @@ export class NitroliteClient {
    * @param participant - Participant address
    * @param asset - Asset identifier
    * @param amount - Amount in human-readable format
+   * @param version - Current session version
    * @param currentAllocations - Current allocations
    */
   async depositToLightningNode(
@@ -286,6 +287,7 @@ export class NitroliteClient {
     participant: Address,
     asset: string,
     amount: string,
+    version: number,
     currentAllocations: AppSessionAllocation[],
   ): Promise<void> {
     this.ensureInitialized();
@@ -294,6 +296,7 @@ export class NitroliteClient {
       participant,
       asset,
       amount,
+      version,
       currentAllocations,
     );
   }
@@ -306,6 +309,7 @@ export class NitroliteClient {
    * @param to - Recipient address
    * @param asset - Asset identifier
    * @param amount - Amount in human-readable format
+   * @param version - Current session version
    * @param currentAllocations - Current allocations
    */
   async transferInLightningNode(
@@ -314,6 +318,7 @@ export class NitroliteClient {
     to: Address,
     asset: string,
     amount: string,
+    version: number,
     currentAllocations: AppSessionAllocation[],
   ): Promise<void> {
     this.ensureInitialized();
@@ -323,6 +328,7 @@ export class NitroliteClient {
       to,
       asset,
       amount,
+      version,
       currentAllocations,
     );
   }
@@ -334,6 +340,7 @@ export class NitroliteClient {
    * @param participant - Participant address
    * @param asset - Asset identifier
    * @param amount - Amount in human-readable format
+   * @param version - Current session version
    * @param currentAllocations - Current allocations
    */
   async withdrawFromLightningNode(
@@ -341,6 +348,7 @@ export class NitroliteClient {
     participant: Address,
     asset: string,
     amount: string,
+    version: number,
     currentAllocations: AppSessionAllocation[],
   ): Promise<void> {
     this.ensureInitialized();
@@ -349,6 +357,7 @@ export class NitroliteClient {
       participant,
       asset,
       amount,
+      version,
       currentAllocations,
     );
   }

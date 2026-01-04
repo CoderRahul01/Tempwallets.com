@@ -22,6 +22,7 @@ import { Label } from '@repo/ui/components/ui/label';
 import { Loader2, ArrowRightLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { lightningNodeApi, LightningNode, LightningNodeParticipant, walletApi } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { trackLightningOffchainTransaction } from '@/lib/mixpanel-events';
 
 interface TransferFundsModalProps {
   open: boolean;
@@ -140,6 +141,14 @@ export function TransferFundsModal({
       });
 
       if (response.ok) {
+        // TRACKING: Off-chain Transaction
+        trackLightningOffchainTransaction({
+          userId,
+          sessionId: lightningNode.appSessionId,
+          amount: amount,
+          token: lightningNode.token,
+        });
+
         setSuccess(true);
 
         // Notify parent to refresh data

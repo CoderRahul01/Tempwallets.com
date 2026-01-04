@@ -81,6 +81,8 @@ export class AppSessionService {
       sig: [] as string[],
     };
 
+    console.log('[AppSessionService] RPC Request before signing:', JSON.stringify(request, null, 2));
+
     // Sign with session key
     request = await this.auth.signRequest(request);
 
@@ -92,10 +94,10 @@ export class AppSessionService {
     console.log('[AppSessionService] Session response:', JSON.stringify(sessionResponse, null, 2));
 
     // Extract app session ID - try multiple possible field names
-    const appSessionId: Hash = sessionResponse?.app_session_id || 
-                               sessionResponse?.appSessionId || 
-                               sessionResponse?.session_id ||
-                               sessionResponse?.sessionId;
+    const appSessionId: Hash = sessionResponse?.app_session_id ||
+      sessionResponse?.appSessionId ||
+      sessionResponse?.session_id ||
+      sessionResponse?.sessionId;
 
     // app_session_id MUST come from Yellow Network - no fallback computation
     if (!appSessionId || typeof appSessionId !== 'string') {
@@ -149,12 +151,14 @@ export class AppSessionService {
   async submitAppState(
     appSessionId: Hash,
     intent: AppSessionIntent,
+    version: number,
     allocations: AppSessionAllocation[],
     sessionData?: string,
   ): Promise<AppSessionState> {
     console.log(`[AppSessionService] Submitting ${intent} intent...`);
     console.log(`  - Session: ${appSessionId}`);
     console.log(`  - Allocations: ${allocations.length}`);
+    console.log(`  - Allocations Detail:`, JSON.stringify(allocations, null, 2));
 
     // Request state update
     const requestId = this.ws.getNextRequestId();
@@ -164,9 +168,14 @@ export class AppSessionService {
         'submit_app_state',
         {
           app_session_id: appSessionId,
-          intent,
-          allocations,
-          session_data: sessionData,
+          state: {
+            app_session_id: appSessionId,
+            status: 'open',
+            version: version,
+            session_data: intent,
+            allocations: allocations,
+            signatures: [],
+          },
         },
         Date.now(),
       ],
@@ -178,6 +187,8 @@ export class AppSessionService {
 
     const response = await this.ws.send(request);
     const stateData = response.res[2];
+
+    console.log('[AppSessionService] Raw state update response:', JSON.stringify(stateData, null, 2));
 
     console.log(`[AppSessionService] ✅ ${intent} completed!`);
     console.log(`  - New version: ${stateData.version}`);
@@ -207,6 +218,7 @@ export class AppSessionService {
     participant: Address,
     asset: string,
     amount: string,
+    version: number,
     currentAllocations: AppSessionAllocation[],
   ): Promise<AppSessionState> {
     console.log(
@@ -221,7 +233,7 @@ export class AppSessionService {
       amount,
     );
 
-    return await this.submitAppState(appSessionId, 'DEPOSIT', newAllocations);
+    return await this.submitAppState(appSessionId, 'DEPOSIT', version + 1, newAllocations);
   }
 
   /**
@@ -241,6 +253,7 @@ export class AppSessionService {
     to: Address,
     asset: string,
     amount: string,
+    version: number,
     currentAllocations: AppSessionAllocation[],
   ): Promise<AppSessionState> {
     console.log(
@@ -256,7 +269,7 @@ export class AppSessionService {
       amount,
     );
 
-    return await this.submitAppState(appSessionId, 'OPERATE', newAllocations);
+    return await this.submitAppState(appSessionId, 'OPERATE', version + 1, newAllocations);
   }
 
   /**
@@ -274,6 +287,7 @@ export class AppSessionService {
     participant: Address,
     asset: string,
     amount: string,
+    version: number,
     currentAllocations: AppSessionAllocation[],
   ): Promise<AppSessionState> {
     console.log(
@@ -288,7 +302,7 @@ export class AppSessionService {
       amount,
     );
 
-    return await this.submitAppState(appSessionId, 'WITHDRAW', newAllocations);
+    return await this.submitAppState(appSessionId, 'WITHDRAW', version + 1, newAllocations);
   }
 
   /**
@@ -367,11 +381,12 @@ export class AppSessionService {
     asset: string,
     amount: string,
   ): AppSessionAllocation[] {
+    console.log(`[AppSessionService] addAllocation: ${participant} += ${amount} ${asset}`);
     const newAllocations = [...allocations];
     const existing = newAllocations.find(
       (a) =>
         a.participant.toLowerCase() === participant.toLowerCase() &&
-        a.asset === asset,
+        a.asset.toLowerCase() === asset.toLowerCase(),
     );
 
     if (existing) {
@@ -379,9 +394,11 @@ export class AppSessionService {
       const currentAmount = parseFloat(existing.amount);
       const addAmount = parseFloat(amount);
       existing.amount = (currentAmount + addAmount).toString();
+      console.log(`  - Updated existing allocation: ${existing.amount}`);
     } else {
       // Create new allocation
       newAllocations.push({ participant, asset, amount });
+      console.log(`  - Created new allocation for participant`);
     }
 
     return newAllocations;
@@ -396,14 +413,16 @@ export class AppSessionService {
     asset: string,
     amount: string,
   ): AppSessionAllocation[] {
+    console.log(`[AppSessionService] subtractAllocation: ${participant} -= ${amount} ${asset}`);
     const newAllocations = [...allocations];
     const existing = newAllocations.find(
       (a) =>
         a.participant.toLowerCase() === participant.toLowerCase() &&
-        a.asset === asset,
+        a.asset.toLowerCase() === asset.toLowerCase(),
     );
 
     if (!existing) {
+      console.error(`[AppSessionService] Current allocations:`, JSON.stringify(allocations, null, 2));
       throw new Error(`Participant ${participant} has no ${asset} allocation`);
     }
 
@@ -417,6 +436,7 @@ export class AppSessionService {
     }
 
     existing.amount = (currentAmount - subtractAmount).toString();
+    console.log(`  - Updated existing allocation: ${existing.amount}`);
 
     return newAllocations;
   }

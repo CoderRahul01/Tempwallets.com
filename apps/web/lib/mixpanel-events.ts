@@ -8,11 +8,31 @@
 import { trackEvent } from './mixpanel';
 
 // ==========================================
+// USER GROWTH EVENTS
+// ==========================================
+
+export const trackActiveGuestUser = () => {
+  trackEvent('active_guest_user', {
+    timestamp: new Date().toISOString(),
+    platform: 'web',
+  });
+};
+
+export const trackActiveRegisteredUser = (params: { userId: string }) => {
+  trackEvent('active_registered_user', {
+    user_id: params.userId,
+    timestamp: new Date().toISOString(),
+    platform: 'web',
+  });
+};
+
+// ==========================================
 // LIGHTNING NODE EVENTS
 // ==========================================
 
 /**
  * Track when a user successfully authenticates their wallet with Lightning Network
+ * RENAMED: clearnode_connection_established
  */
 export const trackLightningWalletConnected = (params: {
   userId: string;
@@ -20,12 +40,22 @@ export const trackLightningWalletConnected = (params: {
   chain: string;
   timestamp: number;
 }) => {
-  trackEvent('lightning_wallet_connected', {
+  trackEvent('clearnode_connection_established', {
     user_id: params.userId,
     wallet_address: params.walletAddress,
     chain: params.chain,
     authenticated_at: new Date(params.timestamp).toISOString(),
     platform: 'web',
+  });
+};
+
+/**
+ * Track when a user STARTS the LN creation process
+ */
+export const trackLightningCreationStart = (params: { userId: string }) => {
+  trackEvent('ln_creation_start', {
+    user_id: params.userId,
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -42,6 +72,56 @@ export const trackLightningSessionCreated = (params: {
     session_id: params.sessionId,
     chain: params.chain,
     created_at: new Date().toISOString(),
+  });
+};
+
+/**
+ * Track when a user deposits collateral into a Lightning Node
+ */
+export const trackLightningCollateralDeposit = (params: {
+  userId: string;
+  sessionId: string;
+  amount: string;
+  token: string;
+}) => {
+  trackEvent('ln_collateral_deposit', {
+    user_id: params.userId,
+    session_id: params.sessionId,
+    amount: params.amount,
+    token: params.token,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+/**
+ * Track off-chain Lightning transactions
+ */
+export const trackLightningOffchainTransaction = (params: {
+  userId: string;
+  sessionId: string;
+  amount: string;
+  token: string;
+}) => {
+  trackEvent('ln_offchain_transaction', {
+    user_id: params.userId,
+    session_id: params.sessionId,
+    amount: params.amount,
+    token: params.token,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+/**
+ * Track final settlement (Close Node)
+ */
+export const trackLightningFinalSettlement = (params: {
+  userId: string;
+  sessionId: string;
+}) => {
+  trackEvent('ln_final_settlement', {
+    user_id: params.userId,
+    session_id: params.sessionId,
+    timestamp: new Date().toISOString(),
   });
 };
 

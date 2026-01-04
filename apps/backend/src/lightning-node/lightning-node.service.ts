@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service.js';
 import {
   createPublicClient,
+  createWalletClient,
   http,
   type Address,
   type PublicClient,
@@ -81,7 +82,7 @@ export class LightningNodeService {
     if (this.pimlicoConfig.isEip7702Enabled(baseChain)) {
       this.logger.warn(
         `EIP-7702 is enabled on ${baseChain}, but Lightning Node requires direct EOA signing. ` +
-          `Proceeding with the EOA (no delegation/UserOp).`,
+        `Proceeding with the EOA (no delegation/UserOp).`,
       );
     }
 
@@ -107,8 +108,8 @@ export class LightningNodeService {
 
       throw new NotFoundException(
         `No wallet address found for chain "${chainName}" (tried ${baseChain}). ` +
-          `Available chains: ${availableChains || 'none'}. ` +
-          `Please select a different chain or refresh your wallet to generate addresses for this chain.`,
+        `Available chains: ${availableChains || 'none'}. ` +
+        `Please select a different chain or refresh your wallet to generate addresses for this chain.`,
       );
     }
 
@@ -182,7 +183,7 @@ export class LightningNodeService {
       );
       throw new BadRequestException(
         `Failed to create signer account: ${err.message}. ` +
-          `Make sure the user has a wallet seed phrase configured.`,
+        `Make sure the user has a wallet seed phrase configured.`,
       );
     }
   }
@@ -261,7 +262,7 @@ export class LightningNodeService {
     }) as PublicClient;
 
     // Create wallet client (used for on-chain operations)
-    const walletClient = createPublicClient({
+    const walletClient = createWalletClient({
       chain,
       transport: http(rpcUrl),
     }) as unknown as WalletClient;
@@ -421,8 +422,8 @@ export class LightningNodeService {
       if (participantsWithFunds.length > 1) {
         this.logger.warn(
           `[LN/create] Multiple participants have initial funds. ` +
-            `Yellow Network requires ALL of them to sign the creation request. ` +
-            `This feature is not yet implemented. Only creator will sign.`,
+          `Yellow Network requires ALL of them to sign the creation request. ` +
+          `This feature is not yet implemented. Only creator will sign.`,
         );
         // TODO: Implement multi-party signing flow
         // For now, we'll proceed with single signer and let Yellow Network reject if needed
@@ -455,7 +456,7 @@ export class LightningNodeService {
       });
 
       const appSessionId = appSession.app_session_id;
-      
+
       // Validate appSessionId is present and valid
       if (!appSessionId || typeof appSessionId !== 'string') {
         this.logger.error(
@@ -726,7 +727,7 @@ export class LightningNodeService {
         );
         throw new BadRequestException(
           `You are not a participant in this session. ` +
-            `Your wallet address (${userWalletAddress}) was not included when the session was created.`,
+          `Your wallet address (${userWalletAddress}) was not included when the session was created.`,
         );
       }
 
@@ -791,7 +792,7 @@ export class LightningNodeService {
 
       throw new BadRequestException(
         `Failed to search for session: ${err.message}. ` +
-          `Make sure you're authenticated and the session exists.`,
+        `Make sure you're authenticated and the session exists.`,
       );
     }
   }
@@ -1103,8 +1104,8 @@ export class LightningNodeService {
       if (!participantRow) {
         throw new BadRequestException(
           `You are not a participant in this Lightning Node. ` +
-            `Your wallet address (${userWalletAddress}) was not included when the session was created. ` +
-            `In Yellow Network, participants must be specified at creation time and cannot be added later.`,
+          `Your wallet address (${userWalletAddress}) was not included when the session was created. ` +
+          `In Yellow Network, participants must be specified at creation time and cannot be added later.`,
         );
       }
 
@@ -1174,8 +1175,8 @@ export class LightningNodeService {
           if (!isIncluded) {
             this.logger.warn(
               `[LN/join] Yellow Network query result doesn't include user's address. ` +
-                `This may be due to wallet-scoped query visibility. ` +
-                `userAddress=${userWalletAddress} remoteParticipants=${remoteParticipants.join(',')}`,
+              `This may be due to wallet-scoped query visibility. ` +
+              `userAddress=${userWalletAddress} remoteParticipants=${remoteParticipants.join(',')}`,
             );
           } else {
             this.logger.log(
@@ -1190,8 +1191,8 @@ export class LightningNodeService {
         );
         throw new BadRequestException(
           `Cannot access Lightning Node on Yellow Network. ` +
-            `This may indicate: (1) session doesn't exist, (2) authentication failed, or (3) you're not a participant. ` +
-            `Error: ${err.message}`,
+          `This may indicate: (1) session doesn't exist, (2) authentication failed, or (3) you're not a participant. ` +
+          `Error: ${err.message}`,
         );
       }
 
@@ -1372,6 +1373,7 @@ export class LightningNodeService {
       dto.participantAddress as Address,
       dto.asset,
       dto.amount,
+      remoteSession.version,
       currentAllocations,
     );
 
@@ -1436,6 +1438,7 @@ export class LightningNodeService {
       dto.toAddress as Address,
       dto.asset,
       dto.amount,
+      remoteSession.version,
       currentAllocations,
     );
 

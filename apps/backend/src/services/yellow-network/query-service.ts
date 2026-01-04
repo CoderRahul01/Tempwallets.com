@@ -112,6 +112,8 @@ export class QueryService {
     const response = await this.ws.send(request);
     const sessionsData = response.res[2];
 
+    console.log('[QueryService] Raw app sessions response:', JSON.stringify(sessionsData, null, 2));
+
     const sessions: AppSession[] = sessionsData.app_sessions.map((s: any) => ({
       app_session_id: s.app_session_id,
       status: s.status,
@@ -242,6 +244,8 @@ export class QueryService {
 
     const response = await this.ws.send(request);
     const definition = response.res[2];
+
+    console.log('[QueryService] Raw app definition response:', JSON.stringify(definition, null, 2));
 
     console.log(`[QueryService] ✅ Got app definition with ${definition.participants?.length || 0} participants`);
 

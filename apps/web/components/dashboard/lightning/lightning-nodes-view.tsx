@@ -81,7 +81,7 @@ function AuthenticationBanner({
             Wallet Connected
           </p>
           <div className="flex items-center gap-2">
-            <p 
+            <p
               className="text-sm text-gray-700 font-mono cursor-pointer hover:text-gray-900 transition-colors"
               onClick={handleCopyAddress}
               title="Click to copy full address"
@@ -141,8 +141,8 @@ function LightningNodeCard({
   };
 
   const participantCount = node.participants.length;
-  const totalBalance = node.participants.reduce((sum, p) => sum + BigInt(p.balance), BigInt(0));
-  const balanceHuman = (Number(totalBalance) / 1e6).toFixed(2);
+  const totalBalance = node.participants.reduce((sum, p) => sum + parseFloat(p.balance || '0'), 0);
+  const balanceHuman = (totalBalance / 1e6).toFixed(2);
 
   const statusColor = 'bg-gray-200 text-gray-800';
 
@@ -153,11 +153,10 @@ function LightningNodeCard({
 
   return (
     <div
-      className={`bg-white rounded-2xl p-4 space-y-3 border transition-colors cursor-pointer group ${
-        isInvitation
+      className={`bg-white rounded-2xl p-4 space-y-3 border transition-colors cursor-pointer group ${isInvitation
           ? 'border-gray-200 hover:border-gray-300'
           : 'border-gray-200 hover:border-gray-300'
-      }`}
+        }`}
       onClick={onClick}
     >
       {/* Header with Status */}
@@ -244,7 +243,7 @@ function LightningNodeCard({
         <div className="text-xs text-gray-500">
           Created {new Date(node.createdAt).toLocaleDateString()}
         </div>
-  <div className="flex items-center gap-1 text-xs text-gray-700 group-hover:text-black">
+        <div className="flex items-center gap-1 text-xs text-gray-700 group-hover:text-black">
           <span>{isInvitation ? 'View Invitation' : 'View Details'}</span>
           <ChevronRight className="h-3 w-3" />
         </div>

@@ -80,6 +80,19 @@ api_call() {
     fi
 }
 
+# Test 0: Authenticate Wallet
+echo -e "${YELLOW}Test 0: Authenticating Wallet...${NC}"
+AUTH_RESPONSE=$(api_call POST authenticate "{
+    \"userId\": \"$USER_ID\",
+    \"chain\": \"$CHAIN\"
+}")
+echo "$AUTH_RESPONSE" | jq '.'
+if [ "$(echo "$AUTH_RESPONSE" | jq -r '.authenticated')" != "true" ]; then
+    echo -e "${RED}❌ Failed to authenticate wallet${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ Wallet authenticated${NC}"
+
 # Test 1: Create Lightning Node
 echo -e "${YELLOW}Test 1: Creating Lightning Node...${NC}"
 echo "   Using user wallet: $USER_WALLET"
@@ -89,19 +102,16 @@ CREATE_RESPONSE=$(api_call POST create "{
     \"participants\": [\"$PARTICIPANT_1\", \"$PARTICIPANT_2\"],
     \"token\": \"usdc\",
     \"chain\": \"$CHAIN\",
-    \"initialAllocations\": [
-        {
-            \"participant\": \"$PARTICIPANT_1\",
-            \"amount\": \"100.0\"
-        }
-    ]
+    \"quorum\": 50,
+    \"initialAllocations\": [],
+    \"sessionData\": \"{}\"
 }")
 
 echo "$CREATE_RESPONSE" | jq '.'
 
-LIGHTNING_NODE_ID=$(echo "$CREATE_RESPONSE" | jq -r '.lightningNode.id // empty')
-APP_SESSION_ID=$(echo "$CREATE_RESPONSE" | jq -r '.lightningNode.appSessionId // empty')
-URI=$(echo "$CREATE_RESPONSE" | jq -r '.lightningNode.uri // empty')
+LIGHTNING_NODE_ID=$(echo "$CREATE_RESPONSE" | jq -r '.node.id // empty')
+APP_SESSION_ID=$(echo "$CREATE_RESPONSE" | jq -r '.node.appSessionId // empty')
+URI=$(echo "$CREATE_RESPONSE" | jq -r '.node.uri // empty')
 
 if [ -z "$LIGHTNING_NODE_ID" ] || [ "$LIGHTNING_NODE_ID" == "null" ]; then
     echo -e "${RED}❌ Failed to create Lightning Node${NC}"
@@ -133,15 +143,15 @@ DEPOSIT_RESPONSE=$(api_call POST deposit "{
 }")
 
 echo "$DEPOSIT_RESPONSE" | jq '.'
-NEW_BALANCE=$(echo "$DEPOSIT_RESPONSE" | jq -r '.newBalance // empty')
+IS_OK=$(echo "$DEPOSIT_RESPONSE" | jq -r '.ok // empty')
 
-if [ -z "$NEW_BALANCE" ] || [ "$NEW_BALANCE" == "null" ]; then
+if [ "$IS_OK" != "true" ]; then
     echo -e "${RED}❌ Failed to deposit funds${NC}"
+    echo "$DEPOSIT_RESPONSE" | jq '.'
     exit 1
 fi
 
 echo -e "${GREEN}✅ Deposit successful${NC}"
-echo "   New balance: $NEW_BALANCE"
 echo ""
 
 # Test 4: Transfer funds (from user's wallet to second participant)
@@ -159,17 +169,15 @@ TRANSFER_RESPONSE=$(api_call POST transfer "{
 
 echo "$TRANSFER_RESPONSE" | jq '.'
 
-SENDER_BALANCE=$(echo "$TRANSFER_RESPONSE" | jq -r '.senderNewBalance // empty')
-RECIPIENT_BALANCE=$(echo "$TRANSFER_RESPONSE" | jq -r '.recipientNewBalance // empty')
+IS_OK=$(echo "$TRANSFER_RESPONSE" | jq -r '.ok // empty')
 
-if [ -z "$SENDER_BALANCE" ] || [ "$SENDER_BALANCE" == "null" ]; then
+if [ "$IS_OK" != "true" ]; then
     echo -e "${RED}❌ Failed to transfer funds${NC}"
+    echo "$TRANSFER_RESPONSE" | jq '.'
     exit 1
 fi
 
 echo -e "${GREEN}✅ Transfer successful${NC}"
-echo "   Sender balance: $SENDER_BALANCE"
-echo "   Recipient balance: $RECIPIENT_BALANCE"
 echo ""
 
 # Test 5: Get all Lightning Nodes for user
@@ -186,7 +194,12 @@ CLOSE_RESPONSE=$(api_call POST close "{
     \"appSessionId\": \"$APP_SESSION_ID\"
 }")
 
-echo "$CLOSE_RESPONSE" | jq '.'
+IS_OK=$(echo "$CLOSE_RESPONSE" | jq -r '.ok // empty')
+if [ "$IS_OK" != "true" ]; then
+    echo -e "${RED}❌ Failed to close Lightning Node${NC}"
+    echo "$CLOSE_RESPONSE" | jq '.'
+    exit 1
+fi
 echo -e "${GREEN}✅ Lightning Node closed${NC}"
 echo ""
 

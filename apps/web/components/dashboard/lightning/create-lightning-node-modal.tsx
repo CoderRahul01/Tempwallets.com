@@ -24,6 +24,8 @@ import { Loader2, CheckCircle2, Zap, Copy, ScanLine } from 'lucide-react';
 import { useLightningNodes } from '@/hooks/lightning-nodes-context';
 import { LightningNode } from '@/lib/api';
 import { QRCodeCanvas } from 'qrcode.react';
+import { useAuth } from '@/hooks/useAuth';
+import { trackLightningCreationStart } from '@/lib/mixpanel-events';
 
 interface CreateLightningNodeModalProps {
   open: boolean;
@@ -52,7 +54,16 @@ const validateEvmAddress = (address: string): string | null => {
 
 export function CreateLightningNodeModal({ open, onOpenChange, onJoined }: CreateLightningNodeModalProps) {
   const { createNode, joinNode, loading } = useLightningNodes();
+  const { userId } = useAuth();
   const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
+
+  // Track creation start when modal opens
+  useEffect(() => {
+    if (open && userId) {
+      trackLightningCreationStart({ userId });
+    }
+  }, [open, userId]);
+
   const [showJoinForm, setShowJoinForm] = useState(true);
 
   // Create form state
@@ -202,11 +213,10 @@ export function CreateLightningNodeModal({ open, onOpenChange, onJoined }: Creat
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-gray-900">
             <Zap className="h-5 w-5 text-gray-700" />
-            Lightning Node
+            <span className="font-rubik-medium">Yellow Network Nitrolite Channel</span>
           </DialogTitle>
           <DialogDescription className="text-gray-600">
-            Create or join a Lightning Node (Yellow Network Nitrolite Channel) for instant, low-cost
-            off-chain transactions.
+            Create or join a Nitrolite Channel (Lightning Node) for instant, gasless off-chain transactions.
           </DialogDescription>
         </DialogHeader>
 

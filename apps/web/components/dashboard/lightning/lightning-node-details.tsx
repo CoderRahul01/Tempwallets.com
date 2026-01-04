@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { Loader2, Zap, Copy, ArrowRightLeft, Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@repo/ui/components/ui/button';
 import { lightningNodeApi, LightningNode, LightningNodeParticipant, walletApi } from '@/lib/api';
+import { trackLightningFinalSettlement } from '@/lib/mixpanel-events';
 import { TransferFundsModal } from '../modals/transfer-funds-modal';
 import { useAuth } from '@/hooks/useAuth';
+
 
 interface LightningNodeDetailsProps {
   lightningNodeId: string;
@@ -132,7 +134,7 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
     if (!lightningNode || !userId) return;
 
     const confirmClose = window.confirm(
-      'Are you sure you want to close this Lightning Node? This will distribute all funds back to participants on-chain.'
+      'Are you sure you want to SETTLE and CLOSE this Lightning Node? This will permanently close the channel and distribute all funds back to participants on-chain. This action cannot be undone.'
     );
 
     if (!confirmClose) return;
@@ -145,17 +147,24 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
       });
 
       if (response.ok) {
-        alert('Lightning Node closed successfully!');
+        alert('Lightning Node settlement initiated successfully!');
+
+        // TRACKING: Final Settlement
+        trackLightningFinalSettlement({
+          userId,
+          sessionId: lightningNode.appSessionId,
+        });
+
         // Refresh details
         const updatedResponse = await lightningNodeApi.getLightningNodeById(lightningNodeId);
         if (updatedResponse.ok && updatedResponse.node) {
           setLightningNode(updatedResponse.node);
         }
       } else {
-        alert('Failed to close Lightning Node');
+        alert('Failed to settle Lightning Node');
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to close Lightning Node');
+      alert(err instanceof Error ? err.message : 'Failed to settle Lightning Node');
     } finally {
       setLoading(false);
     }
@@ -201,8 +210,8 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
   if (!lightningNode) return null;
 
   const totalBalance = lightningNode.participants.reduce(
-    (sum, p) => sum + BigInt(p.balance),
-    BigInt(0)
+    (sum, p) => sum + parseFloat(p.balance || '0'),
+    0
   );
   const balanceHuman = (Number(totalBalance) / 1e6).toFixed(2);
   const participantCount = lightningNode.participants.length;
@@ -224,7 +233,7 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
               <h2 className="text-xl font-rubik-medium text-gray-900">
                 {CHAIN_NAMES[lightningNode.chain] || lightningNode.chain}
               </h2>
-              <p className="text-sm text-gray-500">{lightningNode.token} Lightning Node</p>
+              <p className="text-sm text-gray-500">{lightningNode.token} Nitrolite Channel</p>
             </div>
           </div>
           {onClose && (
@@ -257,13 +266,12 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
         <div className="flex items-center justify-between bg-white rounded-xl p-4 border border-gray-200">
           <span className="text-sm text-gray-600">Status</span>
           <span
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              lightningNode.status === 'open'
-                ? 'bg-gray-200 text-gray-800'
-                : 'bg-gray-100 text-gray-800'
-            }`}
+            className={`px-3 py-1 rounded-full text-xs font-medium ${lightningNode.status === 'open'
+              ? 'bg-gray-200 text-gray-800'
+              : 'bg-gray-100 text-gray-800'
+              }`}
           >
-            {lightningNode.status === 'open' ? 'Open' : 'Closed'}
+            {lightningNode.status === 'open' ? 'Active' : 'Settled'}
           </span>
         </div>
 
@@ -321,7 +329,7 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
               ) : (
                 <X className="mr-2 h-4 w-4" />
               )}
-              Close Node
+              Settlement
             </Button>
           </div>
         )}
@@ -347,9 +355,8 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
               {lightningNode.participants.map((participant, index) => (
                 <div
                   key={participant.address}
-                  className={`p-4 flex items-center justify-between ${
-                    index !== lightningNode.participants.length - 1 ? 'border-b border-gray-100' : ''
-                  }`}
+                  className={`p-4 flex items-center justify-between ${index !== lightningNode.participants.length - 1 ? 'border-b border-gray-100' : ''
+                    }`}
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -407,22 +414,20 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
                 {lightningNode.transactions.map((tx, index) => (
                   <div
                     key={tx.id}
-                    className={`p-4 ${
-                      index !== lightningNode.transactions!.length - 1 ? 'border-b border-gray-100' : ''
-                    }`}
+                    className={`p-4 ${index !== lightningNode.transactions!.length - 1 ? 'border-b border-gray-100' : ''
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700">
                         {tx.type}
                       </span>
                       <span
-                        className={`text-xs px-2 py-0.5 rounded ${
-                          tx.status === 'confirmed'
-                            ? 'bg-green-100 text-green-700'
-                            : tx.status === 'pending'
+                        className={`text-xs px-2 py-0.5 rounded ${tx.status === 'confirmed'
+                          ? 'bg-green-100 text-green-700'
+                          : tx.status === 'pending'
                             ? 'bg-yellow-100 text-yellow-700'
                             : 'bg-red-100 text-red-700'
-                        }`}
+                          }`}
                       >
                         {tx.status}
                       </span>
@@ -457,6 +462,7 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
           onTransferComplete={refreshDetails}
         />
       )}
+
     </>
   );
 }
