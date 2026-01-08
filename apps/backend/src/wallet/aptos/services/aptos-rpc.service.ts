@@ -79,6 +79,7 @@ export class AptosRpcService implements OnModuleDestroy {
 
     for (const rpcUrl of rpcUrls) {
       try {
+        this.logger.debug(`Attempting to connect to ${network} RPC: ${rpcUrl}`);
         const aptosConfig = new AptosConfig({
           network: Network.CUSTOM,
           fullnode: rpcUrl,
@@ -92,7 +93,7 @@ export class AptosRpcService implements OnModuleDestroy {
         clients.push(client);
         this.logger.log(`Connected to ${network} RPC: ${rpcUrl}`);
       } catch (error) {
-        this.logger.warn(
+        this.logger.error(
           `Failed to connect to ${rpcUrl}: ${error instanceof Error ? error.message : 'Unknown error'}`,
         );
         // Continue to next RPC - don't fail if one is down
