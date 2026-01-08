@@ -88,7 +88,7 @@ const EIP7702_CHAIN_IDS: Record<string, number> = {
 const isEip7702Chain = (chain: string): boolean => {
   // Direct check
   if (chain in EIP7702_CHAIN_IDS) return true;
-  
+
   // Normalize chain name (remove Erc4337 suffix for base chains)
   const normalized = chain.replace(/Erc4337$/i, '').toLowerCase();
   return normalized in EIP7702_CHAIN_IDS;
@@ -170,9 +170,9 @@ const getExplorerUrl = (txHash: string, chain: string): string => {
   if (!txHash) return '#';
 
   // Determine if this is a testnet chain
-  const isTestnet = chain === 'paseo' || chain === 'paseoAssethub' || 
-                    chain === 'moonbeamTestnet' || chain === 'astarShibuya' ||
-                    chain === 'paseoPassetHub';
+  const isTestnet = chain === 'paseo' || chain === 'paseoAssethub' ||
+    chain === 'moonbeamTestnet' || chain === 'astarShibuya' ||
+    chain === 'paseoPassetHub';
 
   // EVM chains (testnet support)
   const evmExplorers: Record<string, { mainnet: string; testnet?: string }> = {
@@ -210,29 +210,29 @@ const getExplorerUrl = (txHash: string, chain: string): string => {
 
   // Substrate/Polkadot chains - use Subscan
   const substrateExplorers: Record<string, { mainnet: string; testnet: string }> = {
-    polkadot: { 
-      mainnet: 'https://polkadot.subscan.io', 
-      testnet: 'https://paseo.subscan.io' 
+    polkadot: {
+      mainnet: 'https://polkadot.subscan.io',
+      testnet: 'https://paseo.subscan.io'
     },
-    hydrationSubstrate: { 
-      mainnet: 'https://hydradx.subscan.io', 
-      testnet: 'https://hydradx-testnet.subscan.io' 
+    hydrationSubstrate: {
+      mainnet: 'https://hydradx.subscan.io',
+      testnet: 'https://hydradx-testnet.subscan.io'
     },
-    bifrostSubstrate: { 
-      mainnet: 'https://bifrost.subscan.io', 
-      testnet: 'https://bifrost-testnet.subscan.io' 
+    bifrostSubstrate: {
+      mainnet: 'https://bifrost.subscan.io',
+      testnet: 'https://bifrost-testnet.subscan.io'
     },
-    uniqueSubstrate: { 
-      mainnet: 'https://unique.subscan.io', 
-      testnet: 'https://unique-testnet.subscan.io' 
+    uniqueSubstrate: {
+      mainnet: 'https://unique.subscan.io',
+      testnet: 'https://unique-testnet.subscan.io'
     },
-    paseo: { 
-      mainnet: 'https://paseo.subscan.io', 
-      testnet: 'https://paseo.subscan.io' 
+    paseo: {
+      mainnet: 'https://paseo.subscan.io',
+      testnet: 'https://paseo.subscan.io'
     },
-    paseoAssethub: { 
-      mainnet: 'https://assethub-polkadot.subscan.io', 
-      testnet: 'https://assethub-paseo.subscan.io' 
+    paseoAssethub: {
+      mainnet: 'https://assethub-polkadot.subscan.io',
+      testnet: 'https://assethub-paseo.subscan.io'
     },
   };
 
@@ -252,14 +252,14 @@ interface SelectedTokenDisplayProps {
 
 function SelectedTokenDisplay({ token }: SelectedTokenDisplayProps) {
   const NetworkIcon = useTokenIcon(token.chain || 'ethereum');
-  
+
   // Format balance
   const formatBalance = (balance: string, decimals: number): string => {
     const num = parseFloat(balance);
     if (isNaN(num)) return "0";
     return (num / Math.pow(10, decimals)).toFixed(6).replace(/\.?0+$/, "");
   };
-  
+
   return (
     <div className="flex items-center gap-2">
       <NetworkIcon className="h-4 w-4 flex-shrink-0" />
@@ -278,16 +278,16 @@ interface TokenSelectItemProps {
 
 function TokenSelectItem({ value, token }: TokenSelectItemProps) {
   const NetworkIcon = useTokenIcon(token.chain || 'ethereum');
-  
+
   // Format balance
   const formatBalance = (balance: string, decimals: number): string => {
     const num = parseFloat(balance);
     if (isNaN(num)) return "0";
     return (num / Math.pow(10, decimals)).toFixed(6).replace(/\.?0+$/, "");
   };
-  
+
   return (
-    <SelectItem 
+    <SelectItem
       value={value}
       className="text-sm focus:bg-white/10 focus:text-white"
     >
@@ -331,7 +331,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         // Load Substrate balances
         const balances = await walletApi.getSubstrateBalances(userId, false);
         const chainBalance = balances[chain];
-        
+
         if (chainBalance && chainBalance.address) {
           // Create a single token entry for native Substrate token
           const tokenList: TokenBalance[] = [{
@@ -339,6 +339,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
             symbol: chainBalance.token,
             balance: chainBalance.balance,
             decimals: chainBalance.decimals,
+            chain: chain,
           }];
           setTokens(tokenList);
           setSelectedToken(tokenList[0] ?? null);
@@ -350,13 +351,14 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         // Load Aptos balance
         const network = chain === "aptosTestnet" ? "testnet" : "mainnet";
         const balanceData = await walletApi.getAptosBalance(userId, network);
-        
+
         // Create a single token entry for native APT token
         const tokenList: TokenBalance[] = [{
           address: null, // Native token
           symbol: "APT",
           balance: (parseFloat(balanceData.balance) * Math.pow(10, 8)).toString(), // Convert to octas (8 decimals)
           decimals: 8,
+          chain: chain,
         }];
         setTokens(tokenList);
         setSelectedToken(tokenList[0] ?? null);
@@ -395,8 +397,8 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         }
       }
     } catch (err) {
-      const errorMessage = err instanceof ApiError 
-        ? err.message 
+      const errorMessage = err instanceof ApiError
+        ? err.message
         : "Failed to load tokens. Please try again.";
       setError(errorMessage);
     } finally {
@@ -585,7 +587,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         });
 
         // Use transactionHash if available, otherwise use userOpHash
-        result = { 
+        result = {
           txHash: gaslessResult.transactionHash || gaslessResult.userOpHash,
           userOpHash: gaslessResult.userOpHash,
           explorerUrl: gaslessResult.explorerUrl,
@@ -669,11 +671,11 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
     } catch (err) {
       let errorMessage = "Failed to send transaction. Please try again.";
       let errorCode: string | number | undefined;
-      
+
       if (err instanceof ApiError) {
         errorMessage = err.message;
         errorCode = err.status;
-        
+
         // Parse specific error codes
         if (err.status === 422) {
           // Insufficient balance
@@ -730,8 +732,8 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
             )}
           </DialogTitle>
           <DialogDescription className="text-sm text-white/60">
-            {isEip7702Chain(chain) 
-              ? "Gas-free transfer - fees are sponsored" 
+            {isEip7702Chain(chain)
+              ? "Gas-free transfer - fees are sponsored"
               : "Transfer to recipient address"}
           </DialogDescription>
         </DialogHeader>
@@ -768,7 +770,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
                   {tokens.map((token) => {
                     const key = `${token.chain || 'unknown'}:${token.address || 'native'}`;
                     return (
-                      <TokenSelectItem 
+                      <TokenSelectItem
                         key={key}
                         value={key}
                         token={token}
@@ -875,25 +877,25 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
-            <Button 
-              variant="outline" 
-              onClick={() => onOpenChange(false)} 
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
               disabled={loading}
               className="flex-1 h-9 text-sm rounded-full border-white/20 text-white hover:bg-white/10"
             >
               {success ? "Close" : "Cancel"}
             </Button>
             {!success && (
-              <Button 
-                onClick={handleSend} 
-                disabled={loading || loadingTokens || !selectedToken}
-                className="flex-1 h-9 text-sm rounded-full bg-white text-black hover:bg-white/90"
+              <Button
+                className="flex-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSend}
+                disabled={loading || !!error || tokens.length === 0 || Object.keys(fieldErrors).some(k => !!fieldErrors[k as keyof typeof fieldErrors])}
               >
                 {loading ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
-                    Sending
-                  </>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending...
+                  </div>
                 ) : (
                   "Send"
                 )}

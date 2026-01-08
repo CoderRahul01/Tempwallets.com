@@ -13,7 +13,7 @@ interface AptosAccountInfo {
 export class AptosAccountService {
   private readonly logger = new Logger(AptosAccountService.name);
 
-  constructor(private readonly rpcService: AptosRpcService) {}
+  constructor(private readonly rpcService: AptosRpcService) { }
 
   /**
    * Check if account exists on-chain
@@ -90,6 +90,17 @@ export class AptosAccountService {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
+
+      // If account doesn't exist, it has 0 balance
+      if (
+        errorMessage.includes('404') ||
+        errorMessage.includes('not found') ||
+        errorMessage.includes('AccountNotFound') ||
+        errorMessage.includes('Account not found')
+      ) {
+        return (0).toFixed(8);
+      }
+
       this.logger.error(
         `Failed to get APT balance for ${address}: ${errorMessage}`,
       );
