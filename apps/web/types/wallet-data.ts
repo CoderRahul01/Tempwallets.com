@@ -84,27 +84,10 @@ const NATIVE_TOKEN_SYMBOLS: Record<string, string> = {
  * Featured chains that should always show in balance view (even with zero balance)
  */
 export const FEATURED_CHAINS = [
-  // EVM EOAs
+  // Core EVM networks
   'ethereum',
   'base',
   'arbitrum',
-  'polygon',
-  'avalanche',
-  // Non-EVM
-  'bitcoin',
-  'solana',
-  'tron',
-  'polkadot',
-  // Substrate parachains
-  'hydrationSubstrate',
-  'bifrostSubstrate',
-  'uniqueSubstrate',
-  'paseo',
-  'paseoAssethub',
-  // Polkadot EVM compatible
-  'moonbeamTestnet',
-  'astarShibuya',
-  'paseoPassetHub',
 ] as const;
 
 /**
