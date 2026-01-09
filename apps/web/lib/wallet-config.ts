@@ -33,7 +33,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     id: 'ethereumErc4337',
     name: 'Ethereum',
     symbol: 'ETH',
-  description: 'Ethereum Smart Account (EIP-7702)',
+    description: 'Ethereum Smart Account (EIP-7702)',
     type: 'evm',
     chainId: 1,
     isTestnet: false,
@@ -68,7 +68,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     id: 'baseErc4337',
     name: 'Base',
     symbol: 'ETH',
-  description: 'Base Smart Account (EIP-7702)',
+    description: 'Base Smart Account (EIP-7702)',
     type: 'evm',
     chainId: 8453,
     isTestnet: false,
@@ -104,7 +104,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     id: 'arbitrumErc4337',
     name: 'Arbitrum',
     symbol: 'ARB',
-  description: 'Arbitrum Smart Account (EIP-7702)',
+    description: 'Arbitrum Smart Account (EIP-7702)',
     type: 'evm',
     chainId: 42161,
     isTestnet: false,
@@ -136,6 +136,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     isSmartAccount: true,
     eoaVariant: 'arbitrum',
   },
+  /*
   {
     id: 'polygonErc4337',
     name: 'Polygon',
@@ -206,10 +207,12 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     isSmartAccount: true,
     eoaVariant: 'avalanche',
   },
+  */
 
   // ========================================
   // NON-EVM CHAINS
   // ========================================
+  /*
   {
     id: 'bitcoin',
     name: 'Bitcoin',
@@ -242,6 +245,8 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     },
     group: 'bitcoin',
   },
+  */
+  /*
   {
     id: 'polkadot',
     name: 'Polkadot',
@@ -402,10 +407,12 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     },
     group: 'aptos',
   },
+  */
 
   // ========================================
   // SUBSTRATE PARACHAINS (MAINNET)
   // ========================================
+  /*
   {
     id: 'hydrationSubstrate',
     name: 'Hydration',
@@ -505,6 +512,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     group: 'substrate-mainnet',
     parentChain: 'polkadot',
   },
+  */
 
   // ========================================
   // EVM STANDARD (EOA) - NOW VISIBLE
@@ -617,6 +625,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     isSmartAccount: false,
     smartAccountVariant: 'arbitrumErc4337',
   },
+  /*
   {
     id: 'polygonEoa',
     name: 'Polygon',
@@ -687,10 +696,12 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     isSmartAccount: false,
     smartAccountVariant: 'avalancheErc4337',
   },
+  */
 
   // ========================================
   // TESTNETS
   // ========================================
+  /*
   {
     id: 'moonbeamTestnet',
     name: 'Moonbeam Testnet',
@@ -854,6 +865,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     group: 'substrate-testnet',
     parentChain: 'paseo',
   },
+  */
 ];
 
 // ========================================
@@ -1014,16 +1026,16 @@ export const getWalletConfigs = (filter?: WalletConfigFilter): WalletConfig[] =>
     // Default to production environment for this generic function
     const aEnabled = a.features.enabledInProd;
     const bEnabled = b.features.enabledInProd;
-    
+
     if (aEnabled !== bEnabled) {
       return aEnabled ? -1 : 1; // enabled (true) comes before disabled (false)
     }
-    
+
     // Then by priority
     if (a.priority !== b.priority) {
       return a.priority - b.priority;
     }
-    
+
     // Finally by name
     return a.name.localeCompare(b.name);
   });
@@ -1038,17 +1050,17 @@ export const getWalletConfigs = (filter?: WalletConfigFilter): WalletConfig[] =>
  */
 export const getVisibleWalletConfigs = (environment: 'development' | 'production' = 'production'): WalletConfig[] => {
   const isDev = environment === 'development';
-  
-  // MVP: Only show these 4 chains in the horizontal selector
-  const mvpChainIds = ['ethereumErc4337', 'baseErc4337', 'polkadot', 'aptos'];
-  
+
+  // MVP: Only show these 3 chains in the horizontal selector
+  const mvpChainIds = ['ethereumErc4337', 'baseErc4337', 'arbitrumErc4337'];
+
   // Filter configs manually for more control
   return WALLET_CONFIGS.filter((config) => {
     // Must be enabled in selector
     if (!config.features.showInSelector) {
       return false;
     }
-    
+
     // Environment check
     if (isDev) {
       // In dev, show everything that's enabled in dev
@@ -1065,40 +1077,40 @@ export const getVisibleWalletConfigs = (environment: 'development' | 'production
         return false;
       }
     }
-    
+
     // Hide advanced-only configs
     if (config.features.advancedOnly) {
       return false;
     }
-    
+
     // MVP: Only show the 4 specific chains in horizontal selector
     if (!mvpChainIds.includes(config.id)) {
       return false;
     }
-    
+
     return true;
   }).sort((a, b) => {
     // Sort by the order in mvpChainIds array
     const aIndex = mvpChainIds.indexOf(a.id);
     const bIndex = mvpChainIds.indexOf(b.id);
-    
+
     // If both are in the list, sort by their position
     if (aIndex !== -1 && bIndex !== -1) {
       return aIndex - bIndex;
     }
-    
+
     // Fallback: sort by enabled status, then priority, then name
     const aEnabled = isDev ? a.features.enabledInDev : a.features.enabledInProd;
     const bEnabled = isDev ? b.features.enabledInDev : b.features.enabledInProd;
-    
+
     if (aEnabled !== bEnabled) {
       return aEnabled ? -1 : 1;
     }
-    
+
     if (a.priority !== b.priority) {
       return a.priority - b.priority;
     }
-    
+
     return a.name.localeCompare(b.name);
   });
 };
