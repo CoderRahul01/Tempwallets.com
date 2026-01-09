@@ -90,12 +90,12 @@ export function WalletDataProvider({
     // Check cache first
     const cacheKey = getCacheKey(fingerprint, 'balances');
     const cached = getCache<NormalizedBalance[]>(cacheKey);
-    
+
     if (cached && isCacheFresh(cacheKey, BALANCE_TTL)) {
       setBalances(cached);
       setLoading((prev) => ({ ...prev, balances: false }));
       setErrors((prev) => ({ ...prev, balances: null }));
-      
+
       // Try to get timestamp from cache entry
       try {
         const cacheEntry = localStorage.getItem(cacheKey);
@@ -108,9 +108,9 @@ export function WalletDataProvider({
       } catch {
         // Ignore cache read errors
       }
-      
+
       // Still refresh in background if cache is getting stale
-      const cacheAge = Date.now() - (getCache(cacheKey) ? 
+      const cacheAge = Date.now() - (getCache(cacheKey) ?
         (() => {
           try {
             const entry = localStorage.getItem(cacheKey);
@@ -118,10 +118,10 @@ export function WalletDataProvider({
               const parsed = JSON.parse(entry);
               return parsed.timestamp || 0;
             }
-          } catch {}
+          } catch { }
           return 0;
         })() : 0);
-      
+
       if (cacheAge > BALANCE_TTL * 0.8) {
         // Cache is >80% stale, refresh in background
         // Continue to fetch below
@@ -145,7 +145,7 @@ export function WalletDataProvider({
     const fetchPromise = (async () => {
       try {
         // Fetch EVM and other chain assets
-  const assets = await walletApi.getAssetsAny(fingerprint, forceRefresh);
+        const assets = await walletApi.getAssetsAny(fingerprint, forceRefresh);
 
         // Fetch Substrate balances
         let substrateBalances: Record<string, {
@@ -154,7 +154,7 @@ export function WalletDataProvider({
           token: string;
           decimals: number;
         }> = {};
-        
+
         try {
           substrateBalances = await walletApi.getSubstrateBalances(fingerprint, false);
         } catch (substrateErr) {
@@ -162,6 +162,7 @@ export function WalletDataProvider({
           // Don't fail the whole fetch if Substrate fails
         }
 
+        /*
         // Fetch Aptos balances (testnet and mainnet)
         const aptosBalances: AnyChainAsset[] = [];
         try {
@@ -214,6 +215,10 @@ export function WalletDataProvider({
 
         // Combine all assets including Aptos
         const allAssets = [...assets, ...aptosBalances];
+        */
+
+        // Use only assets from getAssetsAny (now that Aptos is commented out)
+        const allAssets = [...assets];
 
         // Merge and normalize all balances
         const normalized = mergeAndNormalizeBalances(allAssets, substrateBalances);
@@ -250,12 +255,12 @@ export function WalletDataProvider({
     // Check cache first
     const cacheKey = getCacheKey(fingerprint, 'transactions');
     const cached = getCache<Transaction[]>(cacheKey);
-    
+
     if (cached && isCacheFresh(cacheKey, TRANSACTION_TTL)) {
       setTransactions(cached);
       setLoading((prev) => ({ ...prev, transactions: false }));
       setErrors((prev) => ({ ...prev, transactions: null }));
-      
+
       // Try to get timestamp from cache entry
       try {
         const cacheEntry = localStorage.getItem(cacheKey);
@@ -268,9 +273,9 @@ export function WalletDataProvider({
       } catch {
         // Ignore cache read errors
       }
-      
+
       // Still refresh in background if cache is getting stale
-      const cacheAge = Date.now() - (getCache(cacheKey) ? 
+      const cacheAge = Date.now() - (getCache(cacheKey) ?
         (() => {
           try {
             const entry = localStorage.getItem(cacheKey);
@@ -278,10 +283,10 @@ export function WalletDataProvider({
               const parsed = JSON.parse(entry);
               return parsed.timestamp || 0;
             }
-          } catch {}
+          } catch { }
           return 0;
         })() : 0);
-      
+
       if (cacheAge > TRANSACTION_TTL * 0.8) {
         // Cache is >80% stale, refresh in background
         // Continue to fetch below
@@ -330,24 +335,24 @@ export function WalletDataProvider({
             // Transform Substrate transactions to Transaction format
             return history.transactions.map(
               (tx) =>
-                ({
-                  txHash: tx.txHash,
-                  from: tx.from,
-                  to: tx.to || null,
-                  value: tx.amount || '0',
-                  timestamp: tx.timestamp
-                    ? Math.floor(tx.timestamp / 1000)
-                    : null, // Convert ms to seconds if needed
-                  blockNumber: tx.blockNumber || null,
-                  status:
-                    tx.status === 'finalized' || tx.status === 'inBlock'
-                      ? 'success'
-                      : tx.status === 'failed' || tx.status === 'error'
+              ({
+                txHash: tx.txHash,
+                from: tx.from,
+                to: tx.to || null,
+                value: tx.amount || '0',
+                timestamp: tx.timestamp
+                  ? Math.floor(tx.timestamp / 1000)
+                  : null, // Convert ms to seconds if needed
+                blockNumber: tx.blockNumber || null,
+                status:
+                  tx.status === 'finalized' || tx.status === 'inBlock'
+                    ? 'success'
+                    : tx.status === 'failed' || tx.status === 'error'
                       ? 'failed'
                       : 'pending',
-                  chain: chain,
-                  tokenSymbol: undefined,
-                } as Transaction)
+                chain: chain,
+                tokenSymbol: undefined,
+              } as Transaction)
             );
           } catch (chainErr) {
             console.warn(`Failed to load transactions for ${chain}:`, chainErr);
@@ -470,10 +475,10 @@ export function WalletDataProvider({
     // Check cache synchronously BEFORE setting loading state
     const balanceCacheKey = getCacheKey(fingerprint, 'balances');
     const transactionCacheKey = getCacheKey(fingerprint, 'transactions');
-    
+
     const cachedBalances = getCache<NormalizedBalance[]>(balanceCacheKey);
     const cachedTransactions = getCache<Transaction[]>(transactionCacheKey);
-    
+
     const hasFreshBalanceCache = cachedBalances && isCacheFresh(balanceCacheKey, BALANCE_TTL);
     const hasFreshTransactionCache = cachedTransactions && isCacheFresh(transactionCacheKey, TRANSACTION_TTL);
 
@@ -506,7 +511,7 @@ export function WalletDataProvider({
 
     // Set loading to false initially (we'll show empty state if no cache)
     // Only set loading to true if we're actually going to fetch
-    setLoading({ 
+    setLoading({
       balances: false, // Start with false - will be set to true in fetchBalances if needed
       transactions: false // Start with false - will be set to true in fetchTransactions if needed
     });
