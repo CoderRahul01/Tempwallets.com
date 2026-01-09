@@ -64,6 +64,7 @@ export const chains: Chain[] = [
     chainId: 1,
     featured: true,
   },
+  /*
   {
     id: 'bitcoin',
     name: 'Bitcoin',
@@ -132,6 +133,7 @@ export const chains: Chain[] = [
     category: 'layer1',
     chainId: 43114,
   },
+  */
   {
     id: 'base',
     name: 'Base',
@@ -154,6 +156,7 @@ export const chains: Chain[] = [
     category: 'layer2',
     chainId: 42161,
   },
+  /*
   {
     id: 'optimism',
     name: 'Optimism',
@@ -165,6 +168,7 @@ export const chains: Chain[] = [
     category: 'layer2',
     chainId: 10,
   },
+  */
 
   // EIP-7702 Gasless chains (Mainnet)
   {
@@ -201,6 +205,7 @@ export const chains: Chain[] = [
     category: 'layer2',
     chainId: 42161,
   },
+  /*
   {
     id: 'optimismGasless',
     name: 'Optimism (Gasless)',
@@ -247,6 +252,7 @@ export const chains: Chain[] = [
     category: 'layer2',
     chainId: 84532,
   },
+  */
 ];
 
 /**
@@ -286,7 +292,7 @@ export const getChainsByType = (type: ChainType): Chain[] => {
  */
 export const mapWalletCategoryToChainType = (category?: string): ChainType | null => {
   if (!category) return 'evm'; // Default to EVM for backward compatibility
-  
+
   switch (category.toLowerCase()) {
     case 'evm':
     case 'ethereum':
