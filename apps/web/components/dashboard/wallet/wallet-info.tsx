@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@repo/ui/components/ui/alert-dialog";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useWalletV2 } from "@/hooks/useWalletV2";
 import { walletStorage } from "@/lib/walletStorage";
@@ -45,23 +45,23 @@ const WalletInfo = () => {
   const [signInPromptOpen, setSignInPromptOpen] = useState(false);
   const { wallets, loading, error, loadWallets, getWalletByChainType } = useWalletV2();
   const walletConfig = useWalletConfig();
-  
+
   // Auth - use Google user ID when authenticated
   const { user, isAuthenticated, userId: authUserId, loading: authLoading, login } = useAuth();
-  
+
   // XP system - disabled for now
   // const { awardXP, awardXPOptimistic } = useXP();
-  
+
   // Track chain changes
   const handleChainChange = (chainId: string) => {
     const previousChainId = selectedChainId;
     setSelectedChainId(chainId);
     // Chain change is tracked via the change button click
   };
-  
+
   // Use browser fingerprint as unique user ID (fallback when not authenticated)
   const { fingerprint, loading: fingerprintLoading, generateNewWallet } = useBrowserFingerprint();
-  
+
   // KISS: Use Google user ID when authenticated (from useAuth), otherwise fingerprint
   // authUserId already handles this logic in useAuth hook
   const userId = authUserId;
@@ -69,13 +69,37 @@ const WalletInfo = () => {
 
   // Get selected chain from new config (fallback to old chains.ts for backward compatibility)
   const selectedChainConfig = walletConfig.getById(selectedChainId);
-  const selectedChain = selectedChainConfig 
+  const selectedChain = selectedChainConfig
     ? { ...selectedChainConfig, hasWalletConnect: selectedChainConfig.capabilities.walletConnect }
     : (getChainById(selectedChainId) ?? DEFAULT_CHAIN);
-  
+
   // Get wallet by specific chain ID instead of just by type
-  // This ensures we get the correct wallet when switching between EOA and Smart Account variants
-  const currentWallet = wallets.find(w => w.chain === selectedChainId) || getWalletByChainType(selectedChain.type);
+  // This ensures we get the correct wallet when switching checks
+  // We use useMemo to ensure this updates correctly when dependencies change
+  const currentWallet = useMemo(() => {
+    // 1. Try to find exact chain match first
+    const exactMatch = wallets.find(w => w.chain === selectedChainId);
+    if (exactMatch) return exactMatch;
+
+    // 2. Fallback: Find a wallet that matches both TYPE and Smart Account status
+    return wallets.find(w => {
+      // Get config for the wallet's chain
+      const wConfig = walletConfig.getById(w.chain);
+      if (!wConfig) return false;
+
+      // Must match the chain type (evm, solana, etc.)
+      const typeMatch = wConfig.type === selectedChain.type;
+
+      // CRITICAL: Must match the Smart Account status (isSmartAccount)
+      // This prevents showing an EOA address for a Smart Account chain (or vice versa)
+      // Safely access properties with optional chaining just in case
+      // Cast selectedChain to any to allow accessing isSmartAccount if it's not on the type
+      const isSelectedSmartAccount = (selectedChain as any).isSmartAccount === true;
+      const smartAccountMatch = (wConfig.isSmartAccount === true) === isSelectedSmartAccount;
+
+      return typeMatch && smartAccountMatch;
+    }) || null; // Return null instead of undefined
+  }, [wallets, selectedChainId, selectedChain.type, (selectedChain as any).isSmartAccount, walletConfig]);
 
   // Track wallet display in Mixpanel
   useEffect(() => {
@@ -94,12 +118,12 @@ const WalletInfo = () => {
     if (authLoading) {
       return;
     }
-    
+
     // Don't reload if userId hasn't changed and we're already loading
     if (loadingRef.current && lastUserIdRef.current === userId) {
       return;
     }
-    
+
     if (userId) {
       // Clear cache if it doesn't have Substrate addresses (one-time migration)
       const cachedAddresses = walletStorage.getAddresses(userId);
@@ -114,11 +138,11 @@ const WalletInfo = () => {
           walletStorage.clearAddresses();
         }
       }
-      
+
       // Track loading state
       loadingRef.current = true;
       lastUserIdRef.current = userId;
-      
+
       // Load wallets
       loadWallets(userId).finally(() => {
         loadingRef.current = false;
@@ -161,24 +185,24 @@ const WalletInfo = () => {
     if (action === 'change') {
       // Track change button click
       trackChangeButton.clicked();
-      
+
       // Get the current values at click time
       const currentUserId = userId;
       const currentIsAuthenticated = isAuthenticated;
-      
+
       // When authenticated with Google, "Change" creates a new wallet under the same Google account
       // When not authenticated, it generates a new fingerprint
       if (currentUserId) {
         // Track wallet generation initiation
         trackWalletGeneration.initiated();
-        
+
         const startTime = Date.now();
-        
+
         // Clear the cache for current user first
         walletStorage.clearAddresses();
-        
+
         let walletIdToUse = currentUserId;
-        
+
         // Only generate new fingerprint if NOT authenticated with Google
         // When authenticated, we regenerate the seed for the same user ID
         if (!currentIsAuthenticated) {
@@ -198,10 +222,10 @@ const WalletInfo = () => {
             return; // Don't continue if seed creation failed
           }
         }
-        
+
         // Force refresh to fetch new wallets immediately
         await loadWallets(walletIdToUse, true);
-        
+
         // Track successful wallet generation
         const duration = Date.now() - startTime;
         const newWallet = wallets.find(w => w.chain === selectedChainId) || getWalletByChainType(selectedChain.type);
@@ -214,7 +238,7 @@ const WalletInfo = () => {
     } else if (action === 'send') {
       // Track send button click
       trackButtonClick.send();
-      
+
       // Open send modal instead of navigating to transactions page
       if (userId && selectedChainId) {
         setSendModalOpen(true);
@@ -222,7 +246,7 @@ const WalletInfo = () => {
     } else if (action === 'history') {
       // Track transaction history viewed
       trackUserJourney.transactionHistoryViewed();
-      
+
       // Check if user is authenticated
       if (isAuthenticated && userId) {
         // Open wallet history modal for authenticated users
@@ -234,7 +258,7 @@ const WalletInfo = () => {
     } else if (action === 'connect') {
       // Track receive button click (connect is used for receive)
       trackButtonClick.receive();
-      
+
       // Open appropriate WalletConnect modal based on chain type
       if (selectedChain.hasWalletConnect) {
         if (selectedChain.type === 'evm') {
@@ -251,7 +275,7 @@ const WalletInfo = () => {
       await navigator.clipboard.writeText(address);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      
+
       // Track address copy action
       trackEvent("wallet_address_copied", {
         chainId: selectedChainId,
@@ -274,18 +298,18 @@ const WalletInfo = () => {
         error={error}
       />
 
-  {/* Action Buttons */}
-  <div className="rounded-3xl p-4 md:p-6 mt-0 pt-6 md:pt-8" style={{ backgroundColor: '#161616' }}>
+      {/* Action Buttons */}
+      <div className="rounded-3xl p-4 md:p-6 mt-0 pt-6 md:pt-8" style={{ backgroundColor: '#161616' }}>
         <TooltipProvider>
           <div className="grid gap-2 md:gap-4 grid-cols-5 w-full">
             {actions.map((action, index) => {
-              const isDisabled = 
-                (loading && action.action === 'change') || 
+              const isDisabled =
+                (loading && action.action === 'change') ||
                 (!selectedChain.hasWalletConnect && action.action === 'connect');
-              
+
               // History button should be dimmed when not authenticated
               const isHistoryDimmed = action.action === 'history' && !isAuthenticated;
-              
+
               return (
                 <Tooltip key={`${action.action}-${index}`} delayDuration={300}>
                   <TooltipTrigger asChild>
@@ -293,9 +317,8 @@ const WalletInfo = () => {
                       onClick={() => handleActionClick(action.action)}
                       disabled={isDisabled}
                       data-action={action.action}
-                      className={`flex flex-col items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed transition-all w-full ${
-                        isHistoryDimmed ? 'opacity-50' : ''
-                      }`}
+                      className={`flex flex-col items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed transition-all w-full ${isHistoryDimmed ? 'opacity-50' : ''
+                        }`}
                     >
                       <div className={getIconContainerStyles(action.action)}>
                         {loading && action.action === 'change' ? (
@@ -306,23 +329,22 @@ const WalletInfo = () => {
                           <action.icon className="h-6 w-6 md:h-8 md:w-8 text-white" />
                         )}
                       </div>
-                      <span className={`text-xs md:text-sm lg:text-sm font-rubik-normal ${
-                        isHistoryDimmed ? 'text-white/50' : 'text-white'
-                      }`}>
-                        {loading && action.action === 'change' ? 'Creating...' : 
-                         action.action === 'copy' && copied ? 'Copied!' : 
-                         action.label}
+                      <span className={`text-xs md:text-sm lg:text-sm font-rubik-normal ${isHistoryDimmed ? 'text-white/50' : 'text-white'
+                        }`}>
+                        {loading && action.action === 'change' ? 'Creating...' :
+                          action.action === 'copy' && copied ? 'Copied!' :
+                            action.label}
                       </span>
                     </button>
                   </TooltipTrigger>
                   {action.action === 'connect' && (
-                    <TooltipContent 
-                      side="top" 
+                    <TooltipContent
+                      side="top"
                       className="bg-black/20 backdrop-blur-sm text-white text-xs px-3 rounded-lg border border-white/20 max-w-xs"
                     >
                       <p>
-                        {selectedChain.hasWalletConnect 
-                          ? selectedChain.type === 'evm' 
+                        {selectedChain.hasWalletConnect
+                          ? selectedChain.type === 'evm'
                             ? 'Connect to EVM DApp (Uniswap, Aave, etc.)'
                             : 'Connect to Polkadot DApp (Hydration, etc.)'
                           : `WalletConnect not available for ${selectedChain.name}`}
@@ -344,15 +366,15 @@ const WalletInfo = () => {
 
       {/* WalletConnect Modals */}
       {/* Substrate/Polkadot WalletConnect */}
-      <WalletConnectModal 
-        open={substrateWalletConnectOpen} 
-        onOpenChange={setSubstrateWalletConnectOpen} 
+      <WalletConnectModal
+        open={substrateWalletConnectOpen}
+        onOpenChange={setSubstrateWalletConnectOpen}
       />
-      
+
       {/* EVM WalletConnect */}
-      <EvmWalletConnectModal 
-        open={evmWalletConnectOpen} 
-        onOpenChange={setEvmWalletConnectOpen} 
+      <EvmWalletConnectModal
+        open={evmWalletConnectOpen}
+        onOpenChange={setEvmWalletConnectOpen}
       />
 
       {/* Wallet History Modal - Always rendered, but only functional when authenticated */}

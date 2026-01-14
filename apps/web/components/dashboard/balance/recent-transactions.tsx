@@ -72,8 +72,8 @@ const getExplorerUrl = (txHash: string, chain: string, isTestnet: boolean = fals
   // Check if it's an EVM chain
   const evmChain = chain.replace('Erc4337', '');
   if (evmExplorers[evmChain]) {
-    const explorer = isTestnet && evmExplorers[evmChain].testnet 
-      ? evmExplorers[evmChain].testnet 
+    const explorer = isTestnet && evmExplorers[evmChain].testnet
+      ? evmExplorers[evmChain].testnet
       : evmExplorers[evmChain].mainnet;
     return `${explorer}/tx/${txHash}`;
   }
@@ -91,29 +91,29 @@ const getExplorerUrl = (txHash: string, chain: string, isTestnet: boolean = fals
 
   // Substrate/Polkadot chains - use Subscan (more reliable than Polkascan)
   const substrateExplorers: Record<string, { mainnet: string; testnet: string }> = {
-    polkadot: { 
-      mainnet: 'https://polkadot.subscan.io', 
+    polkadot: {
+      mainnet: 'https://polkadot.subscan.io',
       testnet: 'https://paseo.subscan.io' // Paseo is Polkadot testnet
     },
-    hydrationSubstrate: { 
-      mainnet: 'https://hydradx.subscan.io', 
-      testnet: 'https://hydradx-testnet.subscan.io' 
+    hydrationSubstrate: {
+      mainnet: 'https://hydradx.subscan.io',
+      testnet: 'https://hydradx-testnet.subscan.io'
     },
-    bifrostSubstrate: { 
-      mainnet: 'https://bifrost.subscan.io', 
-      testnet: 'https://bifrost-testnet.subscan.io' 
+    bifrostSubstrate: {
+      mainnet: 'https://bifrost.subscan.io',
+      testnet: 'https://bifrost-testnet.subscan.io'
     },
-    uniqueSubstrate: { 
-      mainnet: 'https://unique.subscan.io', 
-      testnet: 'https://unique-testnet.subscan.io' 
+    uniqueSubstrate: {
+      mainnet: 'https://unique.subscan.io',
+      testnet: 'https://unique-testnet.subscan.io'
     },
-    paseo: { 
-      mainnet: 'https://paseo.subscan.io', 
+    paseo: {
+      mainnet: 'https://paseo.subscan.io',
       testnet: 'https://paseo.subscan.io' // Paseo is always testnet
     },
-    paseoAssethub: { 
-      mainnet: 'https://assethub-polkadot.subscan.io', 
-      testnet: 'https://assethub-paseo.subscan.io' 
+    paseoAssethub: {
+      mainnet: 'https://assethub-polkadot.subscan.io',
+      testnet: 'https://assethub-paseo.subscan.io'
     },
   };
 
@@ -189,13 +189,13 @@ const getCachedTransactions = (fingerprint: string): Transaction[] | null => {
   try {
     const cached = localStorage.getItem(getCacheKey(fingerprint));
     if (!cached) return null;
-    
+
     const { data, timestamp } = JSON.parse(cached);
     if (Date.now() - timestamp > CACHE_TTL) {
       localStorage.removeItem(getCacheKey(fingerprint));
       return null;
     }
-    
+
     return data;
   } catch {
     return null;
@@ -216,16 +216,16 @@ const setCachedTransactions = (fingerprint: string, transactions: Transaction[])
 
 const RecentTransactions = ({ showAll = false, transactions: propTransactions, hideHeader = false }: RecentTransactionsProps) => {
   const { fingerprint } = useBrowserFingerprint();
-  
+
   // Use provider data (provider is always available since we wrap app with Providers)
   const { transactions: providerTransactions, loading: providerLoading, errors: providerErrors, refresh: providerRefresh } = useWalletData();
-  
+
   // Use prop transactions if provided, otherwise use provider transactions, otherwise use local state
   const useProviderData = propTransactions === undefined;
   const [localTransactions, setLocalTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Determine which data source to use
   const finalTransactions = propTransactions ?? (useProviderData ? providerTransactions : localTransactions);
   const finalLoading = useProviderData ? providerLoading.transactions : loading;
@@ -241,11 +241,11 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
     try {
       // Fetch aggregated any-chain transactions in one call
       const allTransactions = await walletApi.getTransactionsAny(fingerprint, showAll ? 100 : 20);
-      
+
       // Load Substrate transactions for all Substrate chains
       const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
       const substrateTransactions: Transaction[] = [];
-      
+
       // Fetch Substrate transactions in parallel with proper error handling
       const substratePromises = SUBSTRATE_CHAINS.map(async (chain) => {
         try {
@@ -258,8 +258,8 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
             value: tx.amount || '0',
             timestamp: tx.timestamp ? Math.floor(tx.timestamp / 1000) : null, // Convert ms to seconds if needed
             blockNumber: tx.blockNumber || null,
-            status: tx.status === 'finalized' || tx.status === 'inBlock' ? 'success' : 
-                    tx.status === 'failed' || tx.status === 'error' ? 'failed' : 'pending',
+            status: tx.status === 'finalized' || tx.status === 'inBlock' ? 'success' :
+              tx.status === 'failed' || tx.status === 'error' ? 'failed' : 'pending',
             chain: chain,
             tokenSymbol: undefined, // Substrate native token symbol would need to be fetched separately
           } as Transaction));
@@ -268,7 +268,7 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
           return []; // Return empty array on error
         }
       });
-      
+
       try {
         // Wait for all Substrate chain queries to complete (or fail)
         const substrateResults = await Promise.allSettled(substratePromises);
@@ -281,17 +281,17 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
         console.warn('Failed to load Substrate transactions:', substrateErr);
         // Don't fail the whole load if Substrate fails
       }
-      
+
       // Combine EVM and Substrate transactions
       const combinedTransactions = [...allTransactions, ...substrateTransactions];
-      
+
       // Filter out transactions with invalid/missing data
-      const validTransactions = combinedTransactions.filter(tx => 
-        tx.txHash && 
+      const validTransactions = combinedTransactions.filter(tx =>
+        tx.txHash &&
         tx.txHash.length > 0 &&
         (tx.value !== undefined || tx.tokenSymbol !== undefined)
       );
-      
+
       // Sort by timestamp (most recent first)
       validTransactions.sort((a, b) => {
         const timeA = a.timestamp || 0;
@@ -302,7 +302,7 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
       // Limit to 20 for recent, all for full view
       const limited = showAll ? validTransactions : validTransactions.slice(0, 10);
       setLocalTransactions(limited);
-      
+
       // Cache transactions for instant loading on tab switch
       if (fingerprint) {
         setCachedTransactions(fingerprint, limited);
@@ -328,10 +328,10 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
       } else {
         setLoading(true);
       }
-      
+
       // Always refresh in background
       loadTransactions();
-      
+
       // Auto-refresh every 30 seconds
       const interval = setInterval(() => {
         loadTransactions();
@@ -342,10 +342,10 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
 
   const getTransactionExplorerUrl = (tx: Transaction): string => {
     // Determine if this is a testnet chain
-    const isTestnet = tx.chain === 'paseo' || tx.chain === 'paseoAssethub' || 
-                      tx.chain === 'moonbeamTestnet' || tx.chain === 'astarShibuya' ||
-                      tx.chain === 'paseoPassetHub';
-    
+    const isTestnet = tx.chain === 'paseo' || tx.chain === 'paseoAssethub' ||
+      tx.chain === 'moonbeamTestnet' || tx.chain === 'astarShibuya' ||
+      tx.chain === 'paseoPassetHub';
+
     return getExplorerUrl(tx.txHash, tx.chain, isTestnet);
   };
 
@@ -398,13 +398,12 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
                     {/* Transaction Icon */}
-                    <div className={`p-2 rounded-full ${
-                      tx.status === 'success' 
-                        ? 'bg-green-100 text-green-600' 
-                        : tx.status === 'failed'
+                    <div className={`p-2 rounded-full ${tx.status === 'success'
+                      ? 'bg-green-100 text-green-600'
+                      : tx.status === 'failed'
                         ? 'bg-red-100 text-red-600'
                         : 'bg-yellow-100 text-yellow-600'
-                    }`}>
+                      }`}>
                       {tx.status === 'pending' ? (
                         <Clock className="h-5 w-5" />
                       ) : (
@@ -417,31 +416,34 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
                     </div>
 
                     {/* Transaction Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                    <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center sm:gap-3">
+                      <div className="flex items-center gap-2 w-28 sm:w-36 flex-shrink-0">
                         <p className="font-semibold text-gray-900 truncate">
                           {CHAIN_NAMES[tx.chain] || tx.chain}
                         </p>
                         {tx.status === 'pending' && (
-                          <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded">
+                          <span className="px-1.5 py-0.5 text-[10px] bg-yellow-100 text-yellow-700 rounded font-medium">
                             Pending
                           </span>
                         )}
                         {tx.status === 'failed' && (
-                          <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded">
+                          <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 rounded font-medium">
                             Failed
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 truncate font-rubik-normal">
-                        {tx.tokenSymbol 
-                          ? formatValue(tx.value, 18, tx.tokenSymbol)
-                          : formatValue(tx.value, 18)
-                        }
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1 font-rubik-normal">
-                        {formatDate(tx.timestamp)}
-                      </p>
+
+                      <div className="flex items-center gap-3">
+                        <p className="text-base font-bold text-gray-900 font-rubik-medium truncate">
+                          {tx.tokenSymbol
+                            ? formatValue(tx.value, 18, tx.tokenSymbol)
+                            : formatValue(tx.value, 18)
+                          }
+                        </p>
+                        <p className="text-[11px] text-gray-400 font-rubik-normal">
+                          {formatDate(tx.timestamp)}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -464,11 +466,10 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
   }
 
   return (
-    <div className={`w-full bg-white rounded-3xl pt-4 pb-20 border-t border-gray-200 shadow-sm ${
-      showAll
-        ? "md:max-w-4xl md:rounded-3xl md:mx-auto min-h-[calc(100vh-450px)]"
-        : "md:max-w-2xl md:mx-auto mt-4 overflow-y-auto max-h-[calc(100vh-450px)]"
-    }`}>
+    <div className={`w-full bg-white rounded-3xl pt-4 pb-20 border-t border-gray-200 shadow-sm ${showAll
+      ? "md:max-w-4xl md:rounded-3xl md:mx-auto min-h-[calc(100vh-450px)]"
+      : "md:max-w-2xl md:mx-auto mt-4 overflow-y-auto max-h-[calc(100vh-450px)]"
+      }`}>
       {/* Top Divider */}
       <div className="flex justify-center mb-2 px-4 md:px-6">
         <div className="w-10 h-1 bg-gray-200 rounded-full"></div>
@@ -536,13 +537,12 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
                     {/* Transaction Icon */}
-                    <div className={`p-2 rounded-full ${
-                      tx.status === 'success' 
-                        ? 'bg-green-100 text-green-600' 
-                        : tx.status === 'failed'
+                    <div className={`p-2 rounded-full ${tx.status === 'success'
+                      ? 'bg-green-100 text-green-600'
+                      : tx.status === 'failed'
                         ? 'bg-red-100 text-red-600'
                         : 'bg-yellow-100 text-yellow-600'
-                    }`}>
+                      }`}>
                       {tx.status === 'pending' ? (
                         <Clock className="h-5 w-5" />
                       ) : (
@@ -572,7 +572,7 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
                         )}
                       </div>
                       <p className="text-sm text-gray-600 truncate font-rubik-normal">
-                        {tx.tokenSymbol 
+                        {tx.tokenSymbol
                           ? formatValue(tx.value, 18, tx.tokenSymbol)
                           : formatValue(tx.value, 18)
                         }

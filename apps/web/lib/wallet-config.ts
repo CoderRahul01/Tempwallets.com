@@ -9,6 +9,7 @@ import Tron from '@thirdweb-dev/chain-icons/dist/tron';
 import Arbitrum from '@thirdweb-dev/chain-icons/dist/arbitrum';
 import Base from '../components/icons/BaseIcon';
 import AptosIcon from '../components/icons/AptosIcon';
+import Binance from '@thirdweb-dev/chain-icons/dist/binance-coin';
 
 import {
   WalletConfig,
@@ -111,7 +112,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     category: 'layer2',
     visible: true,
     icon: Arbitrum,
-    priority: 6,
+    priority: 5,
     color: '#28A0F0',
     capabilities: {
       walletConnect: true,
@@ -136,19 +137,18 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     isSmartAccount: true,
     eoaVariant: 'arbitrum',
   },
-  /*
   {
     id: 'polygonErc4337',
     name: 'Polygon',
     symbol: 'MATIC',
-  description: 'Polygon Smart Account (EIP-7702)',
+    description: 'Polygon Smart Account (EIP-7702)',
     type: 'evm',
     chainId: 137,
     isTestnet: false,
     category: 'sidechain',
     visible: true,
     icon: Polygon,
-    priority: 4,
+    priority: 3,
     color: '#8247E5',
     capabilities: {
       walletConnect: true,
@@ -176,14 +176,14 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     id: 'avalancheErc4337',
     name: 'Avalanche',
     symbol: 'AVAX',
-  description: 'Avalanche Smart Account (EIP-7702)',
+    description: 'Avalanche Smart Account (EIP-7702)',
     type: 'evm',
     chainId: 43114,
     isTestnet: false,
     category: 'layer1',
     visible: true,
     icon: Avalanche,
-    priority: 5,
+    priority: 4,
     color: '#E84142',
     capabilities: {
       walletConnect: true,
@@ -207,12 +207,10 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     isSmartAccount: true,
     eoaVariant: 'avalanche',
   },
-  */
 
   // ========================================
   // NON-EVM CHAINS
   // ========================================
-  /*
   {
     id: 'bitcoin',
     name: 'Bitcoin',
@@ -245,8 +243,6 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     },
     group: 'bitcoin',
   },
-  */
-  /*
   {
     id: 'polkadot',
     name: 'Polkadot',
@@ -257,7 +253,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     category: 'layer1',
     visible: true,
     icon: Polkadot,
-    priority: 3,
+    priority: 6,
     color: '#E6007A',
     capabilities: {
       walletConnect: true,
@@ -353,7 +349,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     category: 'layer1',
     visible: true,
     icon: AptosIcon,
-    priority: 24,
+    priority: 7,
     color: '#00D4FF',
     capabilities: {
       walletConnect: false,
@@ -407,7 +403,39 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     },
     group: 'aptos',
   },
-  */
+
+  {
+    id: 'yellow',
+    name: 'Yellow Network',
+    symbol: 'YELLOW',
+    description: 'Yellow Network (Clearnode)',
+    type: 'yellow',
+    isTestnet: false,
+    category: 'layer1',
+    visible: true,
+    icon: SubstrateFallback, // Using placeholder until Yellow icon is available
+    priority: 8,
+    color: '#F7E300', // Yellow color
+    capabilities: {
+      walletConnect: false,
+      send: true,
+      receive: true,
+      copy: true,
+      balanceFetch: true,
+      transactionHistory: true,
+      nativeToken: true,
+      tokenTransfers: true,
+      lightningNodes: true,
+    },
+    features: {
+      showInSelector: true,
+      showInWalletList: true,
+      enabledInProd: true,
+      enabledInDev: true,
+      advancedOnly: false,
+    },
+    group: 'yellow' as any, // Cast as any if 'yellow' isn't in ChainGroup yet, or update ChainGroup
+  },
 
   // ========================================
   // SUBSTRATE PARACHAINS (MAINNET)
@@ -625,6 +653,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     isSmartAccount: false,
     smartAccountVariant: 'arbitrumErc4337',
   },
+
   /*
   {
     id: 'polygonEoa',
@@ -1051,8 +1080,14 @@ export const getWalletConfigs = (filter?: WalletConfigFilter): WalletConfig[] =>
 export const getVisibleWalletConfigs = (environment: 'development' | 'production' = 'production'): WalletConfig[] => {
   const isDev = environment === 'development';
 
-  // MVP: Only show these 3 chains in the horizontal selector
-  const mvpChainIds = ['ethereumErc4337', 'baseErc4337', 'arbitrumErc4337'];
+  // Show these chains in the horizontal selector
+  const visibleInSelectorIds = [
+    'ethereumErc4337',
+    'baseErc4337',
+    'polygonErc4337',
+    'avalancheErc4337',
+    'arbitrumErc4337'
+  ];
 
   // Filter configs manually for more control
   return WALLET_CONFIGS.filter((config) => {
@@ -1083,32 +1118,24 @@ export const getVisibleWalletConfigs = (environment: 'development' | 'production
       return false;
     }
 
-    // MVP: Only show the 4 specific chains in horizontal selector
-    if (!mvpChainIds.includes(config.id)) {
+    // Only show these specific chains in horizontal selector
+    if (!visibleInSelectorIds.includes(config.id)) {
       return false;
     }
 
     return true;
   }).sort((a, b) => {
-    // Sort by the order in mvpChainIds array
-    const aIndex = mvpChainIds.indexOf(a.id);
-    const bIndex = mvpChainIds.indexOf(b.id);
-
-    // If both are in the list, sort by their position
-    if (aIndex !== -1 && bIndex !== -1) {
-      return aIndex - bIndex;
+    // Sort by priority
+    if (a.priority !== b.priority) {
+      return a.priority - b.priority;
     }
 
-    // Fallback: sort by enabled status, then priority, then name
+    // Fallback: sort by enabled status
     const aEnabled = isDev ? a.features.enabledInDev : a.features.enabledInProd;
     const bEnabled = isDev ? b.features.enabledInDev : b.features.enabledInProd;
 
     if (aEnabled !== bEnabled) {
       return aEnabled ? -1 : 1;
-    }
-
-    if (a.priority !== b.priority) {
-      return a.priority - b.priority;
     }
 
     return a.name.localeCompare(b.name);

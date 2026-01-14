@@ -23,6 +23,8 @@ import { Loader2, AlertCircle, CheckCircle2, ExternalLink, Zap, Clipboard } from
 import { walletApi, TokenBalance, ApiError, AnyChainAsset } from "@/lib/api";
 import { useTokenIcon } from "@/lib/token-icons";
 import { trackTransaction } from "@/lib/tempwallets-analytics";
+import { MOCK_BALANCES } from "@/lib/dummy-data";
+import { chains, getChainById } from "@/lib/chains";
 
 interface SendCryptoModalProps {
   open: boolean;
@@ -65,6 +67,12 @@ const CHAIN_NAMES: Record<string, string> = {
   polygonGasless: "Polygon",
   sepoliaGasless: "Sepolia",
   baseSepoliaGasless: "Base Sepolia",
+  // ERC-4337 Smart Account chains (from wallet-config.ts)
+  ethereumErc4337: "Ethereum",
+  baseErc4337: "Base",
+  arbitrumErc4337: "Arbitrum",
+  polygonErc4337: "Polygon",
+  avalancheErc4337: "Avalanche",
 };
 
 // EIP-7702 chain ID mapping
@@ -302,8 +310,9 @@ function TokenSelectItem({ value, token }: TokenSelectItemProps) {
 }
 
 export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }: SendCryptoModalProps) {
+  const [activeChainId, setActiveChainId] = useState(chain);
   // Get chain icon
-  const ChainIcon = useTokenIcon(chain);
+  const ChainIcon = useTokenIcon(activeChainId);
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [selectedToken, setSelectedToken] = useState<TokenBalance | null>(null);
   const [amount, setAmount] = useState("");
@@ -330,7 +339,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
       if (isSubstrate) {
         // Load Substrate balances
         const balances = await walletApi.getSubstrateBalances(userId, false);
-        const chainBalance = balances[chain];
+        const chainBalance = balances[activeChainId];
 
         if (chainBalance && chainBalance.address) {
           // Create a single token entry for native Substrate token
@@ -339,7 +348,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
             symbol: chainBalance.token,
             balance: chainBalance.balance,
             decimals: chainBalance.decimals,
-            chain: chain,
+            chain: activeChainId,
           }];
           setTokens(tokenList);
           setSelectedToken(tokenList[0] ?? null);
@@ -349,7 +358,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         }
       } else if (isAptos) {
         // Load Aptos balance
-        const network = chain === "aptosTestnet" ? "testnet" : "mainnet";
+        const network = activeChainId === "aptosTestnet" ? "testnet" : "mainnet";
         const balanceData = await walletApi.getAptosBalance(userId, network);
 
         // Create a single token entry for native APT token
@@ -358,18 +367,52 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
           symbol: "APT",
           balance: (parseFloat(balanceData.balance) * Math.pow(10, 8)).toString(), // Convert to octas (8 decimals)
           decimals: 8,
-          chain: chain,
+          chain: activeChainId,
         }];
         setTokens(tokenList);
         setSelectedToken(tokenList[0] ?? null);
       } else {
         // Load aggregated assets once (any-chain). Zerion assets are the source of truth.
-        // To ensure tokens are always available in the modal, do NOT filter by UI-selected chain.
         const allAssets: AnyChainAsset[] = await walletApi.getAssetsAny(userId, true);
 
-        // Keep all EVM/Solana assets; we'll still show chain name via explorer mapping elsewhere.
+        // Map activeChainId to Zerion chain identifier
+        // Technical IDs (like baseGasless, polygonErc4337) map to base chain names
+        const getZerionChainId = (id: string): string => {
+          const mapping: Record<string, string> = {
+            ethereumErc4337: 'ethereum',
+            baseErc4337: 'base',
+            arbitrumErc4337: 'arbitrum',
+            polygonErc4337: 'polygon',
+            avalancheErc4337: 'avalanche',
+            ethereumGasless: 'ethereum',
+            baseGasless: 'base',
+            arbitrumGasless: 'arbitrum',
+            optimismGasless: 'optimism',
+            polygonGasless: 'polygon',
+            sepoliaGasless: 'sepolia',
+            baseSepoliaGasless: 'baseSepolia',
+          };
+          return mapping[id] || id;
+        };
+
+        const targetChain = getZerionChainId(activeChainId);
+
+        // Filter and merge assets for the target chain
+        const matchingAssets = allAssets.filter(a => a.chain === targetChain);
+        const matchingMocks = MOCK_BALANCES.filter(m => m.chain === targetChain);
+
+        // Merge with mock data for UI testing if no real assets found or for demonstration
+        const mergedAssets = [...matchingAssets, ...matchingMocks.filter(m =>
+          !matchingAssets.some(a => a.symbol === m.symbol)
+        )].map(m => ({
+          ...m,
+          name: (m as any).name || (m as any).symbol,
+          price: (m as any).price || 0,
+          value: (m as any).value || 0,
+        }));
+
         // Sorting: native first if address null, then alphabetically by symbol.
-        const tokenList: TokenBalance[] = allAssets
+        const tokenList: TokenBalance[] = mergedAssets
           .filter((a) => !!a.symbol)
           .map((a) => ({
             address: a.address,
@@ -384,16 +427,11 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
             return a.symbol.localeCompare(b.symbol);
           });
 
-        // Keep native first, then others; native has address === null
-        tokenList.sort((a, b) => (a.address === null ? -1 : b.address === null ? 1 : 0));
-
         setTokens(tokenList);
         if (tokenList.length > 0) {
-          // Select first token (native token) by default
-          const firstToken = tokenList[0];
-          if (firstToken) {
-            setSelectedToken(firstToken);
-          }
+          setSelectedToken(tokenList[0] ?? null);
+        } else {
+          setSelectedToken(null);
         }
       }
     } catch (err) {
@@ -404,11 +442,11 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
     } finally {
       setLoadingTokens(false);
     }
-  }, [userId, chain]);
+  }, [userId, activeChainId]);
 
   // Load tokens when modal opens
   useEffect(() => {
-    if (open && userId && chain) {
+    if (open && userId && activeChainId) {
       loadTokens();
     } else {
       // Reset state when modal closes
@@ -421,7 +459,14 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
       setTxHash(null);
       setSuccess(false);
     }
-  }, [open, userId, chain, loadTokens]);
+  }, [open, userId, activeChainId, loadTokens]);
+
+  // Sync activeChainId with chain prop when modal opens
+  useEffect(() => {
+    if (open) {
+      setActiveChainId(chain);
+    }
+  }, [open, chain]);
 
   const validateForm = (): boolean => {
     const errors: { amount?: string; address?: string } = {};
@@ -514,8 +559,8 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
     setError(null);
 
     try {
-      // Use the selected token's chain, not the modal's chain prop
-      const tokenChain = selectedToken.chain || chain;
+      // Use the selected token's chain, falling back to active modal chain
+      const tokenChain = selectedToken.chain || activeChainId;
 
       // Log token send details for debugging
       console.log('[Send Debug] Sending token:', {
@@ -719,33 +764,60 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/10 bg-black/90 text-white shadow-2xl backdrop-blur sm:max-w-[300px] p-0 rounded-2xl [&>button]:text-white [&>button]:hover:text-white [&>button]:hover:bg-white/20 [&>button]:opacity-100">
+      <DialogContent className="border-white/10 bg-black/95 text-white shadow-2xl backdrop-blur sm:max-w-[380px] p-0 rounded-[28px] [&>button]:text-white/40 [&>button]:hover:text-white [&>button]:hover:bg-white/10 [&>button]:opacity-100 [&>button]:top-5 [&>button]:right-5">
         <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-            <ChainIcon className="h-6 w-6" />
-            {chainName}
-            {isEip7702Chain(chain) && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                <Zap className="h-3 w-3" />
-                Sponsored
-              </span>
-            )}
-          </DialogTitle>
-          <DialogDescription className="text-sm text-white/60">
-            {isEip7702Chain(chain)
-              ? "Gas-free transfer - fees are sponsored"
-              : "Transfer to recipient address"}
+          <div className="flex items-center gap-3">
+            <DialogTitle className="text-xl font-bold flex items-center gap-2.5 tracking-tight group">
+              <div className="flex items-center justify-center bg-white/5 rounded-full p-1.5 translate-y-[-1px]">
+                <ChainIcon className="h-6 w-6" />
+              </div>
+              <span className="font-rubik-medium">{CHAIN_NAMES[activeChainId] || activeChainId}</span>
+            </DialogTitle>
+
+            <Select value={activeChainId} onValueChange={setActiveChainId}>
+              <SelectTrigger className="w-auto h-7 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full text-[10px] font-bold text-white transition-colors gap-1 px-3 flex items-center uppercase tracking-wider focus:ring-0">
+                <span>CHANGE</span>
+              </SelectTrigger>
+              <SelectContent className="bg-black/95 border-white/10 text-white rounded-xl min-w-[140px]">
+                {chains.filter(c => !c.isTestnet).map((c) => {
+                  const Icon = c.icon;
+                  const isSelected = activeChainId === c.id;
+                  const displayName = c.name;
+
+                  return (
+                    <SelectItem
+                      key={c.id}
+                      value={c.id}
+                      className="text-xs focus:bg-white/10 focus:text-white cursor-pointer py-2"
+                    >
+                      <div className="flex items-center justify-between w-full min-w-[140px]">
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-4 h-4" />
+                          <span>{displayName}</span>
+                        </div>
+                        {isSelected && (
+                          <div className="h-1.5 w-1.5 rounded-full bg-[#007AFF] mr-1" />
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogDescription className="text-sm text-white/40 font-rubik-normal text-left mt-0.5 ml-0.5">
+            Transfer to recipient address
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 px-6 pb-6">
+        <div className="space-y-4 px-6 pb-6 mt-2">
           {/* Token Selection */}
           <div className="space-y-1.5">
-            <Label htmlFor="token" className="text-xs font-medium text-white/80">Token</Label>
+            <Label htmlFor="token" className="text-sm font-medium text-white/80">Token</Label>
             {loadingTokens ? (
-              <div className="flex items-center gap-2 text-xs text-white/60 py-2">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Loading...
+              <div className="flex items-center justify-center gap-3 text-sm text-white/40 py-4 bg-white/5 rounded-xl border border-white/5">
+                <Loader2 className="h-4 w-4 animate-spin text-[#007AFF]" />
+                <span>Loading tokens...</span>
               </div>
             ) : tokens.length === 0 ? (
               <div className="text-xs text-red-400 py-2">
@@ -784,7 +856,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
 
           {/* Amount Input */}
           <div className="space-y-1.5">
-            <Label htmlFor="amount" className="text-xs font-medium text-white/80">Amount</Label>
+            <Label htmlFor="amount" className="text-sm font-medium text-white/80">Amount</Label>
             <Input
               id="amount"
               type="number"
@@ -798,24 +870,43 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
                 }
               }}
               disabled={loading || !selectedToken}
-              className="h-9 rounded-xl border-white/20 bg-white/5 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:ring-white/20"
+              className="h-11 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/20 focus:border-[#007AFF]/50 focus:ring-[#007AFF]/20 transition-all font-rubik-medium px-4"
             />
-            {fieldErrors.amount ? (
-              <p className="text-xs text-red-400 flex items-center gap-1">
+            <div className="flex items-center justify-between px-0.5 mt-1">
+              {selectedToken ? (
+                <p className="text-[10px] md:text-xs text-white/40">
+                  Available: {formatBalance(selectedToken.balance, selectedToken.decimals)} {selectedToken.symbol}
+                </p>
+              ) : <div />}
+
+              {selectedToken && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const available = formatBalance(selectedToken.balance, selectedToken.decimals);
+                    setAmount(available);
+                    if (fieldErrors.amount) {
+                      setFieldErrors({ ...fieldErrors, amount: undefined });
+                    }
+                  }}
+                  className="text-[10px] md:text-xs font-bold text-[#007AFF] hover:text-[#007AFF]/80 transition-all px-2 py-0.5 rounded-md hover:bg-[#007AFF]/10 active:scale-95"
+                >
+                  Send MAX
+                </button>
+              )}
+            </div>
+            {fieldErrors.amount && (
+              <p className="text-xs text-red-400 flex items-center gap-1 mt-1">
                 <AlertCircle className="h-3 w-3" />
                 {fieldErrors.amount}
-              </p>
-            ) : selectedToken && (
-              <p className="text-xs text-white/40">
-                Available: {formatBalance(selectedToken.balance, selectedToken.decimals)} {selectedToken.symbol}
               </p>
             )}
           </div>
 
           {/* Recipient Address Input */}
           <div className="space-y-1.5">
-            <Label htmlFor="recipient" className="text-xs font-medium text-white/80">Recipient</Label>
-            <div className="relative">
+            <Label htmlFor="recipient" className="text-sm font-medium text-white/80">Recipient</Label>
+            <div className="relative group">
               <Input
                 id="recipient"
                 placeholder="Enter address"
@@ -827,20 +918,20 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
                   }
                 }}
                 disabled={loading}
-                className="h-9 rounded-xl border-white/20 bg-white/5 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:ring-white/20 pr-10"
+                className="h-11 pr-11 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/20 focus:border-[#007AFF]/50 focus:ring-[#007AFF]/20 transition-all font-rubik-normal px-4"
               />
               <button
                 type="button"
                 onClick={handlePasteFromClipboard}
                 disabled={loading}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1.5 text-white/40 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-lg"
                 title="Paste from clipboard"
               >
-                <Clipboard className="h-4 w-4 text-white/70" />
+                <Clipboard className="h-4 w-4" />
               </button>
             </div>
             {fieldErrors.address && (
-              <p className="text-xs text-red-400 flex items-center gap-1">
+              <p className="text-[10px] text-red-400 flex items-center gap-1 mt-1 font-medium px-1">
                 <AlertCircle className="h-3 w-3" />
                 {fieldErrors.address}
               </p>
@@ -865,7 +956,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
                 Transaction sent!
               </p>
               <a
-                href={getExplorerUrl(txHash, chain)}
+                href={getExplorerUrl(txHash, selectedToken?.chain || activeChainId)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-white/70 hover:text-white hover:underline flex items-center gap-1"
@@ -875,27 +966,24 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-4 pt-2">
             <Button
+              type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={loading}
-              className="flex-1 h-9 text-sm rounded-full border-white/20 text-white hover:bg-white/10"
+              className="flex-1 h-12 rounded-2xl border-white/10 text-white bg-transparent hover:bg-white/5 font-bold transition-all"
             >
               {success ? "Close" : "Cancel"}
             </Button>
             {!success && (
               <Button
-                className="flex-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSend}
-                disabled={loading || !!error || tokens.length === 0 || Object.keys(fieldErrors).some(k => !!fieldErrors[k as keyof typeof fieldErrors])}
+                disabled={loading || !selectedToken || !amount || !recipientAddress}
+                className="flex-1 h-12 rounded-2xl bg-[#FE6A16] hover:bg-[#FE6A16]/90 text-white font-bold transition-all shadow-lg shadow-orange-500/10"
               >
                 {loading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending...
-                  </div>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   "Send"
                 )}

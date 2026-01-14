@@ -14,7 +14,7 @@ const Base = Ethereum;
 /**
  * Chain types that determine wallet compatibility and functionality
  */
-export type ChainType = 'evm' | 'bitcoin' | 'substrate' | 'solana' | 'tron' | 'aptos';
+export type ChainType = 'evm' | 'bitcoin' | 'substrate' | 'solana' | 'tron' | 'aptos' | 'yellow';
 
 /**
  * Chain category for organizing chains
@@ -64,7 +64,6 @@ export const chains: Chain[] = [
     chainId: 1,
     featured: true,
   },
-  /*
   {
     id: 'bitcoin',
     name: 'Bitcoin',
@@ -109,7 +108,7 @@ export const chains: Chain[] = [
     category: 'layer1',
     featured: true,
   },
-  
+
   // Other EVM chains
   {
     id: 'polygon',
@@ -133,7 +132,6 @@ export const chains: Chain[] = [
     category: 'layer1',
     chainId: 43114,
   },
-  */
   {
     id: 'base',
     name: 'Base',
@@ -156,7 +154,6 @@ export const chains: Chain[] = [
     category: 'layer2',
     chainId: 42161,
   },
-  /*
   {
     id: 'optimism',
     name: 'Optimism',
@@ -168,7 +165,6 @@ export const chains: Chain[] = [
     category: 'layer2',
     chainId: 10,
   },
-  */
 
   // EIP-7702 Gasless chains (Mainnet)
   {
@@ -311,6 +307,11 @@ export const mapWalletCategoryToChainType = (category?: string): ChainType | nul
       return 'solana'; // Using 'solana' as generic non-EVM type
     case 'aptos':
       return 'aptos';
+    case 'yellow':
+    case 'lightning':
+    case 'clearnet':
+    case 'nitrolite':
+      return 'yellow';
     default:
       return null;
   }

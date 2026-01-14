@@ -47,11 +47,10 @@ export function BalanceTransactionsToggle() {
           <button
             onClick={() => setActiveView('balance')}
             type="button"
-            className={`font-rubik-medium transition-all cursor-pointer select-none py-2 px-3 -mx-3 rounded-lg relative z-10 ${
-              activeView === 'balance'
-                ? 'text-gray-800 font-semibold'
-                : 'text-gray-300 hover:text-gray-400'
-            }`}
+            className={`font-rubik-medium transition-all cursor-pointer select-none py-2 px-3 -mx-3 rounded-lg relative z-10 ${activeView === 'balance'
+              ? 'text-gray-800 font-semibold'
+              : 'text-gray-300 hover:text-gray-400'
+              }`}
             style={{ touchAction: 'manipulation' }}
           >
             Balance
@@ -59,11 +58,10 @@ export function BalanceTransactionsToggle() {
           <button
             onClick={() => setActiveView('transactions')}
             type="button"
-            className={`font-rubik-medium transition-all cursor-pointer select-none py-2 px-3 -mx-3 rounded-lg relative z-10 ${
-              activeView === 'transactions'
-                ? 'text-gray-800 font-semibold'
-                : 'text-gray-300 hover:text-gray-400'
-            }`}
+            className={`font-rubik-medium transition-all cursor-pointer select-none py-2 px-3 -mx-3 rounded-lg relative z-10 ${activeView === 'transactions'
+              ? 'text-gray-800 font-semibold'
+              : 'text-gray-300 hover:text-gray-400'
+              }`}
             style={{ touchAction: 'manipulation' }}
           >
             Transactions
@@ -71,11 +69,10 @@ export function BalanceTransactionsToggle() {
           <button
             onClick={() => setActiveView('lightningNodes')}
             type="button"
-            className={`font-rubik-medium transition-all cursor-pointer select-none py-2 px-2 -mx-2 rounded-lg relative z-10 text-sm sm:text-base ${
-              activeView === 'lightningNodes'
-                ? 'text-gray-800 font-semibold'
-                : 'text-gray-300 hover:text-gray-400'
-            }`}
+            className={`font-rubik-medium transition-all cursor-pointer select-none py-2 px-2 -mx-2 rounded-lg relative z-10 text-sm sm:text-base ${activeView === 'lightningNodes'
+              ? 'text-gray-800 font-semibold'
+              : 'text-gray-300 hover:text-gray-400'
+              }`}
             style={{ touchAction: 'manipulation' }}
           >
             Lightning Nodes

@@ -71,25 +71,25 @@ export function ChainSelector({
   // Group chains by type for better organization
   const groupedChains = useMemo(() => {
     const groups: Record<string, typeof allChains> = {
-      'Gasless': [],
-      'EVM Chains': [],
-      'Substrate': [],
-      'Aptos': [],
-      'Other': [],
+      'GASLESS': [], // Smart Accounts
+      'EVM CHAINS': [], // EOA Wallets
+      'SUBSTRATE': [],
+      'APTOS': [],
+      'OTHER': [],
     };
 
     allChains.forEach((chain) => {
       if (chain.isSmartAccount) {
-        groups['Gasless']!.push(chain);
+        groups['GASLESS']!.push(chain);
       } else if (chain.type === 'evm') {
-        // Include EOA wallets in EVM Chains group
-        groups['EVM Chains']!.push(chain);
+        // EOA wallets
+        groups['EVM CHAINS']!.push(chain);
       } else if (chain.type === 'substrate') {
-        groups['Substrate']!.push(chain);
+        groups['SUBSTRATE']!.push(chain);
       } else if (chain.type === 'aptos') {
-        groups['Aptos']!.push(chain);
+        groups['APTOS']!.push(chain);
       } else {
-        groups['Other']!.push(chain);
+        groups['OTHER']!.push(chain);
       }
     });
 
@@ -176,39 +176,7 @@ export function ChainSelector({
               );
             })}
 
-            {/* Placeholder for More Networks - Luminous Slot Reservation Pattern */}
-            {visibleChains.length < 4 && (
-              <div
-                className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl transition-all flex-shrink-0 snap-start group cursor-default"
-                style={{
-                  width: 'calc(25% - 0.5625rem)',
-                  minWidth: 'calc(25% - 0.5625rem)',
-                }}
-              >
-                <div className="relative flex items-center justify-center">
-                  {/* Rotating dashed ring */}
-                  <div className="absolute w-[42px] h-[42px] md:w-[46px] md:h-[46px] rounded-full border border-dashed border-white/20 animate-slow-spin opacity-50 group-hover:opacity-80 transition-opacity duration-700" />
-
-                  {/* Glowing core */}
-                  <div className={cn(
-                    "w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-700",
-                    "bg-white/[0.03] backdrop-blur-sm border border-white/5 group-hover:border-white/10 group-hover:bg-white/[0.05]",
-                    "shadow-inner animate-soft-pulse"
-                  )}>
-                    <Plus className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors duration-500" />
-                  </div>
-
-                  {/* Subtle highlight */}
-                  <div className="absolute inset-0 bg-radial-gradient from-white/5 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                </div>
-
-                <div className="flex flex-col items-center gap-0.5 min-h-[36px] mt-0.5">
-                  <span className="text-[10px] md:text-[11px] font-rubik-medium text-white/30 group-hover:text-white/50 text-center leading-tight transition-colors duration-500 tracking-tight">
-                    More<br />Coming Soon
-                  </span>
-                </div>
-              </div>
-            )}
+            {/* Placeholder removed to show all available networks */}
           </div>
         </div>
       </div>

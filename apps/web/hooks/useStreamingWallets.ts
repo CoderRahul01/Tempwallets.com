@@ -24,28 +24,28 @@ interface WalletStreamState {
 export interface UseStreamingWalletsReturn {
   /** Wallet states indexed by config ID */
   wallets: Record<string, WalletStreamState>;
-  
+
   /** Overall loading state (true if any wallet is loading) */
   loading: boolean;
-  
+
   /** Global error (only if complete failure) */
   error: string | null;
-  
+
   /** Load wallets for user (uses streaming if available) */
   loadWallets: (userId: string, forceRefresh?: boolean) => Promise<void>;
-  
+
   /** Get wallet by config ID */
   getWallet: (configId: string) => WalletStreamState | undefined;
-  
+
   /** Get wallet by chain type */
   getWalletByType: (type: ChainType) => WalletStreamState | undefined;
-  
+
   /** Check if streaming is in progress */
   isStreaming: boolean;
-  
+
   /** Number of wallets loaded */
   loadedCount: number;
-  
+
   /** Total wallets expected */
   totalCount: number;
 }
@@ -62,19 +62,22 @@ function mapBackendKeyToConfigId(key: string): string {
     'arbitrum': 'arbitrumEoa',
     'polygon': 'polygonEoa',
     'avalanche': 'avalancheEoa',
-    
+
     // EVM Smart Accounts (ERC-4337)
     'ethereumErc4337': 'ethereumErc4337',
     'baseErc4337': 'baseErc4337',
     'arbitrumErc4337': 'arbitrumErc4337',
     'polygonErc4337': 'polygonErc4337',
     'avalancheErc4337': 'avalancheErc4337',
-    
+
     // Non-EVM
     'bitcoin': 'bitcoin',
     'solana': 'solana',
     'tron': 'tron',
-    
+    'yellow': 'yellow',
+    'lightning': 'yellow',
+    'clearnet': 'yellow',
+
     // Substrate/Polkadot
     'polkadot': 'polkadot',
     'hydration': 'hydrationSubstrate',
@@ -83,7 +86,7 @@ function mapBackendKeyToConfigId(key: string): string {
     'bifrostSubstrate': 'bifrostSubstrate',
     'unique': 'uniqueSubstrate',
     'uniqueSubstrate': 'uniqueSubstrate',
-    
+
     // Testnets
     'moonbeamTestnet': 'moonbeamTestnet',
     'astarShibuya': 'astarShibuya',
@@ -91,7 +94,7 @@ function mapBackendKeyToConfigId(key: string): string {
     'paseo': 'paseo',
     'paseoAssethub': 'paseoAssethub',
   };
-  
+
   return keyMap[key] || key;
 }
 
@@ -103,16 +106,16 @@ function processWalletPayload(
   existingStates: Record<string, WalletStreamState> = {}
 ): Record<string, WalletStreamState> {
   const newStates: Record<string, WalletStreamState> = { ...existingStates };
-  
+
   // Process smart account
   if (payload.smartAccount?.address) {
     const smartAccountChains = payload.smartAccount.chains;
-    
+
     // Map each ERC-4337 chain
     Object.entries(smartAccountChains).forEach(([key, address]) => {
       const configId = mapBackendKeyToConfigId(key);
       const config = getWalletConfig(configId);
-      
+
       if (config) {
         newStates[configId] = {
           configId,
@@ -124,13 +127,13 @@ function processWalletPayload(
       }
     });
   }
-  
+
   // Process auxiliary wallets
   if (payload.auxiliary && payload.auxiliary.length > 0) {
     payload.auxiliary.forEach((entry) => {
       const configId = mapBackendKeyToConfigId(entry.key || entry.chain);
       const config = getWalletConfig(configId);
-      
+
       if (config) {
         newStates[configId] = {
           configId,
@@ -142,7 +145,7 @@ function processWalletPayload(
       }
     });
   }
-  
+
   return newStates;
 }
 
@@ -171,7 +174,7 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
-  
+
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const hasLoadedRef = useRef<Record<string, boolean>>({});
   const isLoadingRef = useRef<Record<string, boolean>>({});
@@ -193,24 +196,24 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
   const loadWalletsBatch = useCallback(async (userId: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/wallet/addresses?userId=${encodeURIComponent(userId)}`);
-      
+
       if (!response.ok) {
         throw new ApiError(response.status, 'Failed to load wallets');
       }
-      
+
       const data: UiWalletPayload = await response.json();
       const processedStates = processWalletPayload(data);
-      
+
       setWallets(processedStates);
       setTotalCount(Object.keys(processedStates).length);
       setLoading(false);
       hasLoadedRef.current[userId] = true;
       isLoadingRef.current[userId] = false;
     } catch (err) {
-      const errorMessage = err instanceof ApiError 
+      const errorMessage = err instanceof ApiError
         ? err.message
         : 'Failed to load wallets';
-      
+
       console.error('Error loading wallets:', err);
       setError(errorMessage);
       setLoading(false);
@@ -220,44 +223,44 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
 
   const loadWallets = useCallback(async (userId: string, forceRefresh: boolean = false) => {
     if (!userId) return;
-    
+
     // Prevent duplicate calls for the same userId
     if (isLoadingRef.current[userId] && !forceRefresh) {
       return;
     }
-    
+
     // Don't reload if already loaded and not forcing refresh
     if (hasLoadedRef.current[userId] && !forceRefresh) {
       return;
     }
-    
+
     // Cleanup existing connection synchronously BEFORE creating new one
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
       unsubscribeRef.current = null;
     }
-    
+
     // Close active EventSource connection if exists
     if (activeConnectionRef.current) {
       activeConnectionRef.current.close();
       activeConnectionRef.current = null;
     }
-    
+
     setError(null);
     setLoading(true);
     isLoadingRef.current[userId] = true;
-    
+
     // Try SSE streaming first
     const useSSE = typeof EventSource !== 'undefined';
-    
+
     if (useSSE) {
       try {
         const url = `${API_BASE_URL}/wallet/addresses-stream?userId=${encodeURIComponent(userId)}`;
         setIsStreaming(true);
-        
+
         let streamCompleted = false;
         let timeoutId: ReturnType<typeof setTimeout> | null = null;
-        
+
         const cleanup = subscribeToSSE<UiWalletPayload>(
           url,
           // On message - update wallets progressively
@@ -286,9 +289,9 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
             isLoadingRef.current[userId] = false;
           }
         );
-        
+
         unsubscribeRef.current = cleanup;
-        
+
         // Timeout after 30 seconds
         timeoutId = setTimeout(() => {
           if (!streamCompleted && cleanup) {
@@ -301,7 +304,7 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
             loadWalletsBatch(userId);
           }
         }, 30000);
-        
+
         return;
       } catch (err) {
         console.warn('Failed to start SSE streaming, falling back to batch:', err);
@@ -311,7 +314,7 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
         return;
       }
     }
-    
+
     // Fallback to batch loading
     await loadWalletsBatch(userId);
   }, [loadWalletsBatch]);

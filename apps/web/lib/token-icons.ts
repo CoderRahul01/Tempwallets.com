@@ -38,14 +38,14 @@ export function useTokenIcon(
   symbol?: string
 ): ComponentType<SVGProps<SVGSVGElement>> {
   const walletConfig = useWalletConfig();
-  
+
   // Try to get chain config by ID
   const chainConfig = walletConfig.getById(chain);
-  
+
   if (chainConfig?.icon) {
     return chainConfig.icon;
   }
-  
+
   // Try mapping common chain name variations
   const chainMap: Record<string, string> = {
     // Map Zerion canonical IDs to wallet config IDs
@@ -54,16 +54,24 @@ export function useTokenIcon(
     arbitrum: 'arbitrumErc4337',
     polygon: 'polygonErc4337',
     avalanche: 'avalancheErc4337',
+    bitcoin: 'bitcoin',
+    solana: 'solana',
+    tron: 'tron',
+    aptos: 'aptos',
+    polkadot: 'polkadot',
   };
-  
-  const mappedChain = chainMap[chain];
+
+  // Clean the chain ID by removing technical suffixes for searching
+  const cleanId = chain.replace(/(Erc4337|Gasless|SepoliaGasless)$/, '');
+  const mappedChain = chainMap[chain] || chainMap[cleanId] || cleanId;
+
   if (mappedChain) {
     const mappedConfig = walletConfig.getById(mappedChain);
     if (mappedConfig?.icon) {
       return mappedConfig.icon;
     }
   }
-  
+
   // Fallback to Polkadot icon (generic Substrate/chain icon)
   return FallbackIcon;
 }
