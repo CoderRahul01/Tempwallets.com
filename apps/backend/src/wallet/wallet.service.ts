@@ -950,6 +950,7 @@ export class WalletService {
   async *streamBalances(userId: string): AsyncGenerator<
     {
       chain: string;
+      address: string | null;
       nativeBalance: string;
       tokens: Array<{
         address: string;
@@ -967,7 +968,7 @@ export class WalletService {
     // Process each chain independently
     for (const [chain, address] of Object.entries(addresses)) {
       if (!address) {
-        yield { chain, nativeBalance: '0', tokens: [] };
+        yield { chain, address: null, nativeBalance: '0', tokens: [] };
         continue;
       }
 
@@ -979,6 +980,7 @@ export class WalletService {
 
         yield {
           chain,
+          address,
           nativeBalance: nativeToken?.balance || '0',
           tokens: otherTokens as Array<{
             address: string;
@@ -991,7 +993,7 @@ export class WalletService {
         this.logger.error(
           `Error streaming balance for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`,
         );
-        yield { chain, nativeBalance: '0', tokens: [] };
+        yield { chain, address: address || null, nativeBalance: '0', tokens: [] };
       }
     }
   }

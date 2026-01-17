@@ -1,5 +1,6 @@
 import { TokenBalance } from '../types/account.types.js';
 
+// Simplified dummy data for UI testing
 export const MOCK_TOKEN_BALANCES: TokenBalance[] = [
     {
         chain: 'ethereum',
@@ -9,51 +10,6 @@ export const MOCK_TOKEN_BALANCES: TokenBalance[] = [
         balance: '1250000000000000000',
         balanceHuman: '1.25',
         name: 'Ether',
-    },
-    {
-        chain: 'ethereum',
-        symbol: 'USDC',
-        address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-        decimals: 6,
-        balance: '500000000',
-        balanceHuman: '500.0',
-        name: 'USD Coin',
-    },
-    {
-        chain: 'ethereum',
-        symbol: 'USDT',
-        address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
-        decimals: 6,
-        balance: '1898000',
-        balanceHuman: '1.898',
-        name: 'Tether USD',
-    },
-    {
-        chain: 'bitcoin',
-        symbol: 'BTC',
-        address: null,
-        decimals: 8,
-        balance: '1500000',
-        balanceHuman: '0.015',
-        name: 'Bitcoin',
-    },
-    {
-        chain: 'base',
-        symbol: 'ETH',
-        address: null,
-        decimals: 18,
-        balance: '450000000000000000',
-        balanceHuman: '0.45',
-        name: 'Ether',
-    },
-    {
-        chain: 'polygon',
-        symbol: 'MATIC',
-        address: null,
-        decimals: 18,
-        balance: '150000000000000000000',
-        balanceHuman: '150.0',
-        name: 'MATIC',
     },
 ];
 
