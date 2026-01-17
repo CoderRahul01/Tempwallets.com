@@ -620,16 +620,42 @@ export class LightningNodeService {
       );
 
       // Create or get cached authenticated NitroliteClient
-      const nitroliteClient = await this.getUserNitroliteClient(
-        dto.userId,
-        chainName,
-        userWalletAddress,
-        isEOA,
-        chainKey,
-      );
+      let nitroliteClient;
+      try {
+        nitroliteClient = await this.getUserNitroliteClient(
+          dto.userId,
+          chainName,
+          userWalletAddress,
+          isEOA,
+          chainKey,
+        );
+      } catch (clientErr) {
+        const err = clientErr as Error;
+        this.logger.error(`[AUTH] Custom Client Error: ${err.message}`);
+        // If WebSocket is down or blocked
+        if (err.message.includes('WebSocket') || err.message.includes('connection')) {
+          throw new BadRequestException('Network error: Cannot connect to Lightning Node. Please check your internet connection.');
+        }
+        throw clientErr;
+      }
 
       // Verify authentication by pinging Yellow Network
-      const pingResult = await nitroliteClient.ping();
+      let pingResult;
+      try {
+        pingResult = await nitroliteClient.ping();
+      } catch (pingErr) {
+        this.logger.warn(`[AUTH] Ping failed, retrying authentication...`);
+        // Force refresh client if ping fails
+        this.userClients.delete(`${dto.userId}-${chainName}-${userWalletAddress}`);
+        nitroliteClient = await this.getUserNitroliteClient(
+          dto.userId,
+          chainName,
+          userWalletAddress,
+          isEOA,
+          chainKey,
+        );
+        pingResult = await nitroliteClient.ping();
+      }
 
       this.logger.log(`[AUTH] ✅ Wallet authenticated successfully`);
       this.logger.log(

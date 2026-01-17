@@ -318,6 +318,10 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
   const [recipientAddress, setRecipientAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingTokens, setLoadingTokens] = useState(false);
+  /* 
+   * Contextual error state specific to this modal.
+   * General network errors may be handled by global toast notifications.
+   */
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ amount?: string; address?: string }>({});
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -777,7 +781,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
               </div>
             ) : tokens.length === 0 ? (
               <div className="text-xs text-red-400 py-2">
-                No tokens available for this network from Zerion assets.
+                No tokens available for this network check your balance.
               </div>
             ) : (
               <Select
