@@ -7,13 +7,16 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SeedRepository } from './seed.repository.js';
-import { ZerionService, TokenBalance } from './zerion.service.js';
+import { ZerionService } from './services/zerion.service.js';
+import { BalanceProviderFactory } from './factories/balance-provider.factory.js';
+import { TokenBalance } from './types/account.types.js';
 import { SeedManager } from './managers/seed.manager.js';
 import { AddressManager } from './managers/address.manager.js';
 import { AccountFactory } from './factories/account.factory.js';
 import { NativeEoaFactory } from './factories/native-eoa.factory.js';
 import { Eip7702AccountFactory } from './factories/eip7702-account.factory.js';
 import { PolkadotEvmRpcService } from './services/polkadot-evm-rpc.service.js';
+import { RpcBalanceService } from './services/rpc-balance.service.js';
 import { SubstrateManager } from './substrate/managers/substrate.manager.js';
 import { SubstrateChainKey } from './substrate/config/substrate-chain.config.js';
 import { BalanceCacheRepository } from './repositories/balance-cache.repository.js';
@@ -73,19 +76,19 @@ export class WalletService {
     | 'bifrost'
     | 'bifrostTestnet'
   > = [
-    'ethereum',
-    'base',
-    'arbitrum',
-    'polygon',
-    'avalanche',
-    'moonbeamTestnet',
-    'astarShibuya',
-    'paseoPassetHub',
-    'hydration',
-    'unique',
-    'bifrost',
-    'bifrostTestnet',
-  ];
+      'ethereum',
+      'base',
+      'arbitrum',
+      'polygon',
+      'avalanche',
+      'moonbeamTestnet',
+      'astarShibuya',
+      'paseoPassetHub',
+      'hydration',
+      'unique',
+      'bifrost',
+      'bifrostTestnet',
+    ];
   private readonly NON_EVM_CHAIN_KEYS: Array<
     | 'tron'
     | 'bitcoin'
@@ -95,14 +98,14 @@ export class WalletService {
     | 'aptosTestnet'
     | 'aptosDevnet'
   > = [
-    'tron',
-    'bitcoin',
-    'solana',
-    'aptos',
-    'aptosMainnet',
-    'aptosTestnet',
-    'aptosDevnet',
-  ];
+      'tron',
+      'bitcoin',
+      'solana',
+      'aptos',
+      'aptosMainnet',
+      'aptosTestnet',
+      'aptosDevnet',
+    ];
   private readonly UI_SMART_ACCOUNT_LABEL = 'EVM Smart Account';
   private readonly WALLETCONNECT_CHAIN_CONFIG = [
     {
@@ -147,7 +150,9 @@ export class WalletService {
     private walletHistoryRepository: WalletHistoryRepository,
     private pimlicoConfig: PimlicoConfigService,
     private eip7702DelegationRepository: Eip7702DelegationRepository,
-  ) {}
+    private rpcBalanceService: RpcBalanceService,
+    private balanceProviderFactory: BalanceProviderFactory,
+  ) { }
 
   /**
    * Create or import a wallet seed phrase
@@ -382,17 +387,17 @@ export class WalletService {
       ? (metadata[canonicalChainKey]?.address ?? null)
       : null;
     const canonicalChain = canonicalChainKey
-  ? canonicalChainKey
+      ? canonicalChainKey
       : null;
 
     const smartAccount: SmartAccountSummary | null = canonicalAddress
       ? {
-          key: 'evmSmartAccount',
-          label: this.UI_SMART_ACCOUNT_LABEL,
-          canonicalChain,
-          address: canonicalAddress,
-          chains: chainsRecord,
-        }
+        key: 'evmSmartAccount',
+        label: this.UI_SMART_ACCOUNT_LABEL,
+        canonicalChain,
+        address: canonicalAddress,
+        chains: chainsRecord,
+      }
       : null;
 
     const auxiliary = this.buildAuxiliaryWalletEntries(metadata);
@@ -531,7 +536,7 @@ export class WalletService {
           'bifrostTestnet',
         ].includes(chain),
     );
-    standardEoaChains.forEach((chain) => assign(chain, 'eoa', false));
+    standardEoaChains.forEach((chain) => assign(chain, 'eoa', true));
 
     // Polkadot EVM chains (visible)
     const polkadotEvmChains: WalletAddressKey[] = [
@@ -605,13 +610,13 @@ export class WalletService {
       | 'paseo'
       | 'paseoAssethub'
     > = [
-      'polkadot',
-      'hydrationSubstrate',
-      'bifrostSubstrate',
-      'uniqueSubstrate',
-      'paseo',
-      'paseoAssethub',
-    ];
+        'polkadot',
+        'hydrationSubstrate',
+        'bifrostSubstrate',
+        'uniqueSubstrate',
+        'paseo',
+        'paseoAssethub',
+      ];
 
     // Polkadot EVM chains
     const POLKADOT_EVM_CHAIN_KEYS: Array<
@@ -657,193 +662,41 @@ export class WalletService {
       balanceHuman?: string;
     }>
   > {
-    // Ensure wallet exists
-    const hasSeed = await this.seedRepository.hasSeed(userId);
-    if (!hasSeed) {
-      await this.createOrImportSeed(userId, 'random');
-    }
+    this.logger.log(
+      `Getting any-chain token balances for user ${userId}${forceRefresh ? ' (force refresh)' : ''}`,
+    );
 
-    const addresses = await this.getAddresses(userId);
-
-    // Collect all unique target addresses we want Zerion to index
-    const seenAddresses = new Set<string>();
-    const targetAddresses: string[] = [];
-    const addTarget = (addr?: string | null) => {
-      if (!addr) return;
-      const key = addr.toLowerCase();
-      if (seenAddresses.has(key)) return;
-      seenAddresses.add(key);
-      targetAddresses.push(addr);
-    };
-
-    // Primary EVM EOAs (one per supported chain)
-    addTarget(addresses.ethereum);
-    addTarget(addresses.base);
-    addTarget(addresses.arbitrum);
-    addTarget(addresses.polygon);
-    addTarget(addresses.avalanche);
-
-    // Solana address (Zerion supports Solana)
-    addTarget(addresses.solana);
-
-    // Include any recorded EIP-7702 delegated accounts (EOA keeps same address)
-    try {
-      const delegations =
-        await this.eip7702DelegationRepository.getDelegationsForUser(userId);
-      for (const delegation of delegations) {
-        addTarget(delegation.address);
-      }
-    } catch (error) {
-      this.logger.warn(
-        `Failed to load EIP-7702 delegations for ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-
-    // Polkadot EVM chains use the same EOA address as ethereum
-    const polkadotEvmAddress = addresses.ethereum;
-
-    // Invalidate Zerion cache for all addresses if force refresh is requested
-    if (forceRefresh) {
-      for (const addr of targetAddresses) {
-        // Invalidate for common chains that Zerion supports
-        const chains = [
-          'ethereum',
-          'base',
-          'arbitrum',
-          'polygon',
-          'avalanche',
-          'solana',
-        ];
-        for (const chain of chains) {
-          this.zerionService.invalidateCache(addr, chain);
-        }
-      }
-    }
-
-    // Fetch positions for each address in parallel (Zerion)
-    const zerionResults =
-      targetAddresses.length > 0
-        ? await Promise.all(
-            targetAddresses.map((addr) =>
-              this.zerionService.getPositionsAnyChain(addr),
-            ),
-          )
-        : [];
-
-    // Fetch Polkadot EVM chain assets using RPC
-    const polkadotEvmChains = [
+    // List of all chains we want to query (EVM + Polkadot EVM)
+    const allChains = [
+      ...this.EOA_CHAIN_KEYS,
       'moonbeamTestnet',
       'astarShibuya',
       'paseoPassetHub',
-    ];
-    const polkadotResults: Array<{
-      chain: string;
-      address: string | null;
-      symbol: string;
-      balance: string;
-      decimals: number;
-      balanceHuman?: string;
-    }> = [];
+    ] as string[];
 
-    if (polkadotEvmAddress) {
-      // Use Promise.allSettled to ensure RPC errors don't block Zerion results
-      const polkadotAssetResults = await Promise.allSettled(
-        polkadotEvmChains.map(async (chain) => {
-          try {
-            const assets = await this.polkadotEvmRpcService.getAssets(
-              polkadotEvmAddress,
-              chain,
-            );
-            return assets;
-          } catch (error) {
-            this.logger.error(
-              `Error fetching assets for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            );
-            return []; // Return empty array on error
-          }
-        }),
-      );
-
-      // Flatten the results
-      for (const result of polkadotAssetResults) {
-        if (result.status === 'fulfilled') {
-          polkadotResults.push(...result.value);
-        }
-      }
-    }
-
-    const results = [...zerionResults];
-
-    // Merge and dedupe across addresses using chain_id + token address/native
-    // Preserve Zerion's native balance format (smallest units) and decimals
-    const byKey = new Map<
-      string,
-      {
-        chain: string;
-        address: string | null;
-        symbol: string;
-        balance: string;
-        decimals: number;
-        balanceHuman?: string;
-      }
-    >();
-
-    // Process Zerion results
-    for (const parsedTokens of zerionResults) {
-      if (!parsedTokens || !Array.isArray(parsedTokens)) continue;
-      for (const token of parsedTokens) {
+    // Fetch balances for each chain in parallel using the chain-specific getTokenBalances
+    // which handles per-chain caching
+    const results = await Promise.allSettled(
+      allChains.map(async (chain) => {
         try {
-          const chainId = token.chain;
-          const balanceSmallest = token.balanceSmallest;
-
-          // Skip zero balances
-          if (balanceSmallest === '0' || BigInt(balanceSmallest) === 0n)
-            continue;
-
-          const key = `${chainId}:${token.address ? token.address.toLowerCase() : 'native'}`;
-          if (!byKey.has(key)) {
-            byKey.set(key, {
-              chain: chainId,
-              address: token.address,
-              symbol: token.symbol,
-              balance: balanceSmallest, // Keep smallest units as primary balance
-              decimals: token.decimals || 18, // Use Zerion's decimals with fallback
-              balanceHuman: token.balanceHuman.toString(), // Add human-readable for UI
-            });
-          }
-        } catch (e) {
-          this.logger.debug(
-            `Error processing parsed token: ${e instanceof Error ? e.message : 'Unknown error'}`,
-          );
+          const balances = await this.getTokenBalances(userId, chain, forceRefresh);
+          // Add chain property to each balance
+          return balances.map(b => ({ ...b, chain }));
+        } catch (err) {
+          this.logger.error(`Error fetching balances for ${chain}: ${err}`);
+          return [];
         }
+      }),
+    );
+
+    const allBalances: any[] = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allBalances.push(...result.value);
       }
     }
 
-    // Process Polkadot EVM RPC results
-    for (const asset of polkadotResults) {
-      try {
-        // Skip zero balances
-        if (asset.balance === '0' || BigInt(asset.balance) === 0n) continue;
-
-        const key = `${asset.chain}:${asset.address ? asset.address.toLowerCase() : 'native'}`;
-        if (!byKey.has(key)) {
-          byKey.set(key, {
-            chain: asset.chain,
-            address: asset.address,
-            symbol: asset.symbol,
-            balance: asset.balance,
-            decimals: asset.decimals,
-            balanceHuman: asset.balanceHuman,
-          });
-        }
-      } catch (e) {
-        this.logger.debug(
-          `Error processing Polkadot EVM asset: ${e instanceof Error ? e.message : 'Unknown error'}`,
-        );
-      }
-    }
-
-    return Array.from(byKey.values());
+    return allBalances;
   }
 
   /**
@@ -884,32 +737,32 @@ export class WalletService {
     const zerionPerAddr =
       targetAddresses.length > 0
         ? await Promise.allSettled(
-            targetAddresses.map((addr) =>
-              Promise.race([
-                this.zerionService.getTransactionsAnyChain(addr, limit),
-                new Promise<never>((_, reject) =>
-                  setTimeout(
-                    () =>
-                      reject(
-                        new Error(
-                          `Transaction fetch timeout for ${addr} after 30s`,
-                        ),
+          targetAddresses.map((addr) =>
+            Promise.race([
+              this.zerionService.getTransactionsAnyChain(addr, limit),
+              new Promise<never>((_, reject) =>
+                setTimeout(
+                  () =>
+                    reject(
+                      new Error(
+                        `Transaction fetch timeout for ${addr} after 30s`,
                       ),
-                    30000,
-                  ),
+                    ),
+                  30000,
                 ),
-              ]).catch((error) => {
-                this.logger.warn(
-                  `Failed to fetch transactions for ${addr}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                );
-                return []; // Return empty array on error/timeout
-              }),
-            ),
-          ).then((results) =>
-            results.map((result) =>
-              result.status === 'fulfilled' ? result.value : [],
-            ),
-          )
+              ),
+            ]).catch((error) => {
+              this.logger.warn(
+                `Failed to fetch transactions for ${addr}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              );
+              return []; // Return empty array on error/timeout
+            }),
+          ),
+        ).then((results) =>
+          results.map((result) =>
+            result.status === 'fulfilled' ? result.value : [],
+          ),
+        )
         : [];
 
     // Fetch Polkadot EVM chain transactions using RPC
@@ -1149,7 +1002,7 @@ export class WalletService {
       }
 
       try {
-        // Get token balances from Zerion (includes native + tokens)
+        // Get token balances (includes native + tokens)
         const tokens = await this.getTokenBalances(userId, chain);
         const nativeToken = tokens.find((t) => t.address === null);
         const otherTokens = tokens.filter((t) => t.address !== null);
@@ -1169,7 +1022,13 @@ export class WalletService {
   }
 
   /**
-   * Get balances for all chains using Zerion API
+   * Get balances for all chains using RPC
+   * Auto-creates wallet if it doesn't exist
+   * @param userId - The user ID
+   * @returns Array of balance objects
+   */
+  /**
+   * Get balances for all chains using RPC
    * Auto-creates wallet if it doesn't exist
    * @param userId - The user ID
    * @returns Array of balance objects
@@ -1178,8 +1037,6 @@ export class WalletService {
     userId: string,
     forceRefresh: boolean = false,
   ): Promise<Array<{ chain: string; balance: string }>> {
-    // Substrate chains are handled separately by getSubstrateBalances()
-    // Skip them here to avoid returning misleading cached values
     const substrateChains = [
       'polkadot',
       'hydrationSubstrate',
@@ -1189,110 +1046,30 @@ export class WalletService {
       'paseoAssethub',
     ];
 
-    // Fast path: Check database cache first (unless force refresh)
-    if (!forceRefresh) {
-      const cachedBalances =
-        await this.balanceCacheRepository.getCachedBalances(userId);
-      if (cachedBalances) {
-        this.logger.debug(
-          `Returning cached balances from DB for user ${userId}`,
-        );
-        // Convert cached format to response format, excluding Substrate chains
-        return Object.entries(cachedBalances)
-          .filter(
-            ([chain]) =>
-              !substrateChains.includes(chain) &&
-              !chain.startsWith('substrate_'),
-          )
-          .map(([chain, data]) => ({
-            chain,
-            balance: data.balance,
-          }));
-      }
-    }
-
-    // Check if wallet exists, create if not
-    const hasSeed = await this.seedRepository.hasSeed(userId);
-
-    if (!hasSeed) {
-      await this.createOrImportSeed(userId, 'random');
-    }
-
-    // Get addresses first (using WDK - addresses stay on backend)
-    const addresses = await this.getAddresses(userId);
-
-    const balances: Array<{ chain: string; balance: string }> = [];
-    const balancesToCache: Record<
-      string,
-      { balance: string; lastUpdated: number }
-    > = {};
-
-    // For each chain, get balance from Zerion
-    for (const [chain, address] of Object.entries(addresses)) {
-      // Skip Substrate chains - they're handled by getSubstrateBalances()
-      if (substrateChains.includes(chain)) {
-        continue;
-      }
-
-      if (!address) {
-        balances.push({ chain, balance: '0' });
-        balancesToCache[chain] = { balance: '0', lastUpdated: Date.now() };
-        continue;
-      }
-
-      try {
-        // Get portfolio from Zerion
-        const portfolio = await this.zerionService.getPortfolio(address, chain);
-
-        if (!portfolio?.data || !Array.isArray(portfolio.data)) {
-          // Zerion doesn't support this chain or returned no data
-          balances.push({ chain, balance: '0' });
-          balancesToCache[chain] = { balance: '0', lastUpdated: Date.now() };
-          continue;
-        }
-
-        // Find native token in portfolio
-        const nativeToken = portfolio.data.find(
-          (token) =>
-            token.type === 'native' || !token.attributes?.fungible_info,
-        );
-
-        let balance = '0';
-        if (nativeToken?.attributes?.quantity) {
-          const quantity = nativeToken.attributes.quantity;
-          // Combine int and decimals parts
-          const intPart = quantity.int || '0';
-          const decimals = quantity.decimals || 0;
-          balance = `${intPart}${'0'.repeat(Math.max(0, 18 - decimals))}`;
-        }
-
-        balances.push({
-          chain,
-          balance,
-        });
-
-        balancesToCache[chain] = { balance, lastUpdated: Date.now() };
-
-        this.logger.log(
-          `Successfully got balance for ${chain} from Zerion: ${balance}`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Error fetching balance for ${chain} from Zerion: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        );
-        // Return 0 balance if Zerion fails (Zerion is primary source)
-        balances.push({ chain, balance: '0' });
-        balancesToCache[chain] = { balance: '0', lastUpdated: Date.now() };
-      }
-    }
-
-    // Save to cache
-    await this.balanceCacheRepository.updateCachedBalances(
-      userId,
-      balancesToCache,
+    this.logger.debug(
+      `Getting balances for user ${userId}${forceRefresh ? ' (force refresh)' : ''}`,
     );
 
-    return balances;
+    try {
+      // Use consolidated getTokenBalancesAny which handles per-chain caching and isolation
+      const allAssets = await this.getTokenBalancesAny(userId, forceRefresh);
+
+      // Filter for native assets (address: null) and map to legacy format
+      return allAssets
+        .filter(
+          (asset) =>
+            asset.address === null &&
+            !substrateChains.includes(asset.chain) &&
+            !asset.chain.startsWith('substrate_'),
+        )
+        .map((asset) => ({
+          chain: asset.chain,
+          balance: asset.balance,
+        }));
+    } catch (error: any) {
+      this.logger.error(`Error in getBalances for ${userId}: ${error.message}`);
+      return [];
+    }
   }
 
   /**
@@ -1534,10 +1311,10 @@ export class WalletService {
       // If no deployment method found, throw error
       throw new Error(
         `No deployment method available for ERC-4337 account. ` +
-          `Account type may not support auto-deployment. ` +
-          `Available methods: ${Object.keys(account)
-            .filter((k) => typeof account[k] === 'function')
-            .join(', ')}`,
+        `Account type may not support auto-deployment. ` +
+        `Available methods: ${Object.keys(account)
+          .filter((k) => typeof account[k] === 'function')
+          .join(', ')}`,
       );
     } catch (error) {
       const errorMessage =
@@ -1666,8 +1443,8 @@ export class WalletService {
 
       this.logger.log(
         `[On-Chain Balance] Token: ${tokenAddress || 'native'}, ` +
-          `balance: ${balanceBigInt.toString()}, requested: ${amountSmallest.toString()}, ` +
-          `sufficient: ${sufficient}`,
+        `balance: ${balanceBigInt.toString()}, requested: ${amountSmallest.toString()}, ` +
+        `sufficient: ${sufficient}`,
       );
 
       return {
@@ -1708,12 +1485,12 @@ export class WalletService {
 
       this.logger.log(
         `[Zerion Lookup] Fetching positions for address: ${walletAddress}, ` +
-          `internal chain: ${chain}, Zerion chain aliases: [${chainAliases.join(', ')}], ` +
-          `token: ${tokenAddress}`,
+        `internal chain: ${chain}, Zerion chain aliases: [${chainAliases.join(', ')}], ` +
+        `token: ${tokenAddress}`,
       );
 
       const positionsAny =
-        await this.zerionService.getPositionsAnyChain(walletAddress);
+        await this.zerionService.getBalancesAny(walletAddress);
 
       if (!positionsAny || positionsAny.length === 0) {
         this.logger.warn(
@@ -1727,15 +1504,15 @@ export class WalletService {
       );
 
       // Log all positions for debugging
-      positionsAny.forEach((p: TokenBalance, index: number) => {
+      positionsAny.forEach((p: any, index: number) => {
         this.logger.debug(
           `[Zerion Position ${index}] symbol=${p.symbol}, ` +
-            `address=${p.address}, chain=${p.chain}, balance=${p.balanceSmallest}`,
+          `address=${p.address}, chain=${p.chain}, balance=${p.balance}`,
         );
       });
 
       // Check all implementations, not just the first one
-      const match = positionsAny.find((p: TokenBalance) => {
+      const match = positionsAny.find((p: any) => {
         // Match by token address (case-insensitive) + Zerion chain aliases
         const positionAddress = p.address?.toLowerCase();
         const positionChain = p.chain?.toLowerCase() || '';
@@ -1756,7 +1533,7 @@ export class WalletService {
       }
 
       const decimals = match.decimals;
-      const balanceSmallest = match.balanceSmallest;
+      const balanceSmallest = match.balance;
 
       // CRITICAL VALIDATION: Ensure decimals field exists and is valid
       if (decimals === null || decimals === undefined) {
@@ -1785,8 +1562,8 @@ export class WalletService {
 
       this.logger.log(
         `[Zerion Lookup] Successfully found token: symbol=${match.symbol}, ` +
-          `decimals=${decimals}, balance=${balanceSmallest}. ` +
-          `Data from Zerion is valid and ready for use.`,
+        `decimals=${decimals}, balance=${balanceSmallest}. ` +
+        `Data from Zerion is valid and ready for use.`,
       );
 
       return {
@@ -1851,11 +1628,11 @@ export class WalletService {
 
         this.logger.log(
           `[Zerion Balance] Fetching native balance for address: ${walletAddress}, ` +
-            `chain: ${chain}, aliases: [${chainAliases.join(', ')}]`,
+          `chain: ${chain}, aliases: [${chainAliases.join(', ')}]`,
         );
 
         const positionsAny =
-          await this.zerionService.getPositionsAnyChain(walletAddress);
+          await this.zerionService.getBalancesAny(walletAddress);
         if (!positionsAny || positionsAny.length === 0) {
           return {
             sufficient: false,
@@ -1864,7 +1641,7 @@ export class WalletService {
           };
         }
 
-        const nativeMatch = positionsAny.find((p: TokenBalance) => {
+        const nativeMatch = positionsAny.find((p: any) => {
           const isNative = !p.address; // Native tokens have null address
           const chainMatch = chainAliases.some(
             (alias) => p.chain?.toLowerCase() === alias.toLowerCase(),
@@ -1876,7 +1653,7 @@ export class WalletService {
         if (!nativeMatch) {
           this.logger.warn(
             `[Zerion Balance] Native token not found for chain=${chain} ` +
-              `(checked aliases: [${chainAliases.join(', ')}])`,
+            `(checked aliases: [${chainAliases.join(', ')}])`,
           );
           return {
             sufficient: false,
@@ -1885,14 +1662,14 @@ export class WalletService {
           };
         }
 
-        const balanceSmallest = nativeMatch.balanceSmallest;
+        const balanceSmallest = nativeMatch.balance;
         const zerionBalanceBigInt = BigInt(balanceSmallest);
         const sufficient =
           zerionBalanceBigInt >= BigInt(amountSmallest.toString());
 
         this.logger.log(
           `[Zerion Balance] Native balance: ${balanceSmallest}, ` +
-            `requested: ${amountSmallest.toString()}, sufficient: ${sufficient}`,
+          `requested: ${amountSmallest.toString()}, sufficient: ${sufficient}`,
         );
 
         return {
@@ -1959,12 +1736,12 @@ export class WalletService {
       return this.nativeEoaFactory.createAccount(
         seedPhrase,
         chain as
-          | 'ethereum'
-          | 'base'
-          | 'arbitrum'
-          | 'polygon'
-          | 'avalanche'
-          | 'sepolia',
+        | 'ethereum'
+        | 'base'
+        | 'arbitrum'
+        | 'polygon'
+        | 'avalanche'
+        | 'sepolia',
         0,
       );
     }
@@ -2008,9 +1785,9 @@ export class WalletService {
       throw new BadRequestException('Amount must be a positive number');
     }
 
-  const forceEip7702 = options?.forceEip7702 === true;
-  const isEip7702Chain = this.pimlicoConfig.isEip7702Enabled(chain);
-  const accountType = isEip7702Chain ? 'EIP-7702' : 'EOA';
+    const forceEip7702 = options?.forceEip7702 === true;
+    const isEip7702Chain = this.pimlicoConfig.isEip7702Enabled(chain);
+    const accountType = isEip7702Chain ? 'EIP-7702' : 'EOA';
 
     try {
       const seedPhrase = await this.seedRepository.getSeedPhrase(userId);
@@ -2023,7 +1800,7 @@ export class WalletService {
 
         this.logger.warn(
           `[Auto-Route] Chain ${chain} has EIP-7702 enabled but sendCrypto() was called. ` +
-            `Routing to sendEip7702Gasless() for proper user operation flow.`,
+          `Routing to sendEip7702Gasless() for proper user operation flow.`,
         );
 
         const result = await this.sendEip7702Gasless(
@@ -2048,7 +1825,7 @@ export class WalletService {
 
       this.logger.log(
         `[Send Debug] User is sending ${amount} ${tokenAddress || 'native'} from ${chain} ` +
-          `(accountType: ${accountType}, address: ${walletAddress})`,
+        `(accountType: ${accountType}, address: ${walletAddress})`,
       );
 
       // Get decimals: Use provided tokenDecimals, or fetch from Zerion, or use native decimals
@@ -2137,8 +1914,8 @@ export class WalletService {
       const amountSmallest = this.convertToSmallestUnits(amount, finalDecimals);
       this.logger.log(
         `Send pre-check: chain=${chain}, accountType=${accountType}, token=${tokenAddress || 'native'}, ` +
-          `humanAmount=${amount}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
-          `amountSmallest=${amountSmallest.toString()}`,
+        `humanAmount=${amount}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
+        `amountSmallest=${amountSmallest.toString()}`,
       );
 
       // Validate address format (basic check)
@@ -2156,7 +1933,7 @@ export class WalletService {
 
       this.logger.log(
         `Balance validation: zerionBalance=${balanceValidation.zerionBalance}, ` +
-          `requested=${amountSmallest.toString()}, sufficient=${balanceValidation.sufficient}`,
+        `requested=${amountSmallest.toString()}, sufficient=${balanceValidation.sufficient}`,
       );
 
       // Use on-chain balance as source of truth - verify if Zerion says insufficient
@@ -2164,7 +1941,7 @@ export class WalletService {
         // Zerion says insufficient - verify with on-chain balance (source of truth)
         this.logger.warn(
           `Zerion reported insufficient balance (${balanceValidation.zerionBalance}), ` +
-            `verifying with on-chain balance (source of truth)`,
+          `verifying with on-chain balance (source of truth)`,
         );
 
         try {
@@ -2178,8 +1955,8 @@ export class WalletService {
             // On-chain says sufficient - allow transaction (Zerion may be stale)
             this.logger.warn(
               `Balance discrepancy detected: Zerion shows ${balanceValidation.zerionBalance}, ` +
-                `on-chain shows ${onChainValidation.balance}, requested ${amountSmallest.toString()}. ` +
-                `Using on-chain balance (source of truth) - proceeding with transaction.`,
+              `on-chain shows ${onChainValidation.balance}, requested ${amountSmallest.toString()}. ` +
+              `Using on-chain balance (source of truth) - proceeding with transaction.`,
             );
             // Don't throw error - proceed with send
           } else {
@@ -2187,13 +1964,13 @@ export class WalletService {
             const errorMessage =
               balanceValidation.error ||
               `Insufficient balance confirmed by both Zerion and on-chain. ` +
-                `Zerion: ${balanceValidation.zerionBalance} smallest units, ` +
-                `On-chain: ${onChainValidation.balance} smallest units, ` +
-                `Requested: ${amountSmallest.toString()} smallest units`;
+              `Zerion: ${balanceValidation.zerionBalance} smallest units, ` +
+              `On-chain: ${onChainValidation.balance} smallest units, ` +
+              `Requested: ${amountSmallest.toString()} smallest units`;
 
             this.logger.error(
               `Insufficient balance: ${errorMessage}, token=${tokenAddress || 'native'}, ` +
-                `decimals=${finalDecimals}, chain=${chain}`,
+              `decimals=${finalDecimals}, chain=${chain}`,
             );
 
             throw new UnprocessableEntityException(errorMessage);
@@ -2206,14 +1983,14 @@ export class WalletService {
           // Couldn't get on-chain balance - trust Zerion
           this.logger.error(
             `Could not verify with on-chain balance: ${e instanceof Error ? e.message : 'Unknown error'}. ` +
-              `Trusting Zerion result.`,
+            `Trusting Zerion result.`,
           );
 
           const errorMessage =
             balanceValidation.error ||
             `Insufficient balance. Zerion shows: ${balanceValidation.zerionBalance} smallest units, ` +
-              `Requested: ${amountSmallest.toString()} smallest units. ` +
-              `Could not verify with on-chain balance.`;
+            `Requested: ${amountSmallest.toString()} smallest units. ` +
+            `Could not verify with on-chain balance.`;
 
           throw new UnprocessableEntityException(errorMessage);
         }
@@ -2221,7 +1998,7 @@ export class WalletService {
         // Zerion says sufficient - log for debugging but proceed
         this.logger.log(
           `Balance validation passed: Zerion shows ${balanceValidation.zerionBalance}, ` +
-            `requested ${amountSmallest.toString()}`,
+          `requested ${amountSmallest.toString()}`,
         );
       }
 
@@ -2268,14 +2045,14 @@ export class WalletService {
                 );
                 throw new ServiceUnavailableException(
                   `Token transfer method not supported. Account type: ${accountType}, ` +
-                    `Error: ${e2 instanceof Error ? e2.message : 'unknown'}`,
+                  `Error: ${e2 instanceof Error ? e2.message : 'unknown'}`,
                 );
               }
             }
           } else {
             throw new ServiceUnavailableException(
               `Token transfer not supported for account type ${accountType} on chain ${chain}. ` +
-                `The account does not support the transfer method.`,
+              `The account does not support the transfer method.`,
             );
           }
         } else {
@@ -2289,8 +2066,8 @@ export class WalletService {
               typeof result === 'string'
                 ? result
                 : (result as any).hash ||
-                  (result as any).txHash ||
-                  String(result);
+                (result as any).txHash ||
+                String(result);
             sendMethod = 'send(recipient, amount)';
           } else if (
             'transfer' in account &&
@@ -2308,7 +2085,7 @@ export class WalletService {
           } else {
             throw new BadRequestException(
               `Native token send not supported for chain ${chain}. ` +
-                `Account type: ${accountType}. Please check if this chain/account combination is supported.`,
+              `Account type: ${accountType}. Please check if this chain/account combination is supported.`,
             );
           }
         }
@@ -2322,9 +2099,9 @@ export class WalletService {
         // Structured logging for successful transaction
         this.logger.log(
           `Transaction successful: chain=${chain}, accountType=${accountType}, ` +
-            `token=${tokenAddress || 'native'}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
-            `humanAmount=${amount}, amountSmallest=${amountSmallest.toString()}, ` +
-            `method=${sendMethod}, txHash=${txHash}, recipient=${recipientAddress}`,
+          `token=${tokenAddress || 'native'}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
+          `humanAmount=${amount}, amountSmallest=${amountSmallest.toString()}, ` +
+          `method=${sendMethod}, txHash=${txHash}, recipient=${recipientAddress}`,
         );
 
         // Invalidate caches after successful send
@@ -2347,9 +2124,9 @@ export class WalletService {
           error instanceof Error ? error.message : 'Unknown error';
         this.logger.error(
           `Transaction failed: chain=${chain}, accountType=${accountType}, ` +
-            `token=${tokenAddress || 'native'}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
-            `humanAmount=${amount}, amountSmallest=${amountSmallest.toString()}, ` +
-            `method=${sendMethod}, error=${errorMessage}`,
+          `token=${tokenAddress || 'native'}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
+          `humanAmount=${amount}, amountSmallest=${amountSmallest.toString()}, ` +
+          `method=${sendMethod}, error=${errorMessage}`,
         );
 
         // Re-throw known exceptions
@@ -2370,7 +2147,7 @@ export class WalletService {
         ) {
           throw new UnprocessableEntityException(
             `Insufficient balance for this transaction. ` +
-              `Please check your balance and try again. Error: ${errorMessage}`,
+            `Please check your balance and try again. Error: ${errorMessage}`,
           );
         }
 
@@ -2421,7 +2198,7 @@ export class WalletService {
         error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
         `Unexpected error in sendCrypto: userId=${userId}, chain=${chain}, ` +
-          `token=${tokenAddress || 'native'}, amount=${amount}, error=${errorMessage}`,
+        `token=${tokenAddress || 'native'}, amount=${amount}, error=${errorMessage}`,
       );
       this.logger.error(
         `Stack trace: ${error instanceof Error ? error.stack : 'No stack trace'}`,
@@ -2573,7 +2350,7 @@ export class WalletService {
     }>
   > {
     this.logger.debug(
-      `Getting token balances for user ${userId} on chain ${chain} using Zerion${forceRefresh ? ' (force refresh)' : ''}`,
+      `Getting token balances for user ${userId} on chain ${chain} using RPC${forceRefresh ? ' (force refresh)' : ''}`,
     );
 
     // Check if wallet exists, create if not
@@ -2583,6 +2360,15 @@ export class WalletService {
       this.logger.debug(`No wallet found for user ${userId}. Auto-creating...`);
       await this.createOrImportSeed(userId, 'random');
       this.logger.debug(`Successfully auto-created wallet for user ${userId}`);
+    }
+
+    // Fast path: Check database cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = await this.balanceCacheRepository.getChainBalances(userId, chain);
+      if (cached && Date.now() - cached.lastUpdated.getTime() < this.CACHE_TTL) {
+        this.logger.debug(`Returning cached token balances from DB for user ${userId} on ${chain}`);
+        return cached.assets;
+      }
     }
 
     try {
@@ -2595,94 +2381,22 @@ export class WalletService {
         return [];
       }
 
-      // Invalidate Zerion cache if force refresh is requested
-      if (forceRefresh) {
-        this.zerionService.invalidateCache(address, chain);
-      }
+      // Use factory to get the right provider
+      const provider = this.balanceProviderFactory.getProvider(chain);
+      const balances = await provider.getBalances(address, chain, forceRefresh);
 
-      // Get portfolio from Zerion (includes native + all ERC-20 tokens)
-      const portfolio = await this.zerionService.getPortfolio(address, chain);
+      const result = balances.map((b) => ({
+        address: b.address,
+        symbol: b.symbol,
+        balance: b.balance,
+        decimals: b.decimals,
+      }));
 
-      // Check if portfolio has valid data array
-      if (
-        !portfolio?.data ||
-        !Array.isArray(portfolio.data) ||
-        portfolio.data.length === 0
-      ) {
-        // Zerion doesn't support this chain or returned no data
-        this.logger.warn(
-          `No portfolio data from Zerion for ${address} on ${chain}`,
-        );
-        return [];
-      }
+      // Save to chain-specific cache
+      await this.balanceCacheRepository.updateChainBalances(userId, chain, result);
 
-      const tokens: Array<{
-        address: string | null;
-        symbol: string;
-        balance: string;
-        decimals: number;
-      }> = [];
-
-      // Process each token in portfolio
-      for (const tokenData of portfolio.data) {
-        try {
-          const quantity = tokenData.attributes?.quantity;
-          if (!quantity) continue;
-
-          const intPart = quantity.int || '0';
-          const decimals = quantity.decimals || 0;
-
-          // Convert to standard format (18 decimals)
-          const balance = `${intPart}${'0'.repeat(Math.max(0, 18 - decimals))}`;
-
-          // Skip zero balances
-          if (parseFloat(balance) === 0) continue;
-
-          // Determine if native token or ERC-20
-          const isNative =
-            tokenData.type === 'native' || !tokenData.attributes?.fungible_info;
-          const fungibleInfo = tokenData.attributes?.fungible_info;
-
-          if (isNative) {
-            // Native token
-            const nativeSymbol = this.getNativeTokenSymbol(chain);
-            const nativeDecimals = this.getNativeTokenDecimals(chain);
-
-            tokens.push({
-              address: null,
-              symbol: nativeSymbol,
-              balance,
-              decimals: nativeDecimals,
-            });
-          } else if (fungibleInfo) {
-            // ERC-20 token
-            const tokenAddress =
-              fungibleInfo.implementations?.[0]?.address || null;
-            const symbol = fungibleInfo.symbol || 'UNKNOWN';
-            // Use smart fallback for known tokens
-            const tokenDecimals =
-              fungibleInfo.decimals ??
-              this.getDefaultDecimals(chain, tokenAddress);
-
-            tokens.push({
-              address: tokenAddress,
-              symbol,
-              balance,
-              decimals: tokenDecimals,
-            });
-          }
-        } catch (error) {
-          this.logger.debug(
-            `Error processing token from Zerion: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          );
-        }
-      }
-
-      this.logger.debug(
-        `Retrieved ${tokens.length} tokens from Zerion for ${chain}`,
-      );
-      return tokens;
-    } catch (error) {
+      return result;
+    } catch (error: any) {
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -3152,92 +2866,74 @@ export class WalletService {
       }
     >
   > {
-    // Fast path: Check database cache first (unless force refresh)
-    const cacheKey = `substrate_${useTestnet ? 'testnet' : 'mainnet'}`;
+    const substrateChains: SubstrateChainKey[] = [
+      'polkadot',
+      'hydration',
+      'bifrost',
+      'unique',
+      'paseo',
+      'paseoAssethub',
+    ];
+    const cacheType = useTestnet ? 'testnet' : 'mainnet';
+    const result: Record<string, any> = {};
 
+    // 1. Try to load from partitioned cache
     if (!forceRefresh) {
-      const cachedBalances =
-        await this.balanceCacheRepository.getCachedBalances(userId);
-      if (cachedBalances) {
-        // Check if we have substrate balances cached
-        const substrateChains: SubstrateChainKey[] = [
-          'polkadot',
-          'hydration',
-          'bifrost',
-          'unique',
-          'paseo',
-          'paseoAssethub',
-        ];
-        const hasSubstrateCache = substrateChains.some((chain) => {
-          const key = `${cacheKey}_${chain}`;
-          return cachedBalances[key] !== undefined;
-        });
-
-        if (hasSubstrateCache) {
-          this.logger.debug(
-            `Returning cached Substrate balances from DB for user ${userId}`,
+      const cachedResults = await Promise.all(
+        substrateChains.map(async (chain) => {
+          const partitionedChainId = `substrate_${cacheType}_${chain}`;
+          const cached = await this.balanceCacheRepository.getChainBalances(
+            userId,
+            partitionedChainId,
           );
-          const result: Record<
-            string,
+          return { chain, cached };
+        }),
+      );
+
+      const hasSomeCache = cachedResults.some((r) => r.cached !== null);
+
+      if (hasSomeCache) {
+        this.logger.debug(
+          `Returning cached Substrate balances from partitioned DB for user ${userId}`,
+        );
+
+        const addresses = await this.addressManager.getAddresses(userId);
+
+        for (const { chain, cached } of cachedResults) {
+          if (cached && cached.assets.length > 0) {
+            const asset = cached.assets[0];
+            const chainConfig = this.substrateManager.getChainConfig(
+              chain as SubstrateChainKey,
+              useTestnet,
+            );
+
+            // Map chain to address key
+            const addressMap: Record<SubstrateChainKey, keyof WalletAddresses> =
             {
-              balance: string;
-              address: string | null;
-              token: string;
-              decimals: number;
-            }
-          > = {};
+              polkadot: 'polkadot',
+              hydration: 'hydrationSubstrate',
+              bifrost: 'bifrostSubstrate',
+              unique: 'uniqueSubstrate',
+              paseo: 'paseo',
+              paseoAssethub: 'paseoAssethub',
+            };
 
-          for (const chain of substrateChains) {
-            const key = `${cacheKey}_${chain}`;
-            const cached = cachedBalances[key];
-            if (cached) {
-              const chainConfig = this.substrateManager.getChainConfig(
-                chain,
-                useTestnet,
-              );
-              // We need to get the address separately since it's not in cache
-              const addresses = await this.addressManager.getAddresses(userId);
-              let address: string | null = null;
-
-              // Map chain to address key
-              const addressMap: Record<
-                SubstrateChainKey,
-                keyof WalletAddresses
-              > = {
-                polkadot: 'polkadot',
-                hydration: 'hydrationSubstrate',
-                bifrost: 'bifrostSubstrate',
-                unique: 'uniqueSubstrate',
-                paseo: 'paseo',
-                paseoAssethub: 'paseoAssethub',
-              };
-
-              address = addresses[addressMap[chain]] ?? null;
-
-              result[chain] = {
-                balance: cached.balance,
-                address,
-                token: chainConfig.token.symbol,
-                decimals: chainConfig.token.decimals,
-              };
-            }
+            result[chain] = {
+              balance: asset.balance,
+              address: addresses[addressMap[chain as SubstrateChainKey]] ?? null,
+              token: chainConfig.token.symbol,
+              decimals: chainConfig.token.decimals,
+            };
           }
+        }
 
-          if (Object.keys(result).length > 0) {
-            return result as Record<
-              SubstrateChainKey,
-              {
-                balance: string;
-                address: string | null;
-                token: string;
-                decimals: number;
-              }
-            >;
-          }
+        if (Object.keys(result).length > 0) {
+          return result as any;
         }
       }
     }
 
+    // 2. Fetch fresh if no cache or force refresh
     this.logger.log(
       `[WalletService] Getting Substrate balances for user ${userId} (testnet: ${useTestnet})`,
     );
@@ -3245,29 +2941,13 @@ export class WalletService {
       userId,
       useTestnet,
     );
-    this.logger.log(
-      `[WalletService] Received ${Object.keys(balances).length} Substrate chain balances`,
-    );
-
-    const result: Record<
-      string,
-      {
-        balance: string;
-        address: string | null;
-        token: string;
-        decimals: number;
-      }
-    > = {};
-    const balancesToCache: Record<
-      string,
-      { balance: string; lastUpdated: number }
-    > = {};
 
     for (const [chain, data] of Object.entries(balances)) {
       const chainConfig = this.substrateManager.getChainConfig(
         chain as SubstrateChainKey,
         useTestnet,
       );
+
       result[chain] = {
         balance: data.balance,
         address: data.address,
@@ -3275,36 +2955,23 @@ export class WalletService {
         decimals: chainConfig.token.decimals,
       };
 
-      // Cache with a key that includes testnet/mainnet distinction
-      const cacheKeyForChain = `${cacheKey}_${chain}`;
-      balancesToCache[cacheKeyForChain] = {
-        balance: data.balance,
-        lastUpdated: Date.now(),
-      };
-
-      this.logger.debug(
-        `[WalletService] ${chain}: ${data.balance} ${chainConfig.token.symbol} (address: ${data.address ? 'present' : 'null'})`,
+      // Store in partitioned cache
+      const partitionedChainId = `substrate_${cacheType}_${chain}`;
+      await this.balanceCacheRepository.updateChainBalances(
+        userId,
+        partitionedChainId,
+        [
+          {
+            address: null,
+            symbol: chainConfig.token.symbol,
+            balance: data.balance,
+            decimals: chainConfig.token.decimals,
+          },
+        ],
       );
     }
 
-    // Update cache with substrate balances (merge with existing cache)
-    const existingCache =
-      (await this.balanceCacheRepository.getCachedBalances(userId)) || {};
-    const mergedCache = { ...existingCache, ...balancesToCache };
-    await this.balanceCacheRepository.updateCachedBalances(userId, mergedCache);
-
-    this.logger.log(
-      `[WalletService] Returning ${Object.keys(result).length} Substrate balances`,
-    );
-    return result as Record<
-      SubstrateChainKey,
-      {
-        balance: string;
-        address: string | null;
-        token: string;
-        decimals: number;
-      }
-    >;
+    return result as any;
   }
 
   /**

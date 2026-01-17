@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import UpperBar from "@/components/dashboard/ui/upper-bar";
 import WalletInfo from "@/components/dashboard/wallet/wallet-info";
 import { BalanceTransactionsToggle } from "@/components/dashboard/balance/balance-transactions-toggle";
 import { DashboardTracker } from "@/components/analytics/dashboard-tracker";
+import { DEFAULT_CHAIN } from "@/lib/chains";
 
 export default function DashboardPage() {
+  const [selectedChainId, setSelectedChainId] = useState(DEFAULT_CHAIN.id);
+
   return (
     <div className="min-h-screen flex flex-col relative">
       <DashboardTracker />
@@ -14,12 +18,15 @@ export default function DashboardPage() {
 
       {/* Main Content with padding for wallet info */}
       <div className="pt-16 lg:pt-20 py-2 px-4 sm:px-6 lg:px-8 space-y-1 flex-shrink-0">
-        <WalletInfo />
+        <WalletInfo
+          selectedChainId={selectedChainId}
+          onChainChange={setSelectedChainId}
+        />
       </div>
-      
+
       {/* Balance/Transactions Toggle - Full width on mobile, constrained on desktop */}
       <div className="flex-1 flex flex-col">
-        <BalanceTransactionsToggle />
+        <BalanceTransactionsToggle selectedChainId={selectedChainId} />
       </div>
 
       {/* Full-width bottom gradient overlay - Mobile only */}

@@ -9,9 +9,11 @@ import { useBrowserFingerprint } from "@/hooks/useBrowserFingerprint";
 import { useWalletData } from "@/hooks/useWalletData";
 import { SendCryptoModal } from "@/components/dashboard/modals/send-crypto-modal";
 import { BalanceTransactionsToggle } from "@/components/dashboard/balance/balance-transactions-toggle";
+import { ChainSelector } from "@/components/dashboard/ui/chain-selector";
+import { DEFAULT_CHAIN } from "@/lib/chains";
 
 const CHAIN_NAMES: Record<string, string> = {
-  // Zerion canonical chain ids
+  // Supported chain names
   ethereum: "Ethereum",
   base: "Base",
   arbitrum: "Arbitrum",
@@ -43,7 +45,7 @@ const CHAIN_NAMES: Record<string, string> = {
 };
 
 const NATIVE_TOKEN_SYMBOLS: Record<string, string> = {
-  // Zerion canonical chains
+  // Supported chains
   ethereum: 'ETH',
   base: 'ETH',
   arbitrum: 'ETH',
@@ -114,6 +116,7 @@ const getChainCategory = (chain: string): string | undefined => {
 export default function TransactionsPage() {
   const { fingerprint } = useBrowserFingerprint();
   const { balances: providerBalances, loading: providerLoading, errors: providerErrors, refresh: providerRefresh } = useWalletData();
+  const [selectedChainId, setSelectedChainId] = useState(DEFAULT_CHAIN.id);
   const [selectedChain, setSelectedChain] = useState<string | null>(null);
   const [sendModalOpen, setSendModalOpen] = useState(false);
 
@@ -121,7 +124,7 @@ export default function TransactionsPage() {
   // Provider automatically fetches on mount and when fingerprint changes
   const chainBalances = useMemo(() => {
     const map = new Map<string, ChainBalance>();
-    
+
     for (const balance of providerBalances) {
       const existing = map.get(balance.chain) || {
         chain: balance.chain,
@@ -131,7 +134,7 @@ export default function TransactionsPage() {
         tokens: [],
         category: getChainCategory(balance.chain),
       };
-      
+
       if (balance.isNative) {
         existing.nativeBalance = balance.balance;
         existing.nativeDecimals = balance.decimals;
@@ -145,12 +148,12 @@ export default function TransactionsPage() {
           balanceHuman: balance.balanceHuman,
         });
       }
-      
+
       map.set(balance.chain, existing);
     }
-    
+
     const balances = Array.from(map.values());
-    
+
     // Ensure Polkadot EVM chains are always present
     const existingPolkadotChains = balances.filter(cb => cb.category === 'polkadot-evm').map(cb => cb.chain);
     POLKADOT_EVM_CHAINS.forEach(chain => {
@@ -165,7 +168,7 @@ export default function TransactionsPage() {
         });
       }
     });
-    
+
     // Ensure Substrate chains are always present
     const existingSubstrateChains = balances.filter(cb => cb.category === 'substrate').map(cb => cb.chain);
     SUBSTRATE_CHAINS.forEach(chain => {
@@ -188,7 +191,7 @@ export default function TransactionsPage() {
         });
       }
     });
-    
+
     return balances;
   }, [providerBalances]);
 
@@ -200,10 +203,10 @@ export default function TransactionsPage() {
     await providerRefresh();
   };
 
-  // Map Zerion chain ids to backend internal chain identifiers for sending
+  // Map external chain ids to backend internal chain identifiers for sending
   const mapChainForSend = (chain: string): string | null => {
     const m: Record<string, string> = {
-      // Zerion canonical chains (map to internal send identifiers)
+      // Chain names (map to internal send identifiers)
       ethereum: 'ethereum',
       base: 'baseErc4337',
       arbitrum: 'arbitrumErc4337',
@@ -335,19 +338,19 @@ export default function TransactionsPage() {
                       })
                       .map((chainBalance) => {
                         const chainName = CHAIN_NAMES[chainBalance.chain] || chainBalance.chain;
-                        const formattedNative = chainBalance.nativeBalanceHuman || 
+                        const formattedNative = chainBalance.nativeBalanceHuman ||
                           formatBalance(chainBalance.nativeBalance, chainBalance.nativeDecimals);
-                        
+
                         const formattedTokens = chainBalance.tokens
                           .filter(token => parseFloat(token.balance) > 0)
                           .map(token => {
-                            const formatted = token.balanceHuman || 
+                            const formatted = token.balanceHuman ||
                               formatBalance(token.balance, token.decimals);
                             return { ...token, formatted };
                           });
-                        
+
                         const hasBalance = parseFloat(chainBalance.nativeBalance) > 0 || formattedTokens.length > 0;
-                        
+
                         return (
                           <div
                             key={chainBalance.chain}
@@ -405,9 +408,17 @@ export default function TransactionsPage() {
           />
         )}
 
-        {/* Balance/Transactions Toggle */}
+        {/* Chain Selector */}
         <div className="mt-8">
-          <BalanceTransactionsToggle />
+          <ChainSelector
+            selectedChainId={selectedChainId}
+            onChainChange={setSelectedChainId}
+          />
+        </div>
+
+        {/* Balance/Transactions Toggle */}
+        <div className="mt-4">
+          <BalanceTransactionsToggle selectedChainId={selectedChainId} />
         </div>
       </div>
     </div>

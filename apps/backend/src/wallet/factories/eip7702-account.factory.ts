@@ -36,7 +36,7 @@ export class Eip7702AccountFactory {
     private readonly pimlicoConfig: PimlicoConfigService,
     private readonly chainConfig: ChainConfigService,
     private readonly delegationRepo: Eip7702DelegationRepository,
-  ) {}
+  ) { }
 
   async createAccount(
     seedPhrase: string,
@@ -87,10 +87,15 @@ export class Eip7702AccountFactory {
 
     const eipConfig = this.pimlicoConfig.getEip7702Config(chain);
 
-    // ✅ FIX: Verify delegation address is deployed on this network
-    const delegationCode = await publicClient.getBytecode({
-      address: eipConfig.delegationAddress as Address,
-    });
+    // ✅ FIX: Verify delegation address is deployed on this network (with timeout)
+    const delegationCode = await Promise.race([
+      publicClient.getBytecode({
+        address: eipConfig.delegationAddress as Address,
+      }),
+      new Promise<`0x${string}` | undefined>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout verifying delegation address')), 5000)
+      )
+    ]);
 
     if (!delegationCode || delegationCode === '0x') {
       throw new Error(
@@ -240,7 +245,7 @@ class Eip7702SmartAccountWrapper implements IAccount {
     private readonly chainId: number,
     private readonly delegationAddress: Address,
     private readonly logger: Logger,
-  ) {}
+  ) { }
 
   async getAddress(): Promise<string> {
     // EIP-7702 keeps the same EOA address.

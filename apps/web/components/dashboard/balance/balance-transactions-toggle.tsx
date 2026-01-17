@@ -17,7 +17,11 @@ type ViewType = 'balance' | 'transactions' | 'lightningNodes';
  * and LightningNodesView when lightningNodes is active
  * Default to "Balance" view on mount
  */
-export function BalanceTransactionsToggle() {
+interface BalanceTransactionsToggleProps {
+  selectedChainId: string;
+}
+
+export function BalanceTransactionsToggle({ selectedChainId }: BalanceTransactionsToggleProps) {
   const [activeView, setActiveView] = useState<ViewType>('balance');
   const { loading, refreshBalances, refreshTransactions } = useWalletData();
   const { loading: lightningLoading, refreshNodes } = useLightningNodes();
@@ -99,9 +103,9 @@ export function BalanceTransactionsToggle() {
       {/* Content Area */}
       <div className="mx-4 md:mx-6 mb-4 flex-1">
         {activeView === 'balance' ? (
-          <BalanceView />
+          <BalanceView selectedChainId={selectedChainId} />
         ) : activeView === 'transactions' ? (
-          <RecentTransactions showAll={false} hideHeader />
+          <RecentTransactions showAll={false} hideHeader selectedChainId={selectedChainId} />
         ) : (
           <LightningNodesProvider>
             <LightningNodesView />

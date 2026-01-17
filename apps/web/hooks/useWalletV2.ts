@@ -24,7 +24,8 @@ export interface UseWalletReturn {
   loadWallets: (userId: string, forceRefresh?: boolean) => Promise<void>;
   changeWallets: (userId: string) => Promise<void>;
   getWalletByChainType: (type: ChainType) => WalletData | null;
-  
+  getWalletByChainId: (configId: string) => WalletData | null;
+
   // New streaming-specific properties
   isStreaming?: boolean;
   loadedCount?: number;
@@ -65,7 +66,7 @@ export function useWalletV2(): UseWalletReturn {
       .filter((w) => w.address) // Only include wallets with addresses
       .map((wallet) => {
         const config = getWalletConfig(wallet.configId);
-        
+
         return {
           name: wallet.label || config?.name || wallet.configId,
           address: wallet.address!,
@@ -94,13 +95,34 @@ export function useWalletV2(): UseWalletReturn {
   const getWalletByChainType = useCallback(
     (type: ChainType): WalletData | null => {
       const streamWallet = streaming.getWalletByType(type);
-      
+
       if (!streamWallet || !streamWallet.address) {
         return null;
       }
-      
+
       const config = getWalletConfig(streamWallet.configId);
-      
+
+      return {
+        name: streamWallet.label || config?.name || streamWallet.configId,
+        address: streamWallet.address,
+        chain: streamWallet.configId,
+        category: config?.type || 'evm',
+        chainType: config?.type as ChainType,
+      };
+    },
+    [streaming]
+  );
+
+  const getWalletByChainId = useCallback(
+    (configId: string): WalletData | null => {
+      const streamWallet = streaming.getWallet(configId);
+
+      if (!streamWallet || !streamWallet.address) {
+        return null;
+      }
+
+      const config = getWalletConfig(streamWallet.configId);
+
       return {
         name: streamWallet.label || config?.name || streamWallet.configId,
         address: streamWallet.address,
@@ -119,6 +141,7 @@ export function useWalletV2(): UseWalletReturn {
     loadWallets,
     changeWallets,
     getWalletByChainType,
+    getWalletByChainId,
     isStreaming: streaming.isStreaming,
     loadedCount: streaming.loadedCount,
     totalCount: streaming.totalCount,

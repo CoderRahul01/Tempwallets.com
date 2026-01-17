@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2, ArrowUpRight, ArrowDownLeft, ExternalLink, Clock } from "lucide-react";
 import { walletApi, Transaction } from "@/lib/api";
 import { useBrowserFingerprint } from "@/hooks/useBrowserFingerprint";
 import { useWalletData } from "@/hooks/useWalletData";
+import { useWalletV2 } from "@/hooks/useWalletV2";
 
 interface RecentTransactionsProps {
   showAll?: boolean;
   transactions?: Transaction[]; // Optional transactions from provider
   hideHeader?: boolean; // Hide header when used in toggle component
+  selectedChainId?: string; // Optional chain filter
 }
 
 const CHAIN_NAMES: Record<string, string> = {
@@ -214,8 +216,14 @@ const setCachedTransactions = (fingerprint: string, transactions: Transaction[])
   }
 };
 
-const RecentTransactions = ({ showAll = false, transactions: propTransactions, hideHeader = false }: RecentTransactionsProps) => {
+const RecentTransactions = ({ showAll = false, transactions: propTransactions, hideHeader = false, selectedChainId }: RecentTransactionsProps) => {
   const { fingerprint } = useBrowserFingerprint();
+  const { wallets } = useWalletV2();
+
+  // Create a set of all user wallet addresses for direction detection
+  const userAddresses = useMemo(() => {
+    return new Set(wallets.map(w => w.address.toLowerCase()));
+  }, [wallets]);
 
   // Use provider data (provider is always available since we wrap app with Providers)
   const { transactions: providerTransactions, loading: providerLoading, errors: providerErrors, refresh: providerRefresh } = useWalletData();
@@ -227,7 +235,14 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
   const [error, setError] = useState<string | null>(null);
 
   // Determine which data source to use
-  const finalTransactions = propTransactions ?? (useProviderData ? providerTransactions : localTransactions);
+  const allTransactions = propTransactions ?? (useProviderData ? providerTransactions : localTransactions);
+
+  // Apply chain filter if selectedChainId is provided
+  const finalTransactions = useMemo(() => {
+    if (!selectedChainId) return allTransactions;
+    return allTransactions.filter(tx => tx.chain === selectedChainId);
+  }, [allTransactions, selectedChainId]);
+
   const finalLoading = useProviderData ? providerLoading.transactions : loading;
   const finalError = useProviderData ? providerErrors.transactions : error;
   const refreshFn = useProviderData ? providerRefresh : undefined;
@@ -387,78 +402,70 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
           </div>
         ) : (
           <div className="space-y-3">
-            {(showAll ? finalTransactions : finalTransactions.slice(0, 10)).map((tx) => (
-              <a
-                key={`${tx.chain}-${tx.txHash}`}
-                href={getTransactionExplorerUrl(tx)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    {/* Transaction Icon */}
-                    <div className={`p-2 rounded-full ${tx.status === 'success'
-                      ? 'bg-green-100 text-green-600'
-                      : tx.status === 'failed'
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-yellow-100 text-yellow-600'
-                      }`}>
-                      {tx.status === 'pending' ? (
-                        <Clock className="h-5 w-5" />
+            {(showAll ? finalTransactions : finalTransactions.slice(0, 10)).map((tx) => {
+              const direction = userAddresses.has(tx.to?.toLowerCase() || '') ? 'in' : 'out';
+              const isSuccess = tx.status === 'success';
+              const isFailed = tx.status === 'failed';
+              const isPending = tx.status === 'pending';
+
+              return (
+                <a
+                  key={`${tx.chain}-${tx.txHash}`}
+                  href={getTransactionExplorerUrl(tx)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center p-3 md:p-4 rounded-2xl border border-gray-100 bg-white hover:border-gray-200 transition-all shadow-sm group"
+                >
+                  <div className="flex items-center w-full overflow-hidden">
+                    {/* Direction Icon (Fixed Width) */}
+                    <div className={`flex-shrink-0 flex items-center justify-center rounded-full p-2 mr-3 sm:mr-4 ${direction === 'in' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                      {direction === 'in' ? (
+                        <ArrowDownLeft className="w-6 h-6 md:w-8 md:h-8" />
                       ) : (
-                        tx.from && tx.to ? (
-                          <ArrowUpRight className="h-5 w-5" />
-                        ) : (
-                          <ArrowDownLeft className="h-5 w-5" />
-                        )
+                        <ArrowUpRight className="w-6 h-6 md:w-8 md:h-8" />
                       )}
                     </div>
 
-                    {/* Transaction Details */}
-                    <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center sm:gap-3">
-                      <div className="flex items-center gap-2 w-28 sm:w-36 flex-shrink-0">
-                        <p className="font-semibold text-gray-900 truncate">
-                          {CHAIN_NAMES[tx.chain] || tx.chain}
-                        </p>
-                        {tx.status === 'pending' && (
-                          <span className="px-1.5 py-0.5 text-[10px] bg-yellow-100 text-yellow-700 rounded font-medium">
-                            Pending
-                          </span>
-                        )}
-                        {tx.status === 'failed' && (
-                          <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-700 rounded font-medium">
-                            Failed
-                          </span>
-                        )}
+                    {/* Symbol/Direction Label (Fixed Width) */}
+                    <div className="flex-shrink-0 w-16 sm:w-20">
+                      <div className="text-base md:text-lg font-bold text-gray-900 font-rubik-medium truncate uppercase">
+                        {direction === 'in' ? 'RCVD' : 'SENT'}
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <p className="text-base font-bold text-gray-900 font-rubik-medium truncate">
-                          {tx.tokenSymbol
-                            ? formatValue(tx.value, 18, tx.tokenSymbol)
-                            : formatValue(tx.value, 18)
-                          }
-                        </p>
-                        <p className="text-[11px] text-gray-400 font-rubik-normal">
-                          {formatDate(tx.timestamp)}
-                        </p>
+                      <div className="text-[10px] text-gray-400 font-rubik-normal">
+                        {tx.tokenSymbol || 'ETH'}
                       </div>
                     </div>
+
+                    {/* Chain Tag (Fixed Width) */}
+                    <div className="flex-shrink-0 w-20 sm:w-24 ml-2 sm:ml-4">
+                      <div className="text-[9px] md:text-[10px] text-blue-500 font-rubik-medium bg-blue-500/10 px-2 py-0.5 rounded-full leading-tight whitespace-nowrap inline-block">
+                        {CHAIN_NAMES[tx.chain] || tx.chain}
+                      </div>
+                      <div className="text-[10px] text-gray-400 font-rubik-normal mt-1 flex items-center gap-1">
+                        {isPending ? <Clock className="h-2 w-2" /> : null}
+                        {isPending ? 'Pending' : formatDate(tx.timestamp)}
+                      </div>
+                    </div>
+
+                    {/* Amount (Aligned Left) */}
+                    <div className="flex-shrink-0 ml-4 sm:ml-8 flex-1 flex flex-col items-end">
+                      <div className={`text-lg md:text-xl font-bold font-rubik-bold truncate ${direction === 'in' ? 'text-green-600' : 'text-gray-900'}`}>
+                        {direction === 'in' ? '+' : '-'}{tx.tokenSymbol
+                          ? formatValue(tx.value, 18)
+                          : formatValue(tx.value, 18)
+                        }
+                      </div>
+                      <div className="text-[10px] text-gray-400 font-mono truncate max-w-[100px]">
+                        {truncateAddress(tx.txHash)}
+                      </div>
+                    </div>
+
+                    {/* External Link */}
+                    <ExternalLink className="h-4 w-4 text-gray-300 group-hover:text-gray-500 transition-colors ml-4" />
                   </div>
-
-                  {/* External Link Icon */}
-                  <ExternalLink className="h-5 w-5 text-gray-400 flex-shrink-0 ml-2" />
-                </div>
-
-                {/* Transaction Hash (truncated) */}
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-500 font-mono">
-                    {truncateAddress(tx.txHash)}
-                  </p>
-                </div>
-              </a>
-            ))}
+                </a>
+              );
+            })}
           </div>
         )}
       </div>
@@ -526,75 +533,70 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
           </div>
         ) : (
           <div className="space-y-3">
-            {(showAll ? finalTransactions : finalTransactions.slice(0, 10)).map((tx) => (
-              <a
-                key={`${tx.chain}-${tx.txHash}`}
-                href={getTransactionExplorerUrl(tx)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    {/* Transaction Icon */}
-                    <div className={`p-2 rounded-full ${tx.status === 'success'
-                      ? 'bg-green-100 text-green-600'
-                      : tx.status === 'failed'
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-yellow-100 text-yellow-600'
-                      }`}>
-                      {tx.status === 'pending' ? (
-                        <Clock className="h-5 w-5" />
+            {(showAll ? finalTransactions : finalTransactions.slice(0, 10)).map((tx) => {
+              const direction = userAddresses.has(tx.to?.toLowerCase() || '') ? 'in' : 'out';
+              const isSuccess = tx.status === 'success';
+              const isFailed = tx.status === 'failed';
+              const isPending = tx.status === 'pending';
+
+              return (
+                <a
+                  key={`${tx.chain}-${tx.txHash}`}
+                  href={getTransactionExplorerUrl(tx)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center p-3 md:p-4 rounded-2xl border border-gray-100 bg-white hover:border-gray-200 transition-all shadow-sm group"
+                >
+                  <div className="flex items-center w-full overflow-hidden">
+                    {/* Direction Icon (Fixed Width) */}
+                    <div className={`flex-shrink-0 flex items-center justify-center rounded-full p-2 mr-3 sm:mr-4 ${direction === 'in' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                      {direction === 'in' ? (
+                        <ArrowDownLeft className="w-6 h-6 md:w-8 md:h-8" />
                       ) : (
-                        tx.from && tx.to ? (
-                          <ArrowUpRight className="h-5 w-5" />
-                        ) : (
-                          <ArrowDownLeft className="h-5 w-5" />
-                        )
+                        <ArrowUpRight className="w-6 h-6 md:w-8 md:h-8" />
                       )}
                     </div>
 
-                    {/* Transaction Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-semibold text-gray-900 truncate">
-                          {CHAIN_NAMES[tx.chain] || tx.chain}
-                        </p>
-                        {tx.status === 'pending' && (
-                          <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded">
-                            Pending
-                          </span>
-                        )}
-                        {tx.status === 'failed' && (
-                          <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded">
-                            Failed
-                          </span>
-                        )}
+                    {/* Symbol/Direction Label (Fixed Width) */}
+                    <div className="flex-shrink-0 w-16 sm:w-20">
+                      <div className="text-base md:text-lg font-bold text-gray-900 font-rubik-medium truncate uppercase">
+                        {direction === 'in' ? 'RCVD' : 'SENT'}
                       </div>
-                      <p className="text-sm text-gray-600 truncate font-rubik-normal">
-                        {tx.tokenSymbol
-                          ? formatValue(tx.value, 18, tx.tokenSymbol)
+                      <div className="text-[10px] text-gray-400 font-rubik-normal">
+                        {tx.tokenSymbol || 'ETH'}
+                      </div>
+                    </div>
+
+                    {/* Chain Tag (Fixed Width) */}
+                    <div className="flex-shrink-0 w-20 sm:w-24 ml-2 sm:ml-4">
+                      <div className="text-[9px] md:text-[10px] text-blue-500 font-rubik-medium bg-blue-500/10 px-2 py-0.5 rounded-full leading-tight whitespace-nowrap inline-block">
+                        {CHAIN_NAMES[tx.chain] || tx.chain}
+                      </div>
+                      <div className="text-[10px] text-gray-400 font-rubik-normal mt-1 flex items-center gap-1">
+                        {isPending ? <Clock className="h-2 w-2" /> : null}
+                        {isPending ? 'Pending' : formatDate(tx.timestamp)}
+                      </div>
+                    </div>
+
+                    {/* Amount (Aligned Left) */}
+                    <div className="flex-shrink-0 ml-4 sm:ml-8 flex-1 flex flex-col items-end">
+                      <div className={`text-lg md:text-xl font-bold font-rubik-bold truncate ${direction === 'in' ? 'text-green-600' : 'text-gray-900'}`}>
+                        {direction === 'in' ? '+' : '-'}{tx.tokenSymbol
+                          ? formatValue(tx.value, 18)
                           : formatValue(tx.value, 18)
                         }
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1 font-rubik-normal">
-                        {formatDate(tx.timestamp)}
-                      </p>
+                      </div>
+                      <div className="text-[10px] text-gray-400 font-mono truncate max-w-[100px]">
+                        {truncateAddress(tx.txHash)}
+                      </div>
                     </div>
+
+                    {/* External Link */}
+                    <ExternalLink className="h-4 w-4 text-gray-300 group-hover:text-gray-500 transition-colors ml-4" />
                   </div>
-
-                  {/* External Link Icon */}
-                  <ExternalLink className="h-5 w-5 text-gray-400 flex-shrink-0 ml-2" />
-                </div>
-
-                {/* Transaction Hash (truncated) */}
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-500 font-mono">
-                    {truncateAddress(tx.txHash)}
-                  </p>
-                </div>
-              </a>
-            ))}
+                </a>
+              );
+            })}
           </div>
         )}
       </div>

@@ -54,7 +54,7 @@ async function bootstrap() {
   // Get port from environment or use default
   const port = parseInt(process.env.PORT || '5005', 10);
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   // Production-ready logging
   if (process.env.NODE_ENV !== 'production') {

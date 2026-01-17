@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { subscribeToSSE, UiWalletPayload, ApiError } from '@/lib/api';
+import { subscribeToSSE, UiWalletPayload, ApiError, walletApi } from '@/lib/api';
 import { WalletData } from '@/types/wallet.types';
 import { getWalletConfig } from '@/lib/wallet-config';
 import { mapWalletCategoryToChainType, ChainType } from '@/lib/chains';
@@ -53,22 +53,23 @@ export interface UseStreamingWalletsReturn {
 /**
  * Map backend wallet keys to wallet config IDs
  */
-function mapBackendKeyToConfigId(key: string): string {
+function mapBackendKeyToConfigId(key: string, isSmartAccount: boolean = false): string {
   // Direct mappings for known backend keys
   const keyMap: Record<string, string> = {
     // EVM Standard (EOA) - backend uses short names, frontend uses 'Eoa' suffix
-    'ethereum': 'ethereumEoa',
-    'base': 'baseEoa',
-    'arbitrum': 'arbitrumEoa',
-    'polygon': 'polygonEoa',
-    'avalanche': 'avalancheEoa',
+    'ethereum': isSmartAccount ? 'ethereumErc4337' : 'ethereumEoa',
+    'base': isSmartAccount ? 'baseErc4337' : 'baseEoa',
+    'arbitrum': isSmartAccount ? 'arbitrumErc4337' : 'arbitrumEoa',
+    'polygon': isSmartAccount ? 'polygonErc4337' : 'polygonEoa',
+    'avalanche': isSmartAccount ? 'avalancheErc4337' : 'avalancheEoa',
 
-    // EVM Smart Accounts (ERC-4337)
+    // EVM Smart Accounts (ERC-4337) - map specific backend keys if they exist
     'ethereumErc4337': 'ethereumErc4337',
     'baseErc4337': 'baseErc4337',
     'arbitrumErc4337': 'arbitrumErc4337',
     'polygonErc4337': 'polygonErc4337',
     'avalancheErc4337': 'avalancheErc4337',
+    'evmSmartAccount': 'ethereumErc4337', // Default smart account entry
 
     // Non-EVM
     'bitcoin': 'bitcoin',
@@ -109,11 +110,13 @@ function processWalletPayload(
 
   // Process smart account
   if (payload.smartAccount?.address) {
+    const smartAccountKey = payload.smartAccount.key;
+    const smartAccountConfigId = mapBackendKeyToConfigId(smartAccountKey, true);
     const smartAccountChains = payload.smartAccount.chains;
 
     // Map each ERC-4337 chain
     Object.entries(smartAccountChains).forEach(([key, address]) => {
-      const configId = mapBackendKeyToConfigId(key);
+      const configId = mapBackendKeyToConfigId(key, true);
       const config = getWalletConfig(configId);
 
       if (config) {
@@ -204,8 +207,30 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
       const data: UiWalletPayload = await response.json();
       const processedStates = processWalletPayload(data);
 
-      setWallets(processedStates);
-      setTotalCount(Object.keys(processedStates).length);
+      const count = Object.keys(processedStates).length;
+
+      // AUTO-SEEDING: If no wallets found, trigger seed creation
+      if (count === 0 && userId) {
+        console.log('No wallets found, auto-creating seed...');
+        try {
+          await walletApi.createOrImportSeed({ userId, mode: 'random' });
+          // Wait a moment and try fetching again once
+          await new Promise(r => setTimeout(r, 1000));
+          const retryResponse = await fetch(`${API_BASE_URL}/wallet/addresses?userId=${encodeURIComponent(userId)}`);
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json();
+            const retryProcessed = processWalletPayload(retryData);
+            setWallets(retryProcessed);
+            setTotalCount(Object.keys(retryProcessed).length);
+          }
+        } catch (seedErr) {
+          console.error('Auto-seeding failed:', seedErr);
+        }
+      } else {
+        setWallets(processedStates);
+        setTotalCount(count);
+      }
+
       setLoading(false);
       hasLoadedRef.current[userId] = true;
       isLoadingRef.current[userId] = false;
@@ -248,6 +273,12 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
 
     setError(null);
     setLoading(true);
+
+    // Clear wallets state if forcing refresh or if userId has changed
+    // This prevents stale addresses from previous users/sessions from being displayed
+    setWallets({});
+    setTotalCount(0);
+
     isLoadingRef.current[userId] = true;
 
     // Try SSE streaming first
@@ -283,6 +314,19 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
           () => {
             streamCompleted = true;
             if (timeoutId) clearTimeout(timeoutId);
+
+            // AUTO-SEEDING: If stream completes but still no wallets found, trigger seed creation
+            setWallets((latestWallets) => {
+              const count = Object.keys(latestWallets).length;
+              if (count === 0 && userId) {
+                console.log('No wallets found after streaming, auto-creating seed...');
+                walletApi.createOrImportSeed({ userId, mode: 'random' }).then(() => {
+                  loadWalletsBatch(userId);
+                });
+              }
+              return latestWallets;
+            });
+
             setIsStreaming(false);
             setLoading(false);
             hasLoadedRef.current[userId] = true;

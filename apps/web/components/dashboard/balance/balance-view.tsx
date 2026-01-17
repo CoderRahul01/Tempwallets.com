@@ -12,7 +12,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/ui/components/ui/tooltip';
-import { MOCK_BALANCES } from '@/lib/dummy-data';
 
 export const CHAIN_NAMES: Record<string, string> = {
   // Zerion canonical chain ids
@@ -50,20 +49,20 @@ export const CHAIN_NAMES: Record<string, string> = {
   polygonGasless: 'Polygon',
 };
 
+interface BalanceViewProps {
+  selectedChainId: string;
+}
+
 /**
  * Container component that displays token balances
  * Uses useWalletData hook to get balances from provider
  */
-export function BalanceView() {
+export function BalanceView({ selectedChainId }: BalanceViewProps) {
   const { balances: realBalances, loading, errors } = useWalletData();
 
   const balances = useMemo(() => {
-    // Prefer real balances, supplement with mock data for demonstration
-    const realKeys = new Set(realBalances.map(b => `${b.chain}:${b.symbol}`));
-    const uniqueMock = MOCK_BALANCES.filter(m => !realKeys.has(`${m.chain}:${m.symbol}`));
-
-    return [...realBalances, ...uniqueMock].filter(b => b.chain !== 'bsc');
-  }, [realBalances]);
+    return realBalances.filter(b => b.chain === selectedChainId);
+  }, [realBalances, selectedChainId]);
 
   // Group balances by chain and filter to show only non-zero balances
   const groupedBalances = useMemo(() => {
@@ -163,7 +162,7 @@ export function BalanceView() {
             {chainBalances.map((balance, index) => {
               // Only non-zero balances are shown (filtered in groupedBalances)
               const key = balance.isNative
-                ? `${chain}-native`
+                ? `${chain}-native-${index}`
                 : `${chain}-${balance.address || balance.symbol}-${index}`;
 
               return (

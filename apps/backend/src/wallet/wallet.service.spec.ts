@@ -2,12 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { WalletService } from './wallet.service.js';
 import { SeedRepository } from './seed.repository.js';
-import { ZerionService } from './zerion.service.js';
+import { ZerionService } from './services/zerion.service.js';
+import { BalanceProviderFactory } from './factories/balance-provider.factory.js';
 import { SeedManager } from './managers/seed.manager.js';
 import { AddressManager } from './managers/address.manager.js';
 import { AccountFactory } from './factories/account.factory.js';
 import { PimlicoAccountFactory } from './factories/pimlico-account.factory.js';
 import { PolkadotEvmRpcService } from './services/polkadot-evm-rpc.service.js';
+import { RpcBalanceService } from './services/rpc-balance.service.js';
 import { SubstrateManager } from './substrate/managers/substrate.manager.js';
 import { BalanceCacheRepository } from './repositories/balance-cache.repository.js';
 import { WalletAddresses } from './interfaces/wallet.interfaces.js';
@@ -36,6 +38,8 @@ describe('WalletService', () => {
   let substrateManager: jest.Mocked<SubstrateManager>;
   let balanceCacheRepository: jest.Mocked<BalanceCacheRepository>;
   let eip7702DelegationRepository: jest.Mocked<Eip7702DelegationRepository>;
+  let rpcBalanceService: jest.Mocked<RpcBalanceService>;
+  let balanceProviderFactory: jest.Mocked<BalanceProviderFactory>;
 
   const mockUserId = 'test-fingerprint-123';
   const mockAddresses: WalletAddresses = {
@@ -148,6 +152,22 @@ describe('WalletService', () => {
           provide: Eip7702DelegationRepository,
           useValue: mockEip7702DelegationRepository,
         },
+        {
+          provide: BalanceProviderFactory,
+          useValue: {
+            getProvider: jest.fn().mockReturnValue({
+              getBalances: jest.fn().mockResolvedValue([]),
+              isChainSupported: jest.fn().mockReturnValue(true),
+            }),
+          },
+        },
+        {
+          provide: RpcBalanceService,
+          useValue: {
+            getBalances: jest.fn().mockResolvedValue([]),
+            isChainSupported: jest.fn().mockReturnValue(true),
+          },
+        },
       ],
     }).compile();
 
@@ -162,7 +182,7 @@ describe('WalletService', () => {
     polkadotEvmRpcService = module.get(PolkadotEvmRpcService);
     substrateManager = module.get(SubstrateManager);
     balanceCacheRepository = module.get(BalanceCacheRepository);
-  eip7702DelegationRepository = module.get(Eip7702DelegationRepository);
+    eip7702DelegationRepository = module.get(Eip7702DelegationRepository);
   });
 
   afterEach(() => {

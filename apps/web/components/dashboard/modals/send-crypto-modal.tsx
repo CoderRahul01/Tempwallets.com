@@ -23,7 +23,6 @@ import { Loader2, AlertCircle, CheckCircle2, ExternalLink, Zap, Clipboard } from
 import { walletApi, TokenBalance, ApiError, AnyChainAsset } from "@/lib/api";
 import { useTokenIcon } from "@/lib/token-icons";
 import { trackTransaction } from "@/lib/tempwallets-analytics";
-import { MOCK_BALANCES } from "@/lib/dummy-data";
 import { chains, getChainById } from "@/lib/chains";
 
 interface SendCryptoModalProps {
@@ -325,16 +324,18 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
   const [success, setSuccess] = useState(false);
 
   const loadTokens = useCallback(async () => {
+    if (!userId || !activeChainId) return;
     setLoadingTokens(true);
     setError(null);
+
     try {
       // Check if this is a Substrate chain
       const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
-      const isSubstrate = SUBSTRATE_CHAINS.includes(chain);
+      const isSubstrate = SUBSTRATE_CHAINS.includes(activeChainId);
 
       // Check if this is an Aptos chain
       const APTOS_CHAINS = ["aptos", "aptosTestnet"];
-      const isAptos = APTOS_CHAINS.includes(chain);
+      const isAptos = APTOS_CHAINS.includes(activeChainId);
 
       if (isSubstrate) {
         // Load Substrate balances
@@ -342,9 +343,8 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         const chainBalance = balances[activeChainId];
 
         if (chainBalance && chainBalance.address) {
-          // Create a single token entry for native Substrate token
           const tokenList: TokenBalance[] = [{
-            address: null, // Native token
+            address: null,
             symbol: chainBalance.token,
             balance: chainBalance.balance,
             decimals: chainBalance.decimals,
@@ -361,75 +361,31 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         const network = activeChainId === "aptosTestnet" ? "testnet" : "mainnet";
         const balanceData = await walletApi.getAptosBalance(userId, network);
 
-        // Create a single token entry for native APT token
         const tokenList: TokenBalance[] = [{
-          address: null, // Native token
+          address: null,
           symbol: "APT",
-          balance: (parseFloat(balanceData.balance) * Math.pow(10, 8)).toString(), // Convert to octas (8 decimals)
+          balance: (parseFloat(balanceData.balance) * Math.pow(10, 8)).toString(),
           decimals: 8,
           chain: activeChainId,
         }];
         setTokens(tokenList);
         setSelectedToken(tokenList[0] ?? null);
       } else {
-        // Load aggregated assets once (any-chain). Zerion assets are the source of truth.
-        const allAssets: AnyChainAsset[] = await walletApi.getAssetsAny(userId, true);
+        // Fetch balances (RPC-based, strictly filtered by chain)
+        const balances = await walletApi.getTokenBalances(userId, activeChainId);
 
-        // Map activeChainId to Zerion chain identifier
-        // Technical IDs (like baseGasless, polygonErc4337) map to base chain names
-        const getZerionChainId = (id: string): string => {
-          const mapping: Record<string, string> = {
-            ethereumErc4337: 'ethereum',
-            baseErc4337: 'base',
-            arbitrumErc4337: 'arbitrum',
-            polygonErc4337: 'polygon',
-            avalancheErc4337: 'avalanche',
-            ethereumGasless: 'ethereum',
-            baseGasless: 'base',
-            arbitrumGasless: 'arbitrum',
-            optimismGasless: 'optimism',
-            polygonGasless: 'polygon',
-            sepoliaGasless: 'sepolia',
-            baseSepoliaGasless: 'baseSepolia',
-          };
-          return mapping[id] || id;
-        };
+        // Sort: native first, then by symbol
+        const sorted = balances.sort((a, b) => {
+          if (!a.address && b.address) return -1;
+          if (a.address && !b.address) return 1;
+          return a.symbol.localeCompare(b.symbol);
+        });
 
-        const targetChain = getZerionChainId(activeChainId);
+        const tokensWithChain = sorted.map(t => ({ ...t, chain: activeChainId }));
 
-        // Filter and merge assets for the target chain
-        const matchingAssets = allAssets.filter(a => a.chain === targetChain);
-        const matchingMocks = MOCK_BALANCES.filter(m => m.chain === targetChain);
-
-        // Merge with mock data for UI testing if no real assets found or for demonstration
-        const mergedAssets = [...matchingAssets, ...matchingMocks.filter(m =>
-          !matchingAssets.some(a => a.symbol === m.symbol)
-        )].map(m => ({
-          ...m,
-          name: (m as any).name || (m as any).symbol,
-          price: (m as any).price || 0,
-          value: (m as any).value || 0,
-        }));
-
-        // Sorting: native first if address null, then alphabetically by symbol.
-        const tokenList: TokenBalance[] = mergedAssets
-          .filter((a) => !!a.symbol)
-          .map((a) => ({
-            address: a.address,
-            symbol: a.symbol,
-            balance: a.balance,
-            decimals: a.decimals,
-            chain: a.chain, // Preserve the token's chain from Zerion
-          }))
-          .sort((a, b) => {
-            if (a.address === null && b.address !== null) return -1;
-            if (a.address !== null && b.address === null) return 1;
-            return a.symbol.localeCompare(b.symbol);
-          });
-
-        setTokens(tokenList);
-        if (tokenList.length > 0) {
-          setSelectedToken(tokenList[0] ?? null);
+        setTokens(tokensWithChain);
+        if (tokensWithChain.length > 0) {
+          setSelectedToken(tokensWithChain[0] ?? null);
         } else {
           setSelectedToken(null);
         }

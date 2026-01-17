@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { WalletController } from './wallet.controller.js';
 import { WalletService } from './wallet.service.js';
 import { SeedRepository } from './seed.repository.js';
-import { ZerionService } from './zerion.service.js';
+import { ZerionService } from './services/zerion.service.js';
+import { BalanceProviderFactory } from './factories/balance-provider.factory.js';
 import { PrismaModule } from '../database/prisma.module.js';
 import { CryptoModule } from '../crypto/crypto.module.js';
 // Import new modular services
@@ -20,6 +21,8 @@ import { PimlicoService } from './services/pimlico.service.js';
 import { PolkadotEvmRpcService } from './services/polkadot-evm-rpc.service.js';
 // Import Token List service
 import { TokenListService } from './services/token-list.service.js';
+// Import RPC Balance service
+import { RpcBalanceService } from './services/rpc-balance.service.js';
 // Import Substrate module
 import { SubstrateModule } from './substrate/substrate.module.js';
 // Import EVM module
@@ -52,6 +55,7 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     WalletService,
     SeedRepository,
     ZerionService,
+    BalanceProviderFactory,
     // Configuration services
     ChainConfigService,
     PimlicoConfigService,
@@ -62,11 +66,11 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     AptosSequenceManager,
     // Factories
     AccountFactory,
-  NativeEoaFactory,
-  Eip7702AccountFactory,
+    NativeEoaFactory,
+    Eip7702AccountFactory,
     AptosAccountFactory,
-  // Delegation repository for EIP-7702
-  Eip7702DelegationRepository,
+    // Delegation repository for EIP-7702
+    Eip7702DelegationRepository,
     // Aptos Services
     AptosRpcService,
     AptosAccountService,
@@ -78,6 +82,8 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     PolkadotEvmRpcService,
     // Token List service
     TokenListService,
+    // RPC Balance service
+    RpcBalanceService,
     // Cache repositories
     AddressCacheRepository,
     BalanceCacheRepository,
@@ -87,6 +93,7 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     WalletService,
     SeedRepository,
     ZerionService,
+    BalanceProviderFactory,
     // Configuration services
     ChainConfigService,
     PimlicoConfigService,
@@ -94,25 +101,27 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     SeedManager,
     AddressManager,
     AccountFactory,
-  NativeEoaFactory,
-  Eip7702AccountFactory,
+    NativeEoaFactory,
+    Eip7702AccountFactory,
     AptosAddressManager,
     AptosAccountFactory,
     AptosRpcService,
     AptosAccountService,
     AptosTransactionService,
     AptosSequenceManager,
-  Eip7702DelegationRepository,
+    Eip7702DelegationRepository,
     // Export Pimlico service
     PimlicoService,
     // Export Polkadot EVM RPC service
     PolkadotEvmRpcService,
     // Export Token List service
     TokenListService,
+    // Export RPC Balance service
+    RpcBalanceService,
     // Export cache repositories
     AddressCacheRepository,
     BalanceCacheRepository,
     WalletHistoryRepository,
   ],
 })
-export class WalletModule {}
+export class WalletModule { }

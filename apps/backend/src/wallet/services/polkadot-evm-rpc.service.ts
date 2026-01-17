@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ChainConfigService } from '../config/chain.config.js';
 import { TokenListService } from './token-list.service.js';
+import { IBalanceProvider } from '../interfaces/balance-provider.interface.js';
+import { TokenBalance as GlobalTokenBalance } from '../types/account.types.js';
 
 interface CachedData<T> {
   data: T;
@@ -17,13 +19,8 @@ interface RpcResponse<T> {
   };
 }
 
-interface TokenBalance {
+export interface TokenBalance extends GlobalTokenBalance {
   chain: string;
-  address: string | null;
-  symbol: string;
-  balance: string;
-  decimals: number;
-  balanceHuman?: string;
 }
 
 export interface Transaction {
@@ -42,7 +39,7 @@ export interface Transaction {
  * Handles direct JSON-RPC calls for balance and transaction fetching
  */
 @Injectable()
-export class PolkadotEvmRpcService {
+export class PolkadotEvmRpcService implements IBalanceProvider {
   private readonly logger = new Logger(PolkadotEvmRpcService.name);
 
   // Polkadot EVM chains that use RPC instead of Zerion
@@ -67,7 +64,7 @@ export class PolkadotEvmRpcService {
   constructor(
     private chainConfig: ChainConfigService,
     private tokenListService: TokenListService,
-  ) {}
+  ) { }
 
   /**
    * Check if a chain uses RPC instead of Zerion
@@ -141,6 +138,59 @@ export class PolkadotEvmRpcService {
     }
 
     throw new Error('RPC call failed');
+  }
+
+  /**
+   * Implementation of IBalanceProvider isChainSupported
+   */
+  isChainSupported(chain: string): boolean {
+    return this.polkadotEvmChains.includes(chain);
+  }
+
+  /**
+   * Implementation of IBalanceProvider getBalances
+   */
+  async getBalances(
+    address: string,
+    chain: string,
+    forceRefresh: boolean = false,
+  ): Promise<GlobalTokenBalance[]> {
+    if (!this.isPolkadotEvmChain(chain)) {
+      return [];
+    }
+
+    const [native, tokens] = await Promise.all([
+      this.getNativeBalance(address, chain),
+      this.getTokenBalances(address, chain),
+    ]);
+
+    const result: GlobalTokenBalance[] = [];
+
+    if (native) {
+      result.push({
+        address: null,
+        symbol: this.getNativeSymbol(chain),
+        balance: native.balance,
+        balanceHuman: native.balanceHuman,
+        decimals: 18,
+      });
+    }
+
+    result.push(...tokens);
+
+    return result;
+  }
+
+  /**
+   * Helper to get native symbol
+   */
+  private getNativeSymbol(chain: string): string {
+    const config = this.chainConfig.getEvmChainConfig(chain as any);
+    return config?.nativeCurrency?.symbol || 'ETH';
+  }
+
+  /**
+   * RPC call failed
   }
 
   /**

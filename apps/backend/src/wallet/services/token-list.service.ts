@@ -28,9 +28,17 @@ export class TokenListService {
 
   // Chain mapping: internal chain names to JSON file chain identifiers
   private readonly chainMapping: Record<string, string[]> = {
-    moonbeamTestnet: ['moonbase', 'moonbeam-testnet', 'moonbeam', 'mainnet'], // mainnet might be Moonbeam mainnet
+    moonbeamTestnet: ['moonbase', 'moonbeam-testnet', 'moonbeam', 'mainnet'],
     astarShibuya: ['astar-zkevm', 'astar-shibuya', 'astar', 'shibuya'],
     paseoPassetHub: ['paseo', 'passethub', 'paseo-passethub'],
+    ethereum: ['ethereum', 'mainnet'],
+    sepolia: ['sepolia', 'ethereum-sepolia'],
+    base: ['base'],
+    arbitrum: ['arbitrum', 'arbitrum-one'],
+    polygon: ['polygon', 'matic-network', 'matic'],
+    avalanche: ['avalanche', 'avalanche-c-chain', 'avalanche-mainnet'],
+    optimism: ['optimism', 'optimistic-ethereum'],
+    bnb: ['bnb', 'binance-smart-chain', 'bsc'],
   };
 
   // Cached token lists

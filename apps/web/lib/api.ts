@@ -5,7 +5,7 @@ import type {
   UpdateProfileRequest,
 } from '@repo/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5005';
 
 export interface SmartAccountSummary {
   key: 'evmSmartAccount';
@@ -320,10 +320,10 @@ async function fetchApi<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const timeout = options?.timeout ?? 30000; // Default 30 seconds, can be overridden
-  
+
   // Get auth token from localStorage if available
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-  
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -445,9 +445,10 @@ export const walletApi = {
   /**
    * Get token balances for a specific chain
    */
-  async getTokenBalances(userId: string, chain: string): Promise<TokenBalance[]> {
+  async getTokenBalances(userId: string, chain: string, refresh: boolean = false): Promise<TokenBalance[]> {
+    const refreshParam = refresh ? '&refresh=true' : '';
     return fetchApi<TokenBalance[]>(
-      `/wallet/token-balances?userId=${encodeURIComponent(userId)}&chain=${encodeURIComponent(chain)}`
+      `/wallet/token-balances?userId=${encodeURIComponent(userId)}&chain=${encodeURIComponent(chain)}${refreshParam}`
     );
   },
 
@@ -473,6 +474,13 @@ export const walletApi = {
    */
   async getTransactionsAny(userId: string, limit: number = 100): Promise<Transaction[]> {
     return fetchApi<Transaction[]>(`/wallet/transactions-any?userId=${encodeURIComponent(userId)}&limit=${limit}`);
+  },
+
+  /**
+   * Get all token balances across all chains
+   */
+  async getTokenBalancesAny(userId: string): Promise<TokenBalance[]> {
+    return fetchApi<TokenBalance[]>(`/wallet/assets-any?userId=${encodeURIComponent(userId)}`);
   },
 
   /**
@@ -1428,7 +1436,7 @@ export const lightningNodeApi = {
   /**
    * Best-effort presence heartbeat for a node.
    */
-  async heartbeatLightningNode(appSessionId: string, userId: string): Promise<{ ok: boolean }>{
+  async heartbeatLightningNode(appSessionId: string, userId: string): Promise<{ ok: boolean }> {
     return fetchApi<{ ok: boolean }>(
       `/lightning-node/presence/${encodeURIComponent(appSessionId)}/${encodeURIComponent(userId)}`,
       { method: 'POST' }

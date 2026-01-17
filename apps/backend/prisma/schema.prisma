@@ -95,6 +95,20 @@ model WalletCache {
   @@map("wallet_cache")
 }
 
+model WalletBalanceCache {
+  id             String   @id @default(cuid())
+  fingerprint    String
+  chain          String
+  cachedBalances Json // Array of TokenBalance objects
+  lastUpdated    DateTime @default(now()) @updatedAt
+  createdAt      DateTime @default(now())
+
+  @@unique([fingerprint, chain])
+  @@index([fingerprint])
+  @@index([chain])
+  @@map("wallet_balance_cache")
+}
+
 model WalletAddressCache {
   id          String   @id @default(cuid())
   fingerprint String

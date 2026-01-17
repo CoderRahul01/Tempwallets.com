@@ -34,16 +34,20 @@ import {
 } from "@/lib/tempwallets-analytics";
 import { trackEvent } from "@/lib/mixpanel";
 
-const WalletInfo = () => {
+interface WalletInfoProps {
+  selectedChainId: string;
+  onChainChange: (chainId: string) => void;
+}
+
+const WalletInfo = ({ selectedChainId, onChainChange }: WalletInfoProps) => {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
-  const [selectedChainId, setSelectedChainId] = useState(DEFAULT_CHAIN.id);
   const [substrateWalletConnectOpen, setSubstrateWalletConnectOpen] = useState(false);
   const [evmWalletConnectOpen, setEvmWalletConnectOpen] = useState(false);
   const [walletHistoryOpen, setWalletHistoryOpen] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [signInPromptOpen, setSignInPromptOpen] = useState(false);
-  const { wallets, loading, error, loadWallets, getWalletByChainType } = useWalletV2();
+  const { wallets, loading, error, loadWallets, getWalletByChainType, getWalletByChainId } = useWalletV2();
   const walletConfig = useWalletConfig();
 
   // Auth - use Google user ID when authenticated
@@ -55,7 +59,7 @@ const WalletInfo = () => {
   // Track chain changes
   const handleChainChange = (chainId: string) => {
     const previousChainId = selectedChainId;
-    setSelectedChainId(chainId);
+    onChainChange(chainId);
     // Chain change is tracked via the change button click
   };
 
@@ -82,23 +86,20 @@ const WalletInfo = () => {
     if (exactMatch) return exactMatch;
 
     // 2. Fallback: Find a wallet that matches both TYPE and Smart Account status
-    return wallets.find(w => {
-      // Get config for the wallet's chain
+    // For EVM, we can fallback to another EVM wallet IF AND ONLY IF it's the same Smart Account status
+    // (since they share addresses anyway, this is safe for display but better than showing an EOA for a Smart Account)
+    const smartAccountFallback = wallets.find(w => {
       const wConfig = walletConfig.getById(w.chain);
       if (!wConfig) return false;
-
-      // Must match the chain type (evm, solana, etc.)
       const typeMatch = wConfig.type === selectedChain.type;
+      const isSelectedSmartAccount = !!(selectedChain as any).isSmartAccount;
+      return typeMatch && !!wConfig.isSmartAccount === isSelectedSmartAccount;
+    });
 
-      // CRITICAL: Must match the Smart Account status (isSmartAccount)
-      // This prevents showing an EOA address for a Smart Account chain (or vice versa)
-      // Safely access properties with optional chaining just in case
-      // Cast selectedChain to any to allow accessing isSmartAccount if it's not on the type
-      const isSelectedSmartAccount = (selectedChain as any).isSmartAccount === true;
-      const smartAccountMatch = (wConfig.isSmartAccount === true) === isSelectedSmartAccount;
+    if (smartAccountFallback) return smartAccountFallback;
 
-      return typeMatch && smartAccountMatch;
-    }) || null; // Return null instead of undefined
+    // 3. No aggressive fallback - better to show loading than wrong chain wallet
+    return null;
   }, [wallets, selectedChainId, selectedChain.type, (selectedChain as any).isSmartAccount, walletConfig]);
 
   // Track wallet display in Mixpanel
@@ -228,7 +229,10 @@ const WalletInfo = () => {
 
         // Track successful wallet generation
         const duration = Date.now() - startTime;
-        const newWallet = wallets.find(w => w.chain === selectedChainId) || getWalletByChainType(selectedChain.type);
+
+        // Use getWalletByChainId for more precise matching of the newly generated wallet
+        const newWallet = getWalletByChainId(selectedChainId);
+
         if (newWallet) {
           trackWalletGeneration.success(newWallet.address, selectedChainId, duration);
         }

@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { BalanceCacheRepository } from '../repositories/balance-cache.repository.js';
+import { IBalanceProvider } from '../interfaces/balance-provider.interface.js';
 
 interface CachedData<T> {
   data: T;
@@ -111,18 +113,16 @@ interface ZerionTransactionsResponse {
   };
 }
 
-export interface TokenBalance {
+import { TokenBalance as GlobalTokenBalance } from '../types/account.types.js';
+
+export interface TokenBalance extends GlobalTokenBalance {
   chain: string;
-  symbol: string;
-  address: string | null;
-  decimals: number | null;
-  balanceSmallest: string;
-  balanceHuman: number;
   name?: string;
+  balanceSmallest?: string; // Keep for internal use if needed
 }
 
 @Injectable()
-export class ZerionService {
+export class ZerionService implements IBalanceProvider {
   private readonly logger = new Logger(ZerionService.name);
   private readonly apiKey: string;
   // Zerion API base URL
@@ -138,7 +138,8 @@ export class ZerionService {
   private pendingRequests = new Map<string, Promise<any>>();
 
   // Cache TTLs in milliseconds
-  private readonly BALANCE_TTL = 30 * 1000; // 30 seconds
+  private readonly BALANCE_TTL = 30 * 1000; // 30 seconds (in-memory)
+  private readonly DB_CACHE_TTL = 66 * 60 * 1000; // 66 minutes (persistent)
   private readonly TRANSACTION_TTL = 60 * 1000; // 60 seconds
 
   // Chain mapping: internal chain names to Zerion chain IDs
@@ -171,7 +172,10 @@ export class ZerionService {
     'sol',
   ];
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private balanceRepo: BalanceCacheRepository,
+  ) {
     // Zerion API key format: Typically just the key, or may need "Basic" encoding
     // Check Zerion docs: https://developers.zerion.io for exact format
     this.apiKey = this.configService.get<string>('ZERION_API_KEY') || '';
@@ -184,6 +188,64 @@ export class ZerionService {
         'Get your API key from: https://zerion.io/api or https://developers.zerion.io',
       );
     }
+  }
+
+  /**
+   * Check if a chain is supported by Zerion
+   */
+  isChainSupported(chain: string): boolean {
+    return !!this.getZerionChain(chain);
+  }
+
+  /**
+   * Implementation of IBalanceProvider getBalances
+   */
+  async getBalances(
+    address: string,
+    chain: string,
+    forceRefresh: boolean = false,
+  ): Promise<TokenBalance[]> {
+    const portfolio = await this.getPortfolio(address, chain, forceRefresh);
+    if (!portfolio) return [];
+
+    const zerionChain = this.getZerionChain(chain);
+    const positions = this.extractAndFilterPositions(portfolio, zerionChain);
+
+    return positions.map((pos) => {
+      const attributes = pos.attributes;
+      const fungibleInfo = attributes?.fungible_info;
+      const quantity = attributes?.quantity;
+      const rawChain = pos.relationships?.chain?.data?.id || 'unknown';
+      const normalizedChain = this.normalizeZerionChainId(rawChain);
+
+      const decimals =
+        quantity?.decimals ??
+        fungibleInfo?.implementations?.find((impl) => impl.chain_id === normalizedChain)
+          ?.decimals ??
+        fungibleInfo?.decimals ??
+        18;
+
+      const address =
+        fungibleInfo?.implementations?.find((impl) => impl.chain_id === normalizedChain)
+          ?.address ?? null;
+
+      return {
+        chain,
+        symbol: fungibleInfo?.symbol || 'UNKNOWN',
+        address,
+        decimals,
+        balance: quantity?.int || '0',
+        balanceHuman: quantity?.float?.toString() || '0',
+        name: fungibleInfo?.name,
+      } as any; // Cast for compatibility with global TokenBalance
+    });
+  }
+
+  /**
+   * Implementation of IBalanceProvider getBalancesAny (optional)
+   */
+  async getBalancesAny(address: string): Promise<TokenBalance[]> {
+    return this.getPositionsAnyChain(address);
   }
 
   /**
@@ -230,17 +292,33 @@ export class ZerionService {
    * Get positions for an address across all supported chains (no chain filter)
    * Returns parsed TokenBalance objects with correct decimals from Zerion
    */
-  async getPositionsAnyChain(address: string): Promise<TokenBalance[]> {
+  async getPositionsAnyChain(address: string, forceRefresh: boolean = false): Promise<TokenBalance[]> {
     const cacheKey = `balance-any:${address.toLowerCase()}`;
-    const cached = this.getCached<TokenBalance[]>(
-      cacheKey,
-      this.BALANCE_TTL,
-      'balance',
-    );
-    if (cached) {
-      return cached;
+
+    // 2. CHECK IN-MEMORY CACHE (Very short TTL)
+    if (!forceRefresh) {
+      const memoryCached = this.getCached<TokenBalance[]>(
+        cacheKey,
+        this.BALANCE_TTL,
+        'balance',
+      );
+      if (memoryCached) return memoryCached;
     }
 
+    // 3. CHECK DB CACHE (Long TTL - 60 minutes)
+    if (!forceRefresh) {
+      try {
+        const dbCached = await this.balanceRepo.getCachedAssetBalances(address);
+        if (dbCached && (Date.now() - dbCached.lastUpdated.getTime() < this.DB_CACHE_TTL)) {
+          this.logger.debug(`Returning persistent DB cache for ${address}`);
+          return dbCached.assets;
+        }
+      } catch (err) {
+        this.logger.warn(`Failed to read from DB asset cache: ${err instanceof Error ? err.message : 'unknown'}`);
+      }
+    }
+
+    // 4. FETCH FROM ZERION
     const url = `${this.baseUrl}/wallets/${address}/positions/?sort=value`;
 
     try {
@@ -280,19 +358,22 @@ export class ZerionService {
           chain,
           symbol: fungibleInfo?.symbol || 'UNKNOWN',
           address,
-          decimals,
-          balanceSmallest: quantity?.int || '0',
-          balanceHuman: Number(quantity?.float || 0),
+          decimals: decimals as number,
+          balance: quantity?.int || '0',
+          balanceHuman: quantity?.float?.toString() || '0',
           name: fungibleInfo?.name,
-        };
+        } as TokenBalance;
       });
 
       // Remove duplicates by chain + address/symbol
       const dedupedTokens = this.dedupeParsedTokens(parsedTokens);
 
+      // Save to both caches
       this.setCache(cacheKey, dedupedTokens, 'balance');
+      await this.balanceRepo.updateCachedAssetBalances(address, dedupedTokens);
+
       this.logger.debug(
-        `Fetched ${dedupedTokens.length} positions for ${this.maskAddress(address)}`,
+        `Fetched ${dedupedTokens.length} positions for ${this.maskAddress(address)} and saved to DB`,
       );
       return dedupedTokens;
     } catch (e) {
@@ -575,6 +656,7 @@ export class ZerionService {
   async getPortfolio(
     address: string,
     chain: string,
+    forceRefresh: boolean = false,
   ): Promise<ZerionPortfolioResponse | null> {
     const zerionChain = this.getZerionChain(chain);
     if (!zerionChain) {
