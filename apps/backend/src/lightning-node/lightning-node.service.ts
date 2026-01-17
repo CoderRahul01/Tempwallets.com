@@ -477,9 +477,6 @@ export class LightningNodeService {
       });
 
       const appSessionId = appSession.app_session_id;
-<<<<<<< HEAD
-=======
-
       // Validate appSessionId is present and valid
       if (!appSessionId || typeof appSessionId !== 'string') {
         this.logger.error(
@@ -490,8 +487,6 @@ export class LightningNodeService {
           'Failed to create app session: Yellow Network did not return a valid session ID',
         );
       }
-
->>>>>>> 8a5b3f3 (UI Fixes in "Send" module and "balance" section)
       this.logger.log(
         `✅ App session created on Yellow Network: ${appSessionId}`,
       );

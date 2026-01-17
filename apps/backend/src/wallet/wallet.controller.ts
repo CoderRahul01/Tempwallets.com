@@ -39,7 +39,7 @@ export class WalletController {
     private readonly walletService: WalletService,
     private readonly polkadotEvmRpcService: PolkadotEvmRpcService,
     private readonly pimlicoConfig: PimlicoConfigService,
-  ) {}
+  ) { }
 
   @Post('eip7702/send')
   @HttpCode(HttpStatus.OK)
@@ -94,13 +94,13 @@ export class WalletController {
       errors: validation.errors,
       config: validation.config
         ? {
-            chainId: validation.config.chainId,
-            bundlerUrl: validation.config.bundlerUrl,
-            paymasterUrl: validation.config.paymasterUrl,
-            delegationAddress: validation.config.delegationAddress,
-            entryPointAddress: validation.config.entryPointAddress,
-            hasApiKey: this.pimlicoConfig.hasPimlicoApiKey(),
-          }
+          chainId: validation.config.chainId,
+          bundlerUrl: validation.config.bundlerUrl,
+          paymasterUrl: validation.config.paymasterUrl,
+          delegationAddress: validation.config.delegationAddress,
+          entryPointAddress: validation.config.entryPointAddress,
+          hasApiKey: this.pimlicoConfig.hasPimlicoApiKey(),
+        }
         : undefined,
       enabled: this.pimlicoConfig.isEip7702Enabled(chain),
     };
@@ -420,7 +420,7 @@ export class WalletController {
     try {
       const result = await this.walletService.sendCrypto(
         finalUserId,
-  chain,
+        chain,
         dto.recipientAddress,
         dto.amount,
         dto.tokenAddress,
@@ -530,7 +530,7 @@ export class WalletController {
     }
 
     try {
-      const transactions = await this.walletService.getTransactionHistory(
+      const transactions = await this.walletService.getTransactions(
         finalUserId,
         chain,
         limitNum,

@@ -1,4 +1,4 @@
-import { TokenBalance } from '../zerion.service.js';
+import { TokenBalance } from '../types/account.types.js';
 
 export const MOCK_TOKEN_BALANCES: TokenBalance[] = [
     {
@@ -6,8 +6,8 @@ export const MOCK_TOKEN_BALANCES: TokenBalance[] = [
         symbol: 'ETH',
         address: null,
         decimals: 18,
-        balanceSmallest: '1250000000000000000',
-        balanceHuman: 1.25,
+        balance: '1250000000000000000',
+        balanceHuman: '1.25',
         name: 'Ether',
     },
     {
@@ -15,8 +15,8 @@ export const MOCK_TOKEN_BALANCES: TokenBalance[] = [
         symbol: 'USDC',
         address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
         decimals: 6,
-        balanceSmallest: '500000000',
-        balanceHuman: 500.0,
+        balance: '500000000',
+        balanceHuman: '500.0',
         name: 'USD Coin',
     },
     {
@@ -24,8 +24,8 @@ export const MOCK_TOKEN_BALANCES: TokenBalance[] = [
         symbol: 'USDT',
         address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
         decimals: 6,
-        balanceSmallest: '1898000',
-        balanceHuman: 1.898,
+        balance: '1898000',
+        balanceHuman: '1.898',
         name: 'Tether USD',
     },
     {
@@ -33,8 +33,8 @@ export const MOCK_TOKEN_BALANCES: TokenBalance[] = [
         symbol: 'BTC',
         address: null,
         decimals: 8,
-        balanceSmallest: '1500000',
-        balanceHuman: 0.015,
+        balance: '1500000',
+        balanceHuman: '0.015',
         name: 'Bitcoin',
     },
     {
@@ -42,8 +42,8 @@ export const MOCK_TOKEN_BALANCES: TokenBalance[] = [
         symbol: 'ETH',
         address: null,
         decimals: 18,
-        balanceSmallest: '450000000000000000',
-        balanceHuman: 0.45,
+        balance: '450000000000000000',
+        balanceHuman: '0.45',
         name: 'Ether',
     },
     {
@@ -51,8 +51,8 @@ export const MOCK_TOKEN_BALANCES: TokenBalance[] = [
         symbol: 'MATIC',
         address: null,
         decimals: 18,
-        balanceSmallest: '150000000000000000000',
-        balanceHuman: 150.0,
+        balance: '150000000000000000000',
+        balanceHuman: '150.0',
         name: 'MATIC',
     },
 ];

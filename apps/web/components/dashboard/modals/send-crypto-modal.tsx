@@ -735,7 +735,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
                 <span>CHANGE</span>
               </SelectTrigger>
               <SelectContent className="bg-black/95 border-white/10 text-white rounded-xl min-w-[140px]">
-                {chains.filter(c => !c.isTestnet).map((c) => {
+                {chains.filter(c => !c.isTestnet && !c.id.endsWith('Gasless')).map((c) => {
                   const Icon = c.icon;
                   const isSelected = activeChainId === c.id;
                   const displayName = c.name;

@@ -51,9 +51,11 @@ export interface BalanceInfo {
  * Token balance
  */
 export interface TokenBalance {
+  chain: string;
   address: string | null; // null for native tokens
   symbol: string;
   balance: string;
   decimals: number;
   balanceHuman?: string;
+  name?: string;
 }

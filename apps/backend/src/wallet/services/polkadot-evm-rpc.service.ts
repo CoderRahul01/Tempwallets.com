@@ -169,6 +169,7 @@ export class PolkadotEvmRpcService implements IBalanceProvider {
     if (native) {
       result.push({
         address: null,
+        chain,
         symbol: this.getNativeSymbol(chain),
         balance: native.balance,
         balanceHuman: native.balanceHuman,

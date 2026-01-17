@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { WalletController } from './wallet.controller.js';
 import { WalletService } from './wallet.service.js';
 import { SeedRepository } from './seed.repository.js';
-import { ZerionService } from './services/zerion.service.js';
 import { BalanceProviderFactory } from './factories/balance-provider.factory.js';
 import { PrismaModule } from '../database/prisma.module.js';
 import { CryptoModule } from '../crypto/crypto.module.js';
@@ -54,7 +53,6 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
   providers: [
     WalletService,
     SeedRepository,
-    ZerionService,
     BalanceProviderFactory,
     // Configuration services
     ChainConfigService,
@@ -92,7 +90,6 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
   exports: [
     WalletService,
     SeedRepository,
-    ZerionService,
     BalanceProviderFactory,
     // Configuration services
     ChainConfigService,
