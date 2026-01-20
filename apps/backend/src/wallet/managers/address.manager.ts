@@ -151,10 +151,7 @@ export class AddressManager implements IAddressManager {
       ...evmChains.map(async (chain) => {
         if (addresses[chain]) return;
         try {
-          const supportedEip7702Chains = ['ethereum', 'sepolia', 'base', 'arbitrum', 'optimism'];
-          const useEip7702 =
-            this.pimlicoConfig.isEip7702Enabled(chain) &&
-            supportedEip7702Chains.includes(chain);
+          const useEip7702 = this.pimlicoConfig.isEip7702Enabled(chain);
           const account = useEip7702
             ? await this.eip7702AccountFactory.createAccount(seedPhrase, chain as any, 0)
             : await this.nativeEoaFactory.createAccount(seedPhrase, chain, 0);
@@ -362,13 +359,9 @@ export class AddressManager implements IAddressManager {
       }
 
       try {
-        // Only enable EIP-7702 for supported chains: ethereum, sepolia, base, arbitrum, optimism
-        const supportedEip7702Chains = ['ethereum', 'sepolia', 'base', 'arbitrum', 'optimism'];
-        const useEip7702 =
-          this.pimlicoConfig.isEip7702Enabled(chain) &&
-          supportedEip7702Chains.includes(chain);
+        const useEip7702 = this.pimlicoConfig.isEip7702Enabled(chain);
         const account = useEip7702
-          ? await this.eip7702AccountFactory.createAccount(seedPhrase, chain as 'ethereum' | 'sepolia' | 'base' | 'arbitrum' | 'optimism', 0)
+          ? await this.eip7702AccountFactory.createAccount(seedPhrase, chain as any, 0)
           : await this.nativeEoaFactory.createAccount(seedPhrase, chain, 0);
         const address = await account.getAddress();
         await this.addressCacheRepository.saveAddress(userId, name, address);

@@ -665,13 +665,15 @@ export class WalletController {
     @Res() res: Response,
     @UserId() userId?: string,
     @Query('userId') queryUserId?: string,
+    @Query('poll') poll?: string,
   ) {
     const finalUserId = userId || queryUserId;
     if (!finalUserId) {
       throw new BadRequestException('userId is required');
     }
 
-    this.logger.debug(`Streaming transactions for user ${finalUserId}`);
+    const shouldPoll = poll === 'true';
+    this.logger.debug(`Streaming transactions for user ${finalUserId} (poll: ${shouldPoll})`);
 
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -682,12 +684,16 @@ export class WalletController {
     try {
       for await (const txs of this.walletService.streamTransactions(
         finalUserId,
+        { poll: shouldPoll }
       )) {
         res.write(`data: ${JSON.stringify(txs)}\n\n`);
       }
 
-      // Send completion message
-      res.write(`data: ${JSON.stringify({ type: 'complete' })}\n\n`);
+      // If polling is enabled, this point is only reached if the stream is closed
+      if (!shouldPoll) {
+        // Send completion message for non-polling streams
+        res.write(`data: ${JSON.stringify({ type: 'complete' })}\n\n`);
+      }
       res.end();
     } catch (error) {
       this.logger.error(

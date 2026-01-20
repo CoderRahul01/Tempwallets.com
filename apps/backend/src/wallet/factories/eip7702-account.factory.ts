@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   createPublicClient,
-  createWalletClient,
   http,
   type Address,
   type Chain,
   defineChain,
+  encodeFunctionData,
+  parseAbi,
 } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import {
@@ -14,6 +15,7 @@ import {
   base,
   arbitrum,
   optimism,
+  polygon,
 } from 'viem/chains';
 import { createSmartAccountClient } from 'permissionless';
 import { to7702SimpleSmartAccount } from 'permissionless/accounts';
@@ -22,7 +24,9 @@ import { recoverAuthorizationAddress } from 'viem/experimental';
 import { PimlicoConfigService } from '../config/pimlico.config.js';
 import { ChainConfigService } from '../config/chain.config.js';
 import { Eip7702DelegationRepository } from '../repositories/eip7702-delegation.repository.js';
-import { IAccount } from '../types/account.types.js';
+import { IAccount, TokenTransferParams } from '../types/account.types.js';
+import { ViemErrorFormatter } from '../diagnostics/viem-error.formatter.js';
+import { DiagnosticLogger } from '../diagnostics/diagnostic.logger.js';
 
 /**
  * EIP-7702 smart account factory.
@@ -45,7 +49,8 @@ export class Eip7702AccountFactory {
       | 'sepolia'
       | 'base'
       | 'arbitrum'
-      | 'optimism',
+      | 'optimism'
+      | 'polygon',
     accountIndex = 0,
     userId?: string,
   ): Promise<IAccount> {
@@ -53,14 +58,14 @@ export class Eip7702AccountFactory {
     // For base chain, always allow EIP-7702 (it's natively supported)
     const isBaseChain = chain === 'base';
     const isEip7702Enabled = this.pimlicoConfig.isEip7702Enabled(chain);
-    
+
     if (!isEip7702Enabled && !isBaseChain) {
       throw new Error(
         `EIP-7702 is not enabled for chain ${chain}. ` +
         `Enable via config (ENABLE_EIP7702=true, EIP7702_CHAINS=${chain}) before sending gasless transactions.`,
       );
     }
-    
+
     // Log warning for base if env vars not set, but continue
     if (isBaseChain && !isEip7702Enabled) {
       this.logger.warn(
@@ -185,7 +190,8 @@ export class Eip7702AccountFactory {
       | 'sepolia'
       | 'base'
       | 'arbitrum'
-      | 'optimism',
+      | 'optimism'
+      | 'polygon',
   ): Chain {
     const baseChains: Record<string, Chain> = {
       ethereum: mainnet,
@@ -193,8 +199,9 @@ export class Eip7702AccountFactory {
       base,
       arbitrum,
       optimism,
+      polygon,
     };
-    
+
     const baseChain = baseChains[chain];
     if (!baseChain) {
       throw new Error(`Unsupported EIP-7702 chain: ${chain}`);
@@ -223,7 +230,8 @@ export class Eip7702AccountFactory {
       | 'sepolia'
       | 'base'
       | 'arbitrum'
-      | 'optimism',
+      | 'optimism'
+      | 'polygon',
   ): string {
     return this.chainConfig.getEvmChainConfig(chain).rpcUrl;
   }
@@ -260,23 +268,35 @@ class Eip7702SmartAccountWrapper implements IAccount {
   }
 
   async send(to: string, amount: string): Promise<string> {
+    return this.transfer({ to, amount });
+  }
+
+  async transfer(params: TokenTransferParams): Promise<string> {
+    const { to, amount, tokenAddress } = params;
     const value = BigInt(amount);
 
-    this.logger.log(`[EIP-7702 Send] Starting transaction`);
-    this.logger.log(`[EIP-7702 Send] To: ${to}`);
-    this.logger.log(`[EIP-7702 Send] Amount: ${value}`);
-    this.logger.log(`[EIP-7702 Send] EOA Address: ${this.eoaAddress}`);
-    this.logger.log(`[EIP-7702 Send] Chain ID: ${this.chainId}`);
-    this.logger.log(`[EIP-7702 Send] Delegation Address: ${this.delegationAddress}`);
+    this.logger.log(`[EIP-7702 Transfer] Starting transaction`);
+    DiagnosticLogger.logEip7702Transaction('Transfer Start', {
+      to,
+      "amount human": amount,
+      "amount smallest": value.toString(),
+      token: tokenAddress || 'native',
+      eoa: this.eoaAddress,
+      chainId: this.chainId
+    });
+
+    this.logger.log(`[EIP-7702 Transfer] To: ${to}`);
+    this.logger.log(`[EIP-7702 Transfer] Token: ${tokenAddress || 'native'}`);
+    this.logger.log(`[EIP-7702 Transfer] Amount human (requested): ${amount}`);
+    this.logger.log(`[EIP-7702 Transfer] Amount smallest (value): ${value}`);
+    this.logger.log(`[EIP-7702 Transfer] EOA Address: ${this.eoaAddress}`);
+    this.logger.log(`[EIP-7702 Transfer] Chain ID: ${this.chainId}`);
 
     try {
-      // ✅ FIX: Check bytecode directly instead of isDeployed()
       const code = await this.publicClient.getBytecode({
         address: this.eoaAddress,
       });
 
-      // Check if delegation bytecode is set
-      // EIP-7702 sets bytecode to: 0xef0100 + delegationAddress (20 bytes)
       const hasDelegation = code && code !== '0x' && code.length > 2;
 
       this.logger.log(
@@ -284,27 +304,34 @@ class Eip7702SmartAccountWrapper implements IAccount {
         `bytecode: ${code?.slice(0, 20)}...`,
       );
 
-      // Also check isDeployed for comparison (logging only)
-      try {
-        const isDeployed = await this.smartAccount.isDeployed();
-        this.logger.log(`[EIP-7702 Send] isDeployed() check: ${isDeployed}`);
-      } catch (error) {
-        this.logger.warn(
-          `[EIP-7702 Send] isDeployed() check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        );
-      }
-
       let txHash: string;
+      const txTo = (tokenAddress || to) as Address;
+      const txData = tokenAddress
+        ? encodeFunctionData({
+          abi: parseAbi(['function transfer(address to, uint256 amount)']),
+          functionName: 'transfer',
+          args: [to as Address, value],
+        })
+        : ('0x' as `0x${string}`);
+      const txValue = tokenAddress ? 0n : value;
+
+      DiagnosticLogger.logEip7702Transaction('Transaction Construction', {
+        target: txTo,
+        value: txValue.toString(),
+        data: txData,
+        hasDelegation: hasDelegation
+      });
+
+      this.logger.log(`[EIP-7702 sendTransaction] target: ${txTo}, value: ${txValue}, data: ${txData.slice(0, 50)}...`);
 
       if (!hasDelegation) {
-        // First transaction - include authorization
-        this.logger.log(`[EIP-7702] First transaction - including authorization`);
+        this.logger.log(
+          `[EIP-7702] First transaction - including authorization`,
+        );
 
         const nonce = await this.publicClient.getTransactionCount({
           address: this.eoaAddress,
         });
-
-        this.logger.log(`[EIP-7702] EOA nonce: ${nonce}`);
 
         const authorization = await this.eoaAccount.signAuthorization({
           address: this.delegationAddress,
@@ -312,43 +339,23 @@ class Eip7702SmartAccountWrapper implements IAccount {
           nonce,
         });
 
-        this.logger.log(`[EIP-7702] Authorization signed:`, {
-          address: this.delegationAddress,
-          chainId: this.chainId,
-          nonce,
+        // Verify authorization signer
+        const recoveredAddress = await recoverAuthorizationAddress({
+          authorization,
         });
-
-        // ✅ FIX: Verify authorization signature before sending
-        try {
-          const recoveredAddress = await recoverAuthorizationAddress({
-            authorization,
-          });
-          this.logger.log(`[EIP-7702] Authorization signer: ${recoveredAddress}`);
-
-          if (recoveredAddress.toLowerCase() !== this.eoaAddress.toLowerCase()) {
-            throw new Error(
-              `Authorization signature mismatch! ` +
-              `Expected: ${this.eoaAddress}, Got: ${recoveredAddress}`,
-            );
-          }
-        } catch (error) {
-          this.logger.error(
-            `[EIP-7702] Authorization verification failed:`,
-            error instanceof Error ? error.message : 'Unknown error',
+        if (recoveredAddress.toLowerCase() !== this.eoaAddress.toLowerCase()) {
+          throw new Error(
+            `Authorization signature mismatch! Expected: ${this.eoaAddress}, Got: ${recoveredAddress}`,
           );
-          throw error;
         }
 
         txHash = await this.client.sendTransaction({
-          to: to as Address,
-          value,
-          data: '0x' as `0x${string}`,
+          to: txTo,
+          data: txData,
+          value: txValue,
           authorization,
         });
 
-        this.logger.log(`[EIP-7702] First transaction sent: ${txHash}`);
-
-        // Record delegation in database
         if (this.userId) {
           await this.delegationRepo.recordDelegation(
             this.userId,
@@ -356,36 +363,37 @@ class Eip7702SmartAccountWrapper implements IAccount {
             this.chainId,
             this.delegationAddress,
           );
-          this.logger.log(`[EIP-7702] Delegation recorded in database`);
         }
       } else {
-        // Subsequent transactions - no authorization needed
         this.logger.log(`[EIP-7702] Subsequent transaction - no authorization`);
 
         txHash = await this.client.sendTransaction({
-          to: to as Address,
-          value,
-          data: '0x' as `0x${string}`,
+          to: txTo,
+          data: txData,
+          value: txValue,
         });
-
-        this.logger.log(`[EIP-7702] Transaction sent: ${txHash}`);
       }
 
+      this.logger.log(`[EIP-7702] Transaction sent: ${txHash}`);
+      DiagnosticLogger.logEip7702Transaction('Transaction Success', { txHash });
       return txHash;
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`[EIP-7702] Transaction failed:`, {
-        error: errorMsg,
+      const formattedError = ViemErrorFormatter.format(error);
+      DiagnosticLogger.logDiagnosticError('EIP-7702 Transfer Failure', error);
+
+      this.logger.error(`[EIP-7702] Transaction failed: ${formattedError}`, {
+        error: error,
         to,
+        tokenAddress,
         amount: value.toString(),
-        eoaAddress: this.eoaAddress,
-        chainId: this.chainId,
       });
 
-      throw new Error(
-        `Failed to send EIP-7702 transaction: ${errorMsg}. ` +
-        `This may indicate a bundler issue, network incompatibility, or incorrect delegation address.`,
-      );
+      // Log more details if it's a simulation revert 0x
+      if (formattedError.includes('0x')) {
+        this.logger.error(`[EIP-7702] Simulation Reverted with 0x. This usually means the recipient contract (token) reverted, or gas limits are too low. Check if the account has enough of the token to transfer.`);
+      }
+
+      throw new Error(`Failed to send EIP-7702 transaction: ${formattedError}`);
     }
   }
 

@@ -12,7 +12,7 @@ import { Erc4337Config } from '../types/chain.types.js';
 export class PimlicoConfigService {
   private readonly logger = new Logger(PimlicoConfigService.name);
 
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) { }
 
   /**
    * Get Pimlico API key from environment
@@ -43,7 +43,7 @@ export class PimlicoConfigService {
         paymasterUrl: apiKey
           ? `https://api.pimlico.io/v2/1/rpc?apikey=${apiKey}`
           : undefined,
-  entryPointAddress: entryPoint08Address, // v0.8 for EIP-7702
+        entryPointAddress: entryPoint08Address, // v0.8 for EIP-7702
         factoryAddress: '0x0000000000FFe8B47B3e2130213B802212439497', // Pimlico Safe factory
       },
       base: {
@@ -59,7 +59,7 @@ export class PimlicoConfigService {
         paymasterUrl: apiKey
           ? `https://api.pimlico.io/v2/8453/rpc?apikey=${apiKey}`
           : undefined,
-  entryPointAddress: entryPoint08Address,
+        entryPointAddress: entryPoint08Address,
         factoryAddress: '0x0000000000FFe8B47B3e2130213B802212439497',
       },
       arbitrum: {
@@ -75,7 +75,7 @@ export class PimlicoConfigService {
         paymasterUrl: apiKey
           ? `https://api.pimlico.io/v2/42161/rpc?apikey=${apiKey}`
           : undefined,
-  entryPointAddress: entryPoint08Address,
+        entryPointAddress: entryPoint08Address,
         factoryAddress: '0x0000000000FFe8B47B3e2130213B802212439497',
       },
       polygon: {
@@ -144,11 +144,18 @@ export class PimlicoConfigService {
    * EIP-7702 enablement guard per chain name (AllChainTypes string)
    */
   isEip7702Enabled(chain: string): boolean {
-    const enabled = this.configService.get<string>('ENABLE_EIP7702') === 'true';
+    const val = this.configService.get<string>('ENABLE_EIP7702');
+    const enabled = val === 'true' || val === '"true"';
     if (!enabled) return false;
-    const supportedChains =
-      this.configService.get<string>('EIP7702_CHAINS')?.split(',') || [];
-    return supportedChains.includes(chain);
+
+    let chainsStr = this.configService.get<string>('EIP7702_CHAINS') || '';
+    chainsStr = chainsStr.replace(/"/g, ''); // Remove potential quotes
+    const supportedChains = chainsStr
+      .split(',')
+      .map((s) => s.trim().toLowerCase());
+
+    // Check for both the chain name and its key variants
+    return supportedChains.includes(chain.toLowerCase());
   }
 
   getEip7702DelegationAddress(): string {
@@ -280,7 +287,7 @@ export class PimlicoConfigService {
     if (raw.toLowerCase().includes('api.pimlico.io')) {
       this.logger.warn(
         `Detected ${envKey} pointing to Pimlico bundler for ${chainLabel}. Falling back to ${fallback}. ` +
-          `Please set ${envKey} to a standard RPC (Infura, Alchemy, Ankr, etc.).`,
+        `Please set ${envKey} to a standard RPC (Infura, Alchemy, Ankr, etc.).`,
       );
       return fallback;
     }

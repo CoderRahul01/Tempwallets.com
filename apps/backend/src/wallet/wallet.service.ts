@@ -21,6 +21,7 @@ import { WalletHistoryRepository } from './repositories/wallet-history.repositor
 import { Eip7702DelegationRepository } from './repositories/eip7702-delegation.repository.js';
 import { IAccount } from './types/account.types.js';
 import { ZerionService } from './services/zerion.service.js';
+import { ViemErrorFormatter } from './diagnostics/viem-error.formatter.js';
 import { CacheService } from './services/cache.service.js';
 import { AllChainTypes } from './types/chain.types.js';
 import {
@@ -862,8 +863,13 @@ export class WalletService {
 
   /**
    * Stream transactions for a user across all chains
+   * @param userId - The user ID
+   * @param options - Streaming options (poll: true to keep streaming new transactions)
    */
-  async * streamTransactions(userId: string): AsyncGenerator<
+  async * streamTransactions(
+    userId: string,
+    options: { poll?: boolean; intervalMs?: number } = { poll: false }
+  ): AsyncGenerator<
     Array<{
       txHash: string;
       from: string;
@@ -884,47 +890,74 @@ export class WalletService {
       ([chain, address]) => address && (this.isEvmChain(chain) || ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub', 'hydration', 'unique', 'bifrost', 'bifrostTestnet'].includes(chain))
     );
 
-    // Fetch all in parallel but yield as they resolve
-    const results: Array<any[]> = [];
-    let resolveNext: ((value: void) => void) | null = null;
-    let finishedCount = 0;
+    const seenTxHashes = new Set<string>();
 
-    const pushResult = (txs: any[]) => {
-      if (txs && txs.length > 0) {
-        results.push(txs);
-        if (resolveNext) {
-          resolveNext();
-          resolveNext = null;
+    // Initial fetch loop
+    const fetchAndYield = async function* (this: WalletService) {
+      const results: Array<any[]> = [];
+      let resolveNext: ((value: void) => void) | null = null;
+      let finishedCount = 0;
+
+      const pushResult = (txs: any[]) => {
+        // Filter out already seen transactions
+        const newTxs = txs.filter(tx => !seenTxHashes.has(`${tx.chain}:${tx.txHash}`));
+        newTxs.forEach(tx => seenTxHashes.add(`${tx.chain}:${tx.txHash}`));
+
+        if (newTxs.length > 0) {
+          results.push(newTxs);
+          if (resolveNext) {
+            resolveNext();
+            resolveNext = null;
+          }
+        }
+      };
+
+      // Start all requests in parallel
+      chains.forEach(async ([chain, address]) => {
+        try {
+          const txs = await this.getTransactions(userId, chain);
+          pushResult(txs);
+        } catch (error) {
+          this.logger.error(`Error streaming transactions for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+          finishedCount++;
+          if (finishedCount === chains.length && resolveNext) {
+            resolveNext();
+            resolveNext = null;
+          }
+        }
+      });
+
+      // Yield results as they arrive
+      while (finishedCount < chains.length || results.length > 0) {
+        if (results.length === 0) {
+          await new Promise<void>((resolve) => {
+            resolveNext = resolve;
+          });
+        }
+
+        while (results.length > 0) {
+          yield results.shift()!;
         }
       }
-    };
+    }.bind(this);
 
-    // Start all requests in parallel
-    chains.forEach(async ([chain, address]) => {
-      try {
-        const txs = await this.getTransactions(userId, chain);
-        pushResult(txs);
-      } catch (error) {
-        this.logger.error(`Error streaming transactions for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      } finally {
-        finishedCount++;
-        if (finishedCount === chains.length && resolveNext) {
-          resolveNext();
-          resolveNext = null;
+    // Initial stream
+    for await (const txs of fetchAndYield()) {
+      yield txs;
+    }
+
+    // Polling loop for real-time updates
+    if (options.poll) {
+      const intervalMs = options.intervalMs || 15000;
+      this.logger.log(`Starting real-time transaction polling for user ${userId} every ${intervalMs}ms`);
+
+      while (true) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+
+        for await (const txs of fetchAndYield()) {
+          yield txs;
         }
-      }
-    });
-
-    // Yield results as they arrive
-    while (finishedCount < chains.length || results.length > 0) {
-      if (results.length === 0) {
-        await new Promise<void>((resolve) => {
-          resolveNext = resolve;
-        });
-      }
-
-      while (results.length > 0) {
-        yield results.shift()!;
       }
     }
   }
@@ -1333,7 +1366,9 @@ export class WalletService {
       const sufficient = balanceBigInt >= amountSmallest;
 
       this.logger.log(
-        `[On-Chain Balance] Token: ${tokenAddress || 'native'}, ` +
+        `[On-Chain Balance] Chain: ${account.chainId || 'unknown'}, ` +
+        `Address: ${await account.getAddress()}, ` +
+        `Token: ${tokenAddress || 'native'}, ` +
         `balance: ${balanceBigInt.toString()}, requested: ${amountSmallest.toString()}, ` +
         `sufficient: ${sufficient}`,
       );
@@ -1369,16 +1404,47 @@ export class WalletService {
     onChainBalance?: string;
     error?: string;
   }> {
-    // Zerion fallback removed
-    this.logger.warn(
-      `[Zerion Balance] ZerionService is deprecated. Skipping Zerion balance validation.`,
-    );
-    // Always return insufficient from Zerion if it's deprecated, forcing on-chain check
-    return {
-      sufficient: false,
-      zerionBalance: '0',
-      error: 'ZerionService is deprecated, cannot validate balance from Zerion.',
-    };
+    try {
+      this.logger.log(
+        `[Zerion Balance] Fetching balances for ${walletAddress} on ${chain}`,
+      );
+      const balances = await this.zerionService.getBalances(
+        walletAddress,
+        chain,
+      );
+
+      let foundBalance: string = '0';
+      if (tokenAddress) {
+        // Find matching ERC-20 token
+        const token = balances.find(
+          (b) =>
+            b.address?.toLowerCase() === tokenAddress.toLowerCase() ||
+            (b.symbol?.toLowerCase() === 'usdt' &&
+              tokenAddress.toLowerCase().includes('c2132d05')), // Extra safety for Polygon USDT
+        );
+        foundBalance = token?.balance || '0';
+      } else {
+        // Find native token balance (address is usually null)
+        const native = balances.find((b) => b.address === null);
+        foundBalance = native?.balance || '0';
+      }
+
+      const sufficient = BigInt(foundBalance) >= amountSmallest;
+
+      return {
+        sufficient,
+        zerionBalance: foundBalance,
+      };
+    } catch (error) {
+      this.logger.error(
+        `[Zerion Balance] Error fetching from Zerion: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return {
+        sufficient: false,
+        zerionBalance: '0',
+        error: `Zerion error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
   }
 
   /**
@@ -1392,22 +1458,12 @@ export class WalletService {
     chain: AllChainTypes,
     userId?: string,
   ): Promise<IAccount> {
-    const eip7702Chains: AllChainTypes[] = [
-      'ethereum',
-      'sepolia',
-      'base',
-      'arbitrum',
-      'optimism',
-    ];
-
-    const isEip7702 =
-      this.pimlicoConfig.isEip7702Enabled(chain) &&
-      eip7702Chains.includes(chain);
+    const isEip7702 = this.pimlicoConfig.isEip7702Enabled(chain);
 
     if (isEip7702) {
       return this.eip7702AccountFactory.createAccount(
         seedPhrase,
-        chain as 'ethereum' | 'sepolia' | 'base' | 'arbitrum' | 'optimism',
+        chain as any,
         0,
         userId,
       );
@@ -1480,33 +1536,46 @@ export class WalletService {
     }
 
     const forceEip7702 = options?.forceEip7702 === true;
-    const isEip7702Chain = this.pimlicoConfig.isEip7702Enabled(chain);
+    let isEip7702Chain = false;
+    try {
+      isEip7702Chain = this.pimlicoConfig.isEip7702Enabled(chain);
+    } catch (error) {
+      this.logger.error(`Error checking EIP-7702 enablement for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
     const accountType = isEip7702Chain ? 'EIP-7702' : 'EOA';
 
     try {
       const seedPhrase = await this.seedRepository.getSeedPhrase(userId);
 
       // Auto-route native sends on EIP-7702 enabled chains to the gasless flow to avoid zeroed gas fields
-      if (isEip7702Chain && !tokenAddress && !forceEip7702) {
-        const chainId = this.pimlicoConfig.getEip7702Config(
-          chain as 'ethereum' | 'sepolia' | 'base' | 'arbitrum' | 'optimism' | 'polygon' | 'bnb' | 'avalanche',
-        ).chainId;
+      // Auto-route to gasless flow on EIP-7702 enabled chains to avoid zeroed gas fields and provide sponsorship
+      if (isEip7702Chain && !forceEip7702) {
+        let eipConfig;
+        try {
+          eipConfig = this.pimlicoConfig.getEip7702Config(chain as any);
+        } catch (error) {
+          this.logger.error(`Error getting EIP-7702 config for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // Fall back to EOA flow if config fails
+          isEip7702Chain = false;
+        }
 
-        this.logger.warn(
-          `[Auto-Route] Chain ${chain} has EIP-7702 enabled but sendCrypto() was called. ` +
-          `Routing to sendEip7702Gasless() for proper user operation flow.`,
-        );
+        if (eipConfig) {
+          this.logger.warn(
+            `[Auto-Route] Chain ${chain} has EIP-7702 enabled. ` +
+            `Routing to sendEip7702Gasless() for proper gasless flow (token: ${tokenAddress || 'native'}).`,
+          );
 
-        const result = await this.sendEip7702Gasless(
-          userId,
-          chainId,
-          recipientAddress,
-          amount,
-          tokenAddress,
-          tokenDecimals,
-        );
+          const result = await this.sendEip7702Gasless(
+            userId,
+            eipConfig.chainId,
+            recipientAddress,
+            amount,
+            tokenAddress,
+            tokenDecimals,
+          );
 
-        return { txHash: result.transactionHash || result.userOpHash };
+          return { txHash: result.transactionHash || result.userOpHash };
+        }
       }
 
       // Create account using appropriate factory
@@ -1548,30 +1617,47 @@ export class WalletService {
             `Provided value: ${tokenDecimals}. Falling back to Zerion API lookup.`,
           );
 
-          // Zerion fallback removed
-          this.logger.warn(
-            `[Decimals Fallback] ZerionService is deprecated. Trying RPC decimals() call as fallback.`,
+          // Fetch from Zerion
+          const zerionBalances = await this.zerionService.getBalances(
+            walletAddress,
+            chain,
+          );
+          const token = zerionBalances.find(
+            (b) => b.address?.toLowerCase() === tokenAddress.toLowerCase(),
           );
 
-          const rpcDecimals = await this.fetchDecimalsFromRPC(
-            tokenAddress,
-            account,
-          );
-          if (rpcDecimals !== null && rpcDecimals >= 0 && rpcDecimals <= 36) {
-            finalDecimals = rpcDecimals;
-            decimalsSource = 'rpc-decimals()';
+          if (token && token.decimals !== undefined) {
+            finalDecimals = token.decimals;
+            decimalsSource = 'zerion-api';
             this.logger.log(
-              `[Decimals Fallback] Fetched token decimals from RPC: ${finalDecimals} ` +
+              `[Decimals Fallback] Fetched token decimals from Zerion: ${finalDecimals} ` +
               `(source: ${decimalsSource})`,
             );
           } else {
-            // All methods failed
-            throw new BadRequestException(
-              `Cannot determine token decimals for ${tokenAddress} on ${chain}. ` +
-              `Attempted: Frontend (${tokenDecimals}), RPC decimals() (failed). ` +
-              `This token may not exist on ${chain}, or data is incomplete. ` +
-              `Please refresh your wallet data and try again.`,
+            // If Zerion fails, try RPC decimals() as last resort
+            this.logger.warn(
+              `[Decimals Fallback] Zerion did not have decimals for ${tokenAddress}. Trying RPC decimals() call.`,
             );
+            const rpcDecimals = await this.fetchDecimalsFromRPC(
+              tokenAddress,
+              account,
+            );
+            if (rpcDecimals !== null && rpcDecimals >= 0 && rpcDecimals <= 36) {
+              finalDecimals = rpcDecimals;
+              decimalsSource = 'rpc-decimals()';
+              this.logger.log(
+                `[Decimals Fallback] Fetched token decimals from RPC: ${finalDecimals} ` +
+                `(source: ${decimalsSource})`,
+              );
+            } else {
+              // All methods failed
+              throw new BadRequestException(
+                `Cannot determine token decimals for ${tokenAddress} on ${chain}. ` +
+                `Attempted: Frontend (${tokenDecimals}), Zerion API, RPC decimals() (failed). ` +
+                `This token may not exist on ${chain}, or data is incomplete. ` +
+                `Please refresh your wallet data and try again.`,
+              );
+            }
           }
         }
       } else {
@@ -1591,8 +1677,6 @@ export class WalletService {
         `amountSmallest=${amountSmallest.toString()}`,
       );
 
-      // Validate address format (basic check)
-      // Fallback removed (ZerionService deprecated)
       // Validate balance using Zerion as primary source
       const balanceValidation = await this.validateBalanceFromZerion(
         tokenAddress || null,
@@ -1679,43 +1763,45 @@ export class WalletService {
       try {
         if (tokenAddress) {
           // ERC-20 token transfer
-          // Use account.transfer with structured parameters (preferred for both EOA and ERC-4337)
+          // Use account.transfer with standard TokenTransferParams (preferred for both EOA and EIP-7702)
           if (
             'transfer' in account &&
             typeof (account as any).transfer === 'function'
           ) {
             try {
-              // Try with 'recipient' key first
+              this.logger.log(`[Send] Calling account.transfer with: to=${recipientAddress}, amount=${amountSmallest}, tokenAddress=${tokenAddress}`);
               const result = await (account as any).transfer({
-                token: tokenAddress,
-                recipient: recipientAddress,
-                amount: amountSmallest,
+                to: recipientAddress,
+                amount: amountSmallest.toString(),
+                tokenAddress: tokenAddress,
               });
               txHash =
                 typeof result === 'string'
                   ? result
                   : result?.hash || result?.txHash || String(result);
-              sendMethod = 'transfer({token, recipient, amount})';
+              sendMethod = 'transfer({to, amount, tokenAddress})';
             } catch (e1) {
-              // Try with 'to' key if 'recipient' was not accepted
+              // Try with legacy keys if standard fails (for backward compatibility if any factory still uses them)
+              this.logger.warn(`Standard transfer failed, trying legacy keys: ${e1 instanceof Error ? e1.message : 'unknown'}`);
               try {
                 const result = await (account as any).transfer({
                   token: tokenAddress,
-                  to: recipientAddress,
-                  amount: amountSmallest,
+                  recipient: recipientAddress,
+                  amount: amountSmallest.toString(),
                 });
                 txHash =
                   typeof result === 'string'
                     ? result
                     : result?.hash || result?.txHash || String(result);
-                sendMethod = 'transfer({token, to, amount})';
+                sendMethod = 'transfer({token, recipient, amount})';
               } catch (e2) {
                 this.logger.error(
                   `Token transfer via account.transfer failed: ${e2 instanceof Error ? e2.message : 'unknown'}`,
                 );
+                // Don't wrap in "method not supported" if it's a real transaction error
+                const errorDetail = e2 instanceof Error ? e2.message : 'unknown error';
                 throw new ServiceUnavailableException(
-                  `Token transfer method not supported. Account type: ${accountType}, ` +
-                  `Error: ${e2 instanceof Error ? e2.message : 'unknown'}`,
+                  `Token transfer failed for account type ${accountType} on chain ${chain}: ${errorDetail}`,
                 );
               }
             }
@@ -1789,8 +1875,7 @@ export class WalletService {
         return { txHash };
       } catch (error) {
         // Structured error logging
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage = ViemErrorFormatter.format(error);
         this.logger.error(
           `Transaction failed: chain=${chain}, accountType=${accountType}, ` +
           `token=${tokenAddress || 'native'}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
@@ -1863,8 +1948,7 @@ export class WalletService {
         throw error;
       }
       // Log unexpected errors with full context
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = ViemErrorFormatter.format(error);
       this.logger.error(
         `Unexpected error in sendCrypto: userId=${userId}, chain=${chain}, ` +
         `token=${tokenAddress || 'native'}, amount=${amount}, error=${errorMessage}`,
@@ -1908,10 +1992,15 @@ export class WalletService {
       throw new BadRequestException(`Unsupported EIP-7702 chainId: ${chainId}`);
     }
 
-    if (!this.pimlicoConfig.isEip7702Enabled(chain)) {
-      throw new BadRequestException(
-        `EIP-7702 is not enabled for chain ${chain}. Enable via config before sending gasless transactions.`,
-      );
+    try {
+      if (!this.pimlicoConfig.isEip7702Enabled(chain)) {
+        throw new BadRequestException(
+          `EIP-7702 is not enabled for chain ${chain}. Enable via config before sending gasless transactions.`,
+        );
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException(`EIP-7702 validation failed for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
     // Determine if this is the first delegation/transaction before sending

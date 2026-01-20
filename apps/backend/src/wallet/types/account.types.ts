@@ -13,6 +13,7 @@ export interface IAccount {
   getAddress(): Promise<string>;
   getBalance(): Promise<string>;
   send(to: string, amount: string): Promise<string>;
+  transfer(params: TokenTransferParams): Promise<string>;
 }
 
 /**

@@ -6,7 +6,7 @@ import WalletManagerSolana from '@tetherto/wdk-wallet-solana';
 import WDK from '@tetherto/wdk';
 import { ChainConfigService } from '../config/chain.config.js';
 import { IAccountFactory } from '../interfaces/wallet.interfaces.js';
-import { IAccount } from '../types/account.types.js';
+import { IAccount, TokenTransferParams } from '../types/account.types.js';
 import { AllChainTypes } from '../types/chain.types.js';
 
 /**
@@ -17,7 +17,7 @@ class WdkAccountWrapper implements IAccount {
   constructor(
     private wdkAccount: any,
     private logger: Logger,
-  ) {}
+  ) { }
 
   async getAddress(): Promise<string> {
     return this.wdkAccount.getAddress();
@@ -29,16 +29,32 @@ class WdkAccountWrapper implements IAccount {
   }
 
   async send(to: string, amount: string): Promise<string> {
+    return this.transfer({ to, amount });
+  }
+
+  async transfer(params: TokenTransferParams): Promise<string> {
+    const { to, amount, tokenAddress } = params;
     try {
+      // WDK accounts handle tokens via internal logic or throw if not supported
+      // For standard EVM, transfer() might need tokenAddress support if implemented in future WDK versions
+      // For now, we use the existing transfer/send logic.
+
       // WDK accounts use transfer() method
       if (
         'transfer' in this.wdkAccount &&
         typeof this.wdkAccount.transfer === 'function'
       ) {
-        const result = await this.wdkAccount.transfer({
+        // Prepare transfer options
+        const transferParams: any = {
           to,
           amount: BigInt(amount),
-        });
+        };
+
+        if (tokenAddress) {
+          transferParams.tokenAddress = tokenAddress;
+        }
+
+        const result = await this.wdkAccount.transfer(transferParams);
         // Extract txHash from result (could be string or object)
         const txHash =
           typeof result === 'string'
@@ -78,7 +94,7 @@ class WdkAccountWrapper implements IAccount {
 export class AccountFactory implements IAccountFactory {
   private readonly logger = new Logger(AccountFactory.name);
 
-  constructor(private chainConfig: ChainConfigService) {}
+  constructor(private chainConfig: ChainConfigService) { }
 
   getAccountType(): string {
     return 'EOA';

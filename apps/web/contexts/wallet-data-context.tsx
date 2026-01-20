@@ -555,7 +555,7 @@ export function WalletDataProvider({
     // --- SETUP SSE FOR TRANSACTIONS ---
     if (transactionsSSEUnsubscribeRef.current) transactionsSSEUnsubscribeRef.current();
 
-    const transactionsSSEUrl = `${API_BASE_URL}/wallet/transactions-stream?userId=${encodeURIComponent(fingerprint)}`;
+    const transactionsSSEUrl = `${API_BASE_URL}/wallet/transactions-stream?userId=${encodeURIComponent(fingerprint)}&poll=true`;
     transactionsSSEUnsubscribeRef.current = subscribeToSSE<Transaction[]>(
       transactionsSSEUrl,
       (data) => {

@@ -29,7 +29,10 @@ export class ZerionService {
       avalanche: 'avalanche',
       optimism: 'optimism',
       sepolia: 'sepolia',
-      // Map variants to base chains if Zerion doesn't distinguish
+      moonbeamTestnet: 'moonbeam-alpha',
+      astarShibuya: 'astar-shibuya',
+      paseoPassetHub: 'paseo-assethub',
+      // Map variants to base chains
       ethereumErc4337: 'ethereum',
       baseErc4337: 'base',
       arbitrumErc4337: 'arbitrum',
@@ -42,7 +45,14 @@ export class ZerionService {
       polygonGasless: 'polygon',
       sepoliaGasless: 'sepolia',
     };
-    return mapping[chain] || chain;
+
+    const mapped = mapping[chain];
+    if (mapped) return mapped;
+
+    // Fallback: convert camelCase to kebab-case (e.g., astarShibuya -> astar-shibuya)
+    return chain
+      .replace(/([a-z])([A-Z])/g, '$1-$2')
+      .toLowerCase();
   }
 
   async getBalances(address: string, chain: string): Promise<TokenBalance[]> {
