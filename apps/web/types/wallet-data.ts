@@ -11,6 +11,8 @@ export interface NormalizedBalance {
   balanceHuman?: string; // human-readable balance
   isNative: boolean; // true for native tokens, false for ERC-20/SPL/etc.
   address?: string | null; // token contract address (null for native)
+  usdValue?: number; // USD value of this specific balance
+  totalBalanceUsd?: number; // Total USD value for the chain (if applicable)
 }
 
 /**
@@ -102,6 +104,7 @@ export function normalizeAssets(assets: AnyChainAsset[]): NormalizedBalance[] {
     balanceHuman: asset.balanceHuman,
     isNative: asset.address === null,
     address: asset.address,
+    usdValue: asset.usdValue,
   }));
 }
 
@@ -180,8 +183,51 @@ export function createZeroBalancesForFeaturedChains(
 }
 
 /**
- * Merge and normalize all balances (EVM + Substrate + zero entries)
+ * Normalize a chain-level BalanceInfo (from SSE) to NormalizedBalance[]
  */
+export function normalizeBalanceInfo(info: {
+  chain: string;
+  nativeBalance: string;
+  nativeBalanceUsd?: number;
+  tokens: Array<{
+    address: string | null;
+    symbol: string;
+    balance: string;
+    decimals: number;
+    usdValue?: number;
+  }>;
+  totalBalanceUsd?: number;
+}): NormalizedBalance[] {
+  const result: NormalizedBalance[] = [];
+
+  // Add native balance
+  result.push({
+    chain: info.chain,
+    symbol: NATIVE_TOKEN_SYMBOLS[info.chain] || 'ETH',
+    balance: info.nativeBalance,
+    decimals: 18, // Default to 18 for most EVM natives
+    isNative: true,
+    address: null,
+    usdValue: info.nativeBalanceUsd,
+    totalBalanceUsd: info.totalBalanceUsd,
+  });
+
+  // Add token balances
+  info.tokens.forEach((token) => {
+    result.push({
+      chain: info.chain,
+      symbol: token.symbol,
+      balance: token.balance,
+      decimals: token.decimals,
+      isNative: false,
+      address: token.address,
+      usdValue: token.usdValue,
+      totalBalanceUsd: info.totalBalanceUsd,
+    });
+  });
+
+  return result;
+}
 export function mergeAndNormalizeBalances(
   assets: AnyChainAsset[],
   substrateBalances: Record<string, SubstrateBalanceData>

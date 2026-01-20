@@ -15,16 +15,16 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { subscribeToSSE, walletApi, type TokenBalance as ApiTokenBalance } from '@/lib/api';
-import type { 
-  BalanceStreamState, 
-  BalanceData, 
+import type {
+  BalanceStreamState,
+  BalanceData,
   NativeBalance,
   TokenBalance,
 } from '@/types/wallet.types';
 import { getWalletConfig, getWalletConfigs } from '@/lib/wallet-config';
 import { isBalanceCacheValid, calculateTotalUSD } from '@/lib/balance-utils';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5005';
 
 /**
  * Balance payload from backend SSE stream
@@ -57,7 +57,7 @@ function mapChainNameToConfigId(chainName: string): string {
     'polygon': 'polygonErc4337',
     'avalanche': 'avalancheErc4337',
   };
-  
+
   // Substrate chains
   const substrateMappings: Record<string, string> = {
     'polkadot': 'polkadot',
@@ -70,14 +70,14 @@ function mapChainNameToConfigId(chainName: string): string {
     'paseo': 'paseo',
     'paseo-assethub': 'paseoAssethub',
   };
-  
+
   // Other chains (Bitcoin, Solana, Tron)
   const otherMappings: Record<string, string> = {
     'bitcoin': 'bitcoin',
     'solana': 'solana',
     'tron': 'tron',
   };
-  
+
   return evmMappings[chainName] || substrateMappings[chainName] || otherMappings[chainName] || chainName;
 }
 
@@ -87,31 +87,31 @@ function mapChainNameToConfigId(chainName: string): string {
 export interface UseStreamingBalancesReturn {
   /** Balance states indexed by wallet config ID */
   balances: Record<string, BalanceStreamState>;
-  
+
   /** Global loading state (true if any balance is loading) */
   loading: boolean;
-  
+
   /** Global error state */
   error: string | null;
-  
+
   /** Load balances (triggers streaming or batch) */
   loadBalances: (userId: string, forceRefresh?: boolean) => Promise<void>;
-  
+
   /** Get balance for specific wallet */
   getBalance: (configId: string) => BalanceStreamState | undefined;
-  
+
   /** Get balances by chain type */
   getBalancesByType: (chainType: string) => BalanceStreamState[];
-  
+
   /** Refresh specific wallet balance */
   refreshBalance: (userId: string, configId: string) => Promise<void>;
-  
+
   /** Whether streaming is active */
   isStreaming: boolean;
-  
+
   /** Number of balances loaded */
   loadedCount: number;
-  
+
   /** Total number of wallets */
   totalCount: number;
 }
@@ -143,12 +143,12 @@ function convertTokenBalance(apiToken: ApiTokenBalance): TokenBalance {
 function processBalancePayload(payload: BalancePayload, configId: string): BalanceData {
   const native: NativeBalance | null = payload.native
     ? {
-        balance: payload.native.balance,
-        formatted: payload.native.balance, // TODO: Format properly
-        symbol: payload.native.symbol,
-        decimals: payload.native.decimals,
-        usdValue: payload.native.usdValue,
-      }
+      balance: payload.native.balance,
+      formatted: payload.native.balance, // TODO: Format properly
+      symbol: payload.native.symbol,
+      decimals: payload.native.decimals,
+      usdValue: payload.native.usdValue,
+    }
     : null;
 
   const tokens: TokenBalance[] = payload.tokens.map(convertTokenBalance);
@@ -170,7 +170,7 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
   const [balances, setBalances] = useState<Record<string, BalanceStreamState>>({});
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Track active connections and loading state
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const isLoadingRef = useRef<Record<string, boolean>>({});
@@ -231,16 +231,16 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
 
         // Fetch balances for EVM chains
         const evmConfigs = configs.filter((config) => config.type === 'evm');
-        
+
         if (evmConfigs.length > 0) {
           try {
             const evmBalances = await walletApi.getBalances(userId);
-            
+
             evmBalances.forEach((balance) => {
               // Map chain name to config ID
               const configId = mapChainNameToConfigId(balance.chain);
               const config = evmConfigs.find((c) => c.id === configId);
-              
+
               if (config) {
                 const balanceData: BalanceData = {
                   configId: config.id,
@@ -279,16 +279,16 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
 
         // Fetch balances for Substrate chains
         const substrateConfigs = configs.filter((config) => config.type === 'substrate');
-        
+
         if (substrateConfigs.length > 0) {
           try {
             const substrateBalances = await walletApi.getSubstrateBalances(userId, false);
-            
+
             Object.entries(substrateBalances).forEach(([chain, balanceInfo]) => {
               // Map chain name to config ID
               const configId = mapChainNameToConfigId(chain);
               const config = substrateConfigs.find((c) => c.id === configId);
-              
+
               if (config && balanceInfo.balance) {
                 const balanceData: BalanceData = {
                   configId: config.id,
@@ -327,7 +327,7 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
 
         // Fetch balances for Aptos chains
         const aptosConfigs = configs.filter((config) => config.type === 'aptos');
-        
+
         if (aptosConfigs.length > 0) {
           try {
             // Fetch balance for each Aptos config (mainnet/testnet)
@@ -336,10 +336,10 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
                 try {
                   const network = config.isTestnet ? 'testnet' : 'mainnet';
                   const balanceData = await walletApi.getAptosBalance(userId, network);
-                  
+
                   // Convert balance from string to octas (8 decimals)
                   const balanceInOctas = (parseFloat(balanceData.balance) * Math.pow(10, 8)).toString();
-                  
+
                   const balance: BalanceData = {
                     configId: config.id,
                     native: {
@@ -444,7 +444,7 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
         isLoadingRef.current[userId] = true;
 
         const url = `${API_BASE_URL}/wallet/balances-stream?userId=${encodeURIComponent(userId)}&forceRefresh=${forceRefresh}`;
-        
+
         let hasReceivedData = false;
         let streamCompleted = false;
         let timeoutId: NodeJS.Timeout | null = null;
@@ -503,7 +503,7 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
             setIsStreaming(false);
             isLoadingRef.current[userId] = false;
             activeConnectionRef.current = null;
-            
+
             if (!hasReceivedData) {
               // Fallback to batch loading
               loadViaBatch(userId, forceRefresh)
@@ -531,7 +531,7 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
         const cachedBalances = Object.values(balances).filter(
           (balance) => balance.balanceData && isBalanceCacheValid(balance.lastUpdated, balance.cacheTTL),
         );
-        
+
         if (cachedBalances.length > 0) {
           if (process.env.NODE_ENV === 'development') {
             console.debug(`💾 Using cached balances for ${cachedBalances.length} wallets`);
@@ -571,7 +571,7 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
           const balances = await walletApi.getBalances(userId);
           // Find the balance for this specific config's chain
           const balance = balances.find((b) => mapChainNameToConfigId(b.chain) === configId);
-          
+
           if (balance) {
             const balanceData: BalanceData = {
               configId,
@@ -602,7 +602,7 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
           const balanceEntry = Object.entries(substrateBalances).find(
             ([chain]) => mapChainNameToConfigId(chain) === configId
           );
-          
+
           if (balanceEntry) {
             const [_, balanceInfo] = balanceEntry;
             if (balanceInfo.balance) {
@@ -633,10 +633,10 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
         } else if (config.type === 'aptos') {
           const network = config.isTestnet ? 'testnet' : 'mainnet';
           const balanceData = await walletApi.getAptosBalance(userId, network);
-          
+
           // Convert balance from string to octas (8 decimals)
           const balanceInOctas = (parseFloat(balanceData.balance) * Math.pow(10, 8)).toString();
-          
+
           const balance: BalanceData = {
             configId,
             native: {
@@ -709,7 +709,7 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
 
   const totalCount = useMemo(() => Object.keys(balances).length, [balances]);
 
-  return {
+  const result = useMemo(() => ({
     balances,
     loading,
     error,
@@ -720,5 +720,7 @@ export function useStreamingBalances(): UseStreamingBalancesReturn {
     isStreaming,
     loadedCount,
     totalCount,
-  };
+  }), [balances, loading, error, loadBalances, getBalance, getBalancesByType, refreshBalance, isStreaming, loadedCount, totalCount]);
+
+  return result;
 }

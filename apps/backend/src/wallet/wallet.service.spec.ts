@@ -8,8 +8,6 @@ import { SeedManager } from './managers/seed.manager.js';
 import { AddressManager } from './managers/address.manager.js';
 import { AccountFactory } from './factories/account.factory.js';
 import { PimlicoAccountFactory } from './factories/pimlico-account.factory.js';
-import { PolkadotEvmRpcService } from './services/polkadot-evm-rpc.service.js';
-import { RpcBalanceService } from './services/rpc-balance.service.js';
 import { SubstrateManager } from './substrate/managers/substrate.manager.js';
 import { BalanceCacheRepository } from './repositories/balance-cache.repository.js';
 import { WalletAddresses } from './interfaces/wallet.interfaces.js';
@@ -34,11 +32,9 @@ describe('WalletService', () => {
   let addressManager: jest.Mocked<AddressManager>;
   let accountFactory: jest.Mocked<AccountFactory>;
   let pimlicoAccountFactory: jest.Mocked<PimlicoAccountFactory>;
-  let polkadotEvmRpcService: jest.Mocked<PolkadotEvmRpcService>;
   let substrateManager: jest.Mocked<SubstrateManager>;
   let balanceCacheRepository: jest.Mocked<BalanceCacheRepository>;
   let eip7702DelegationRepository: jest.Mocked<Eip7702DelegationRepository>;
-  let rpcBalanceService: jest.Mocked<RpcBalanceService>;
   let balanceProviderFactory: jest.Mocked<BalanceProviderFactory>;
 
   const mockUserId = 'test-fingerprint-123';
@@ -61,8 +57,8 @@ describe('WalletService', () => {
     };
 
     const mockZerionService = {
-      getPortfolio: jest.fn(),
-      getPositionsAnyChain: jest.fn(),
+      getBalances: jest.fn(),
+      getTransactions: jest.fn(),
     };
 
     const mockSeedManager = {
@@ -86,9 +82,6 @@ describe('WalletService', () => {
       createAccount: jest.fn(),
     };
 
-    const mockPolkadotEvmRpcService = {
-      getTokenBalances: jest.fn(),
-    };
 
     const mockSubstrateManager = {
       getBalances: jest.fn(),
@@ -137,10 +130,6 @@ describe('WalletService', () => {
           useValue: mockPimlicoAccountFactory,
         },
         {
-          provide: PolkadotEvmRpcService,
-          useValue: mockPolkadotEvmRpcService,
-        },
-        {
           provide: SubstrateManager,
           useValue: mockSubstrateManager,
         },
@@ -161,13 +150,6 @@ describe('WalletService', () => {
             }),
           },
         },
-        {
-          provide: RpcBalanceService,
-          useValue: {
-            getBalances: jest.fn().mockResolvedValue([]),
-            isChainSupported: jest.fn().mockReturnValue(true),
-          },
-        },
       ],
     }).compile();
 
@@ -179,7 +161,6 @@ describe('WalletService', () => {
     addressManager = module.get(AddressManager);
     accountFactory = module.get(AccountFactory);
     pimlicoAccountFactory = module.get(PimlicoAccountFactory);
-    polkadotEvmRpcService = module.get(PolkadotEvmRpcService);
     substrateManager = module.get(SubstrateManager);
     balanceCacheRepository = module.get(BalanceCacheRepository);
     eip7702DelegationRepository = module.get(Eip7702DelegationRepository);
@@ -213,7 +194,7 @@ describe('WalletService', () => {
         mockUserId,
       );
       // Should not call Zerion API
-      expect(zerionService.getPortfolio).not.toHaveBeenCalled();
+      expect(zerionService.getBalances).not.toHaveBeenCalled();
       expect(result).toBeDefined();
     });
 
@@ -223,16 +204,7 @@ describe('WalletService', () => {
       seedManager.hasSeed.mockResolvedValue(false);
       seedManager.createOrImportSeed.mockResolvedValue(undefined);
 
-      zerionService.getPortfolio.mockResolvedValue({
-        data: {
-          attributes: {
-            positions_distribution_by_type: {},
-            total: {
-              positions: [],
-            },
-          },
-        },
-      } as any);
+      zerionService.getBalances.mockResolvedValue([]);
 
       await walletService.getBalances(mockUserId, false);
 
@@ -244,23 +216,12 @@ describe('WalletService', () => {
       balanceCacheRepository.getCachedBalances.mockResolvedValue(null);
       addressManager.getAddresses.mockResolvedValue(mockAddresses);
 
-      const mockPortfolio = {
-        data: {
-          attributes: {
-            positions_distribution_by_type: {},
-            total: {
-              positions: [],
-            },
-          },
-        },
-      };
-
-      zerionService.getPortfolio.mockResolvedValue(mockPortfolio as any);
+      zerionService.getBalances.mockResolvedValue([]);
 
       await walletService.getBalances(mockUserId, false);
 
       // Should call Zerion API
-      expect(zerionService.getPortfolio).toHaveBeenCalled();
+      expect(zerionService.getBalances).toHaveBeenCalled();
       // Should save to cache
       expect(balanceCacheRepository.updateCachedBalances).toHaveBeenCalled();
     });
@@ -278,23 +239,12 @@ describe('WalletService', () => {
       );
       addressManager.getAddresses.mockResolvedValue(mockAddresses);
 
-      const mockPortfolio = {
-        data: {
-          attributes: {
-            positions_distribution_by_type: {},
-            total: {
-              positions: [],
-            },
-          },
-        },
-      };
-
-      zerionService.getPortfolio.mockResolvedValue(mockPortfolio as any);
+      zerionService.getBalances.mockResolvedValue([]);
 
       await walletService.getBalances(mockUserId, true);
 
       // Should still call API even with cache
-      expect(zerionService.getPortfolio).toHaveBeenCalled();
+      expect(zerionService.getBalances).toHaveBeenCalled();
       // Should update cache
       expect(balanceCacheRepository.updateCachedBalances).toHaveBeenCalled();
     });
@@ -303,26 +253,14 @@ describe('WalletService', () => {
   describe('refreshBalances()', () => {
     it('should fetch from API and update cache', async () => {
       addressManager.getAddresses.mockResolvedValue(mockAddresses);
-
-      const mockPortfolio = {
-        data: {
-          attributes: {
-            positions_distribution_by_type: {},
-            total: {
-              positions: [],
-            },
-          },
-        },
-      };
-
-      zerionService.getPortfolio.mockResolvedValue(mockPortfolio as any);
+      zerionService.getBalances.mockResolvedValue([]);
 
       const result = await walletService.refreshBalances(mockUserId);
 
       // Should get addresses
       expect(addressManager.getAddresses).toHaveBeenCalledWith(mockUserId);
       // Should call Zerion API
-      expect(zerionService.getPortfolio).toHaveBeenCalled();
+      expect(zerionService.getBalances).toHaveBeenCalled();
       // Should update cache
       expect(balanceCacheRepository.updateCachedBalances).toHaveBeenCalled();
       expect(result).toBeDefined();

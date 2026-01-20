@@ -12,7 +12,7 @@ export interface User {
   picture: string | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5005';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -61,7 +61,7 @@ export function useAuth() {
   const logout = useCallback(async () => {
     // Track logout event
     trackAuth.logout();
-    
+
     // Reset Mixpanel on logout
     resetMixpanel();
 

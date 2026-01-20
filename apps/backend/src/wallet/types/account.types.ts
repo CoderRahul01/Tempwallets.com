@@ -44,7 +44,9 @@ export interface BalanceInfo {
   chain: string;
   address: string;
   nativeBalance: string;
+  nativeBalanceUsd?: number;
   tokens: TokenBalance[];
+  totalBalanceUsd?: number;
 }
 
 /**
@@ -58,4 +60,5 @@ export interface TokenBalance {
   decimals: number;
   balanceHuman?: string;
   name?: string;
+  usdValue?: number;
 }

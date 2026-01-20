@@ -134,7 +134,7 @@ export function useWalletV2(): UseWalletReturn {
     [streaming]
   );
 
-  return {
+  return useMemo(() => ({
     wallets,
     loading: streaming.loading,
     error: streaming.error,
@@ -145,5 +145,5 @@ export function useWalletV2(): UseWalletReturn {
     isStreaming: streaming.isStreaming,
     loadedCount: streaming.loadedCount,
     totalCount: streaming.totalCount,
-  };
+  }), [wallets, streaming.loading, streaming.error, loadWallets, changeWallets, getWalletByChainType, getWalletByChainId, streaming.isStreaming, streaming.loadedCount, streaming.totalCount]);
 }

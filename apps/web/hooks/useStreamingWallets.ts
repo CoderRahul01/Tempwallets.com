@@ -1,10 +1,10 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { subscribeToSSE, UiWalletPayload, ApiError, walletApi } from '@/lib/api';
 import { WalletData } from '@/types/wallet.types';
 import { getWalletConfig } from '@/lib/wallet-config';
 import { mapWalletCategoryToChainType, ChainType } from '@/lib/chains';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5005';
 
 /**
  * Individual wallet stream state
@@ -378,7 +378,7 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
   const loadedCount = Object.keys(wallets).length;
   const isLoading = loading || Object.values(wallets).some((w) => w.loading);
 
-  return {
+  const result = useMemo(() => ({
     wallets,
     loading: isLoading,
     error,
@@ -388,5 +388,7 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
     isStreaming,
     loadedCount,
     totalCount,
-  };
+  }), [wallets, isLoading, error, loadWallets, getWallet, getWalletByType, isStreaming, loadedCount, totalCount]);
+
+  return result;
 }

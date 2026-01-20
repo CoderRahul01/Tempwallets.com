@@ -9,7 +9,7 @@ import {
   useCallback,
   ReactNode,
 } from 'react';
-import { walletApi, AnyChainAsset, Transaction } from '@/lib/api';
+import { walletApi, AnyChainAsset, Transaction, subscribeToSSE } from '@/lib/api';
 import {
   getCache,
   setCache,
@@ -20,7 +20,9 @@ import {
 import {
   NormalizedBalance,
   mergeAndNormalizeBalances,
+  normalizeBalanceInfo,
 } from '@/types/wallet-data';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5005';
 
 interface WalletDataContextValue {
   balances: NormalizedBalance[];
@@ -75,6 +77,11 @@ export function WalletDataProvider({
   // Track in-flight requests to prevent race conditions
   const balancesRequestRef = useRef<Promise<void> | null>(null);
   const transactionsRequestRef = useRef<Promise<void> | null>(null);
+
+  // Track SSE connections
+  const balancesSSEUnsubscribeRef = useRef<(() => void) | null>(null);
+  const transactionsSSEUnsubscribeRef = useRef<(() => void) | null>(null);
+
 
   // Fetch balances
   const fetchBalances = useCallback(async (
@@ -512,16 +519,82 @@ export function WalletDataProvider({
     // Set loading to false initially (we'll show empty state if no cache)
     // Only set loading to true if we're actually going to fetch
     setLoading({
-      balances: false, // Start with false - will be set to true in fetchBalances if needed
-      transactions: false // Start with false - will be set to true in fetchTransactions if needed
+      balances: false,
+      transactions: false
     });
     setErrors({ balances: null, transactions: null });
 
-    // Fetch in background to update the data
-    // fetchBalances and fetchTransactions will handle setting loading state appropriately
+    // --- SETUP SSE FOR BALANCES ---
+    if (balancesSSEUnsubscribeRef.current) balancesSSEUnsubscribeRef.current();
+
+    const balancesSSEUrl = `${API_BASE_URL}/wallet/balances-stream?userId=${encodeURIComponent(fingerprint)}`;
+    balancesSSEUnsubscribeRef.current = subscribeToSSE<any>(
+      balancesSSEUrl,
+      (data) => {
+        if (data.type === 'complete') return;
+
+        setBalances((prev) => {
+          // Normalize the incoming balance info for the chain
+          const normalized = normalizeBalanceInfo(data);
+
+          // Merge with previous balances, replacing matching chains
+          const otherChains = prev.filter(b => b.chain !== data.chain);
+          const updated = [...otherChains, ...normalized];
+
+          // Sort by total balance or USD value
+          return updated.sort((a, b) => (b.usdValue || 0) - (a.usdValue || 0));
+        });
+        setLastFetched((prev) => ({ ...prev, balances: Date.now() }));
+      },
+      (err) => {
+        console.warn('Balances SSE failed, falling back to fetch:', err);
+        fetchBalances();
+      }
+    );
+
+    // --- SETUP SSE FOR TRANSACTIONS ---
+    if (transactionsSSEUnsubscribeRef.current) transactionsSSEUnsubscribeRef.current();
+
+    const transactionsSSEUrl = `${API_BASE_URL}/wallet/transactions-stream?userId=${encodeURIComponent(fingerprint)}`;
+    transactionsSSEUnsubscribeRef.current = subscribeToSSE<Transaction[]>(
+      transactionsSSEUrl,
+      (data) => {
+        if ((data as any).type === 'complete') return;
+
+        setTransactions((prev) => {
+          // Add new transactions, avoiding duplicates by txHash
+          const existingHashes = new Set(prev.map(tx => tx.txHash));
+          const newTxs = data.filter(tx => !existingHashes.has(tx.txHash));
+
+          if (newTxs.length === 0) return prev;
+
+          const combined = [...newTxs, ...prev];
+          // Sort by timestamp descend
+          return combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 100);
+        });
+        setLastFetched((prev) => ({ ...prev, transactions: Date.now() }));
+      },
+      (err) => {
+        console.warn('Transactions SSE failed, falling back to fetch:', err);
+        fetchTransactions();
+      }
+    );
+
+    // Initial fetch in background as secondary/fallback data source
     fetchBalances();
     fetchTransactions();
-  }, [fingerprint, fetchBalances, fetchTransactions, getCacheTimestamp]);
+
+    return () => {
+      if (balancesSSEUnsubscribeRef.current) {
+        balancesSSEUnsubscribeRef.current();
+        balancesSSEUnsubscribeRef.current = null;
+      }
+      if (transactionsSSEUnsubscribeRef.current) {
+        transactionsSSEUnsubscribeRef.current();
+        transactionsSSEUnsubscribeRef.current = null;
+      }
+    };
+  }, [fingerprint, fetchBalances, fetchTransactions, getCacheTimestamp, API_BASE_URL]);
 
   const value: WalletDataContextValue = {
     balances,

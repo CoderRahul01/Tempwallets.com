@@ -64,6 +64,12 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
     return realBalances.filter(b => b.chain === selectedChainId);
   }, [realBalances, selectedChainId]);
 
+  const totalUsdForChain = useMemo(() => {
+    // Each entry in realBalances for this chain has totalBalanceUsd
+    // We just need it from any one entry, or we can sum usdValue
+    return balances.reduce((sum, b) => sum + (b.usdValue || 0), 0);
+  }, [balances]);
+
   // Group balances by chain and filter to show only non-zero balances
   const groupedBalances = useMemo(() => {
     // Group by chain
@@ -99,12 +105,18 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
     return grouped;
   }, [balances]);
 
-  // Show loading state
-  if (loading.balances && balances.length === 0) {
+  // Show loading state if explicitly loading (e.g., manual refresh or switch)
+  // or if we have no data yet
+  const isRefreshing = loading.balances;
+  const hasNoData = groupedBalances.length === 0;
+
+  if (isRefreshing && hasNoData) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-4" />
-        <p className="text-gray-500 font-rubik-normal">Loading balances...</p>
+        <p className="text-gray-500 font-rubik-normal text-center">
+          Searching for balances...
+        </p>
       </div>
     );
   }
@@ -133,8 +145,14 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
   // Render balances grouped by chain
   return (
     <div className="space-y-6">
-      {/* Unified Balance Button with Tooltip */}
-      <div className="flex justify-end">
+      {/* Total Balance and Unified Balance Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col">
+          <span className="text-sm text-gray-500 font-rubik-normal uppercase tracking-wider">Total Balance</span>
+          <span className="text-2xl md:text-3xl font-bold text-gray-900 font-rubik-bold">
+            ${totalUsdForChain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -175,6 +193,7 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
                   balanceHuman={balance.balanceHuman}
                   isNative={balance.isNative}
                   chainName={CHAIN_NAMES[chain] || chain}
+                  usdValue={balance.usdValue}
                 />
               );
             })}

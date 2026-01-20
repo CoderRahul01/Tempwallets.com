@@ -52,6 +52,7 @@ export interface AnyChainAsset {
   balance: string; // smallest units (wei, satoshi, lamports, etc.)
   decimals: number; // actual token decimals (e.g., 6 for USDC, 18 for ETH/WETH, 8 for WBTC)
   balanceHuman?: string; // human-readable balance already converted by backend
+  usdValue?: number; // USD value of the balance
 }
 
 export interface Transaction {

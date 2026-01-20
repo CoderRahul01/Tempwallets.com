@@ -14,14 +14,14 @@ import { AddressManager } from './managers/address.manager.js';
 import { AccountFactory } from './factories/account.factory.js';
 import { NativeEoaFactory } from './factories/native-eoa.factory.js';
 import { Eip7702AccountFactory } from './factories/eip7702-account.factory.js';
-import { PolkadotEvmRpcService } from './services/polkadot-evm-rpc.service.js';
-import { RpcBalanceService } from './services/rpc-balance.service.js';
 import { SubstrateManager } from './substrate/managers/substrate.manager.js';
 import { SubstrateChainKey } from './substrate/config/substrate-chain.config.js';
 import { BalanceCacheRepository } from './repositories/balance-cache.repository.js';
 import { WalletHistoryRepository } from './repositories/wallet-history.repository.js';
 import { Eip7702DelegationRepository } from './repositories/eip7702-delegation.repository.js';
 import { IAccount } from './types/account.types.js';
+import { ZerionService } from './services/zerion.service.js';
+import { CacheService } from './services/cache.service.js';
 import { AllChainTypes } from './types/chain.types.js';
 import {
   WalletAddresses,
@@ -142,13 +142,13 @@ export class WalletService {
     private accountFactory: AccountFactory,
     private nativeEoaFactory: NativeEoaFactory,
     private eip7702AccountFactory: Eip7702AccountFactory,
-    private polkadotEvmRpcService: PolkadotEvmRpcService,
     private substrateManager: SubstrateManager,
     private balanceCacheRepository: BalanceCacheRepository,
     private walletHistoryRepository: WalletHistoryRepository,
     private pimlicoConfig: PimlicoConfigService,
     private eip7702DelegationRepository: Eip7702DelegationRepository,
-    private rpcBalanceService: RpcBalanceService,
+    private zerionService: ZerionService,
+    private cacheService: CacheService,
     private balanceProviderFactory: BalanceProviderFactory,
   ) { }
 
@@ -599,7 +599,6 @@ export class WalletService {
   }
 
   private isVisibleChain(chain: WalletAddressKey): boolean {
-    // Substrate chains
     const SUBSTRATE_CHAIN_KEYS: Array<
       | 'polkadot'
       | 'hydrationSubstrate'
@@ -616,7 +615,6 @@ export class WalletService {
         'paseoAssethub',
       ];
 
-    // Polkadot EVM chains
     const POLKADOT_EVM_CHAIN_KEYS: Array<
       'moonbeamTestnet' | 'astarShibuya' | 'paseoPassetHub'
     > = ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub'];
@@ -630,6 +628,24 @@ export class WalletService {
       ) ||
       SUBSTRATE_CHAIN_KEYS.includes(
         chain as (typeof SUBSTRATE_CHAIN_KEYS)[number],
+      ) ||
+      POLKADOT_EVM_CHAIN_KEYS.includes(
+        chain as (typeof POLKADOT_EVM_CHAIN_KEYS)[number],
+      ) ||
+      this.EOA_CHAIN_KEYS.includes(
+        chain as (typeof this.EOA_CHAIN_KEYS)[number],
+      )
+    );
+  }
+
+  private isEvmChain(chain: string): boolean {
+    const POLKADOT_EVM_CHAIN_KEYS: Array<
+      'moonbeamTestnet' | 'astarShibuya' | 'paseoPassetHub'
+    > = ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub'];
+
+    return (
+      this.SMART_ACCOUNT_CHAIN_KEYS.includes(
+        chain as (typeof this.SMART_ACCOUNT_CHAIN_KEYS)[number],
       ) ||
       POLKADOT_EVM_CHAIN_KEYS.includes(
         chain as (typeof POLKADOT_EVM_CHAIN_KEYS)[number],
@@ -724,205 +740,35 @@ export class WalletService {
     }
 
     const addresses = await this.getAddresses(userId);
-    const targetAddresses = [addresses.ethereum, addresses.solana].filter(
-      Boolean,
-    ) as string[];
-
-    // Polkadot EVM chains use the same EOA address as ethereum
-    const polkadotEvmAddress = addresses.ethereum;
-
-    // Fetch transactions from Zerion with timeout protection
-    // Zerion service removed
-    const zerionPerAddr: any[][] = [];
-
-    // Fetch Polkadot EVM chain transactions using RPC
-    const polkadotEvmChains = [
-      'moonbeamTestnet',
-      'astarShibuya',
-      'paseoPassetHub',
-    ];
-    const polkadotTransactions: Array<{
-      txHash: string;
-      from: string;
-      to: string | null;
-      value: string;
-      timestamp: number | null;
-      blockNumber: number | null;
-      status: 'success' | 'failed' | 'pending';
-      chain: string;
-      tokenSymbol?: string;
-      tokenAddress?: string;
-    }> = [];
-
-    if (polkadotEvmAddress) {
-      // Use Promise.allSettled with timeout to ensure RPC errors don't block Zerion results
-      const polkadotResults = await Promise.allSettled(
-        polkadotEvmChains.map(async (chain) => {
-          try {
-            const txs = await Promise.race([
-              this.polkadotEvmRpcService.getTransactions(
-                polkadotEvmAddress,
-                chain,
-                limit,
-              ),
-              new Promise<never>((_, reject) =>
-                setTimeout(
-                  () => reject(new Error(`RPC timeout for ${chain} after 20s`)),
-                  20000,
-                ),
-              ),
-            ]);
-            return txs.map((tx) => ({
-              txHash: tx.txHash,
-              from: tx.from,
-              to: tx.to,
-              value: tx.value,
-              timestamp: tx.timestamp,
-              blockNumber: tx.blockNumber,
-              status: tx.status,
-              chain: tx.chain,
-            }));
-          } catch (error) {
-            this.logger.warn(
-              `Error fetching transactions for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            );
-            return []; // Return empty array on error
-          }
-        }),
-      );
-
-      // Flatten the results
-      for (const result of polkadotResults) {
-        if (result.status === 'fulfilled') {
-          polkadotTransactions.push(...result.value);
-        }
-      }
-    }
-
-    const perAddr = [...zerionPerAddr];
-
-    const byKey = new Map<
-      string,
-      {
-        txHash: string;
-        from: string;
-        to: string | null;
-        value: string;
-        timestamp: number | null;
-        blockNumber: number | null;
-        status: 'success' | 'failed' | 'pending';
-        chain: string;
-        tokenSymbol?: string;
-        tokenAddress?: string;
-      }
-    >();
-
-    for (const list of perAddr) {
-      for (const tx of list) {
-        try {
-          const attrs = tx.attributes || {};
-          const chainId =
-            tx.relationships?.chain?.data?.id?.toLowerCase() || 'unknown';
-          const hash = (attrs.hash || tx.id || '').toLowerCase();
-          if (!hash) continue;
-
-          // Determine status
-          let status: 'success' | 'failed' | 'pending' = 'pending';
-          if (attrs.status) {
-            const s = attrs.status.toLowerCase();
-            if (s === 'confirmed' || s === 'success') status = 'success';
-            else if (s === 'failed' || s === 'error') status = 'failed';
-          } else if (
-            attrs.block_confirmations !== undefined &&
-            attrs.block_confirmations > 0
-          ) {
-            status = 'success';
-          }
-
-          const transfers = attrs.transfers || [];
-          let tokenSymbol: string | undefined;
-          let tokenAddress: string | undefined;
-          let value = '0';
-          let toAddress: string | null = null;
-
-          if (transfers.length > 0) {
-            const tr = transfers[0];
-            if (tr) {
-              tokenSymbol = tr.fungible_info?.symbol;
-              const q = tr.quantity;
-              if (q) {
-                const intPart = q.int || '0';
-                const decimals = q.decimals || 0;
-                value = `${intPart}${'0'.repeat(Math.max(0, 18 - decimals))}`;
-              }
-              toAddress = tr.to?.address || null;
-            }
-          }
-
-          const key = `${chainId}:${hash}`;
-          if (!byKey.has(key)) {
-            byKey.set(key, {
-              txHash: hash,
-              from: '',
-              to: toAddress,
-              value,
-              timestamp: attrs.mined_at || attrs.sent_at || null,
-              blockNumber: attrs.block_number || null,
-              status,
-              chain: chainId,
-              tokenSymbol,
-              tokenAddress,
-            });
-          }
-        } catch (e) {
-          this.logger.debug(
-            `Error processing any-chain tx: ${e instanceof Error ? e.message : 'Unknown error'}`,
-          );
-        }
-      }
-    }
-
-    // Process Polkadot EVM RPC transactions
-    for (const tx of polkadotTransactions) {
-      try {
-        const key = `${tx.chain}:${tx.txHash.toLowerCase()}`;
-        if (!byKey.has(key)) {
-          byKey.set(key, {
-            txHash: tx.txHash,
-            from: tx.from,
-            to: tx.to,
-            value: tx.value,
-            timestamp: tx.timestamp,
-            blockNumber: tx.blockNumber,
-            status: tx.status,
-            chain: tx.chain,
-          });
-        }
-      } catch (e) {
-        this.logger.debug(
-          `Error processing Polkadot EVM transaction: ${e instanceof Error ? e.message : 'Unknown error'}`,
-        );
-      }
-    }
-
-    const sorted = Array.from(byKey.values()).sort((a, b) => {
-      const timeA = a.timestamp || 0;
-      const timeB = b.timestamp || 0;
-      return timeB - timeA; // Most recent first
-    });
-
-    this.logger.log(
-      `Returning ${Math.min(sorted.length, limit)} transactions (from ${sorted.length} total) for user ${userId}`,
+    const chains = Object.keys(addresses).filter(
+      (c) =>
+        this.isEvmChain(c) || ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub', 'hydration', 'unique', 'bifrost', 'bifrostTestnet'].includes(c),
     );
 
-    return sorted.slice(0, limit);
+    // Fetch all in parallel but with a limit per chain to keep it manageable
+    const perChainLimit = Math.min(limit, 20);
+    const results = await Promise.allSettled(
+      chains.map((chain) => this.getTransactions(userId, chain, perChainLimit)),
+    );
+
+    const allTransactions: any[] = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allTransactions.push(...result.value);
+      }
+    }
+
+    // Sort by timestamp descending
+    allTransactions.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    return allTransactions.slice(0, limit);
   }
 
   /**
    * Stream addresses progressively (for SSE)
    * Yields addresses as they become available
    */
-  async *streamAddresses(
+  async * streamAddresses(
     userId: string,
   ): AsyncGenerator<UiWalletPayload, void, unknown> {
     const collected: Partial<Record<WalletAddressKey, string | null>> = {};
@@ -947,17 +793,20 @@ export class WalletService {
    * Stream balances progressively (for SSE)
    * Yields balances as they're fetched from Zerion
    */
-  async *streamBalances(userId: string): AsyncGenerator<
+  async * streamBalances(userId: string): AsyncGenerator<
     {
       chain: string;
       address: string | null;
       nativeBalance: string;
+      nativeBalanceUsd: number;
       tokens: Array<{
-        address: string;
+        address: string | null;
         symbol: string;
         balance: string;
         decimals: number;
+        usdValue?: number;
       }>;
+      totalBalanceUsd: number;
     },
     void,
     unknown
@@ -968,7 +817,14 @@ export class WalletService {
     // Process each chain independently
     for (const [chain, address] of Object.entries(addresses)) {
       if (!address) {
-        yield { chain, address: null, nativeBalance: '0', tokens: [] };
+        yield {
+          chain,
+          address: null,
+          nativeBalance: '0',
+          nativeBalanceUsd: 0,
+          tokens: [],
+          totalBalanceUsd: 0
+        };
         continue;
       }
 
@@ -978,32 +834,101 @@ export class WalletService {
         const nativeToken = tokens.find((t) => t.address === null);
         const otherTokens = tokens.filter((t) => t.address !== null);
 
+        const totalUsd = tokens.reduce((sum, t: any) => sum + (t.usdValue || 0), 0);
+
         yield {
           chain,
           address,
           nativeBalance: nativeToken?.balance || '0',
-          tokens: otherTokens as Array<{
-            address: string;
-            symbol: string;
-            balance: string;
-            decimals: number;
-          }>,
+          nativeBalanceUsd: nativeToken?.usdValue || 0,
+          tokens: otherTokens,
+          totalBalanceUsd: totalUsd,
         };
       } catch (error) {
         this.logger.error(
           `Error streaming balance for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`,
         );
-        yield { chain, address: address || null, nativeBalance: '0', tokens: [] };
+        yield {
+          chain,
+          address: address || null,
+          nativeBalance: '0',
+          nativeBalanceUsd: 0,
+          tokens: [],
+          totalBalanceUsd: 0
+        };
       }
     }
   }
 
   /**
-   * Get balances for all chains using RPC
-   * Auto-creates wallet if it doesn't exist
-   * @param userId - The user ID
-   * @returns Array of balance objects
+   * Stream transactions for a user across all chains
    */
+  async * streamTransactions(userId: string): AsyncGenerator<
+    Array<{
+      txHash: string;
+      from: string;
+      to: string | null;
+      value: string;
+      timestamp: number | null;
+      blockNumber: number | null;
+      status: 'success' | 'failed' | 'pending';
+      chain: string;
+      tokenSymbol?: string;
+      tokenAddress?: string;
+    }>,
+    void,
+    unknown
+  > {
+    const addresses = await this.getAddresses(userId);
+    const chains = Object.entries(addresses).filter(
+      ([chain, address]) => address && (this.isEvmChain(chain) || ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub', 'hydration', 'unique', 'bifrost', 'bifrostTestnet'].includes(chain))
+    );
+
+    // Fetch all in parallel but yield as they resolve
+    const results: Array<any[]> = [];
+    let resolveNext: ((value: void) => void) | null = null;
+    let finishedCount = 0;
+
+    const pushResult = (txs: any[]) => {
+      if (txs && txs.length > 0) {
+        results.push(txs);
+        if (resolveNext) {
+          resolveNext();
+          resolveNext = null;
+        }
+      }
+    };
+
+    // Start all requests in parallel
+    chains.forEach(async ([chain, address]) => {
+      try {
+        const txs = await this.getTransactions(userId, chain);
+        pushResult(txs);
+      } catch (error) {
+        this.logger.error(`Error streaming transactions for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        finishedCount++;
+        if (finishedCount === chains.length && resolveNext) {
+          resolveNext();
+          resolveNext = null;
+        }
+      }
+    });
+
+    // Yield results as they arrive
+    while (finishedCount < chains.length || results.length > 0) {
+      if (results.length === 0) {
+        await new Promise<void>((resolve) => {
+          resolveNext = resolve;
+        });
+      }
+
+      while (results.length > 0) {
+        yield results.shift()!;
+      }
+    }
+  }
+
   /**
    * Get balances for all chains using RPC
    * Auto-creates wallet if it doesn't exist
@@ -1668,10 +1593,6 @@ export class WalletService {
 
       // Validate address format (basic check)
       // Fallback removed (ZerionService deprecated)
-      if (!this.rpcBalanceService.isChainSupported(chain)) {
-        throw new BadRequestException(`Chain ${chain} is not supported`);
-      }
-
       // Validate balance using Zerion as primary source
       const balanceValidation = await this.validateBalanceFromZerion(
         tokenAddress || null,
@@ -2089,14 +2010,7 @@ export class WalletService {
     userId: string,
     chain: string,
     forceRefresh: boolean = false,
-  ): Promise<
-    Array<{
-      address: string | null;
-      symbol: string;
-      balance: string;
-      decimals: number;
-    }>
-  > {
+  ): Promise<TokenBalance[]> {
     this.logger.debug(
       `Getting token balances for user ${userId} on chain ${chain} using RPC${forceRefresh ? ' (force refresh)' : ''}`,
     );
@@ -2134,6 +2048,7 @@ export class WalletService {
       const balances = await provider.getBalances(address, chain, forceRefresh);
 
       const result = balances.map((b) => ({
+        chain,
         address: b.address,
         symbol: b.symbol,
         balance: b.balance,
@@ -2253,24 +2168,6 @@ export class WalletService {
     return overrides[addr] ?? 18;
   }
 
-  /**
-   * Check if chain is EVM-compatible
-   */
-  private isEvmChain(chain: string): boolean {
-    const evmChains = [
-      'ethereum',
-      'base',
-      'arbitrum',
-      'polygon',
-      'avalanche',
-      'ethereumErc4337',
-      'baseErc4337',
-      'arbitrumErc4337',
-      'polygonErc4337',
-      'avalancheErc4337',
-    ];
-    return evmChains.includes(chain);
-  }
 
   /**
    * Discover tokens by scanning Transfer events from the account
@@ -2456,10 +2353,25 @@ export class WalletService {
       tokenAddress?: string;
     }>
   > {
-    this.logger.log(
-      `Getting transaction history for user ${userId} on chain ${chain} (Zerion deprecated, returning empty)`,
-    );
-    // Zerion service removed, returning empty transactions
+    this.logger.log(`Getting transaction history for user ${userId} on chain ${chain}`);
+
+    const addresses = await this.getAddresses(userId);
+    const address = addresses[chain as keyof WalletAddresses];
+
+    if (!address) {
+      return [];
+    }
+
+    if (this.isEvmChain(chain) || ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub', 'hydration', 'unique', 'bifrost', 'bifrostTestnet'].includes(chain)) {
+      const cacheKey = `txs:${address}:${chain}`;
+      const cached = await this.cacheService.get<any[]>(cacheKey);
+      if (cached) return cached;
+
+      const txs = await this.zerionService.getTransactions(address, chain);
+      await this.cacheService.set(cacheKey, txs, 30);
+      return txs;
+    }
+
     return [];
   }
 

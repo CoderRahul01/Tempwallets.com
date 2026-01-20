@@ -18,7 +18,7 @@ export class WalletHistoryRepository {
   constructor(
     private prisma: PrismaService,
     private encryptionService: EncryptionService,
-  ) {}
+  ) { }
 
   /**
    * Save current wallet to history before creating a new one
@@ -31,6 +31,29 @@ export class WalletHistoryRepository {
     seedPhrase: string,
     label?: string,
   ): Promise<string> {
+    // Check if user already has this seed in history
+    const existingHistory = await this.prisma.walletHistory.findMany({
+      where: { userId },
+    });
+
+    for (const entry of existingHistory) {
+      try {
+        const decrypted = this.encryptionService.decrypt({
+          ciphertext: entry.ciphertext,
+          iv: entry.iv,
+          authTag: entry.authTag,
+        });
+
+        if (decrypted === seedPhrase) {
+          this.logger.debug(`Seed already exists in history for user ${userId}, entry: ${entry.id}`);
+          return entry.id;
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to decrypt history entry ${entry.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // Skip entries that can't be decrypted
+      }
+    }
+
     const encrypted = this.encryptionService.encrypt(seedPhrase);
 
     // Count existing wallets to generate default label

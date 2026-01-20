@@ -739,7 +739,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
                 <span>CHANGE</span>
               </SelectTrigger>
               <SelectContent className="bg-black/95 border-white/10 text-white rounded-xl min-w-[140px]">
-                {chains.filter(c => !c.isTestnet && !c.id.endsWith('Gasless')).map((c) => {
+                {chains.filter(c => !c.isTestnet && !c.id.endsWith('Gasless') && c.type === 'evm').map((c) => {
                   const Icon = c.icon;
                   const isSelected = activeChainId === c.id;
                   const displayName = c.name;
@@ -780,8 +780,8 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
                 <span>Loading tokens...</span>
               </div>
             ) : tokens.length === 0 ? (
-              <div className="text-xs text-red-400 py-2">
-                No tokens available for this network check your balance.
+              <div className="text-xs text-red-400 py-2 bg-red-400/10 rounded-lg px-3 border border-red-400/20">
+                Token not available for this network check your balance.
               </div>
             ) : (
               <Select
@@ -859,6 +859,12 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
               <p className="text-xs text-red-400 flex items-center gap-1 mt-1">
                 <AlertCircle className="h-3 w-3" />
                 {fieldErrors.amount}
+              </p>
+            )}
+            {selectedToken && parseFloat(selectedToken.balance) === 0 && (
+              <p className="text-xs text-amber-400 flex items-center gap-1 mt-1">
+                <AlertCircle className="h-3 w-3" />
+                Token balance is not there
               </p>
             )}
           </div>

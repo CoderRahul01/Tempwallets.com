@@ -16,12 +16,12 @@ import { Eip7702AccountFactory } from './factories/eip7702-account.factory.js';
 import { Eip7702DelegationRepository } from './repositories/eip7702-delegation.repository.js';
 // Import Pimlico service for bundler/paymaster operations
 import { PimlicoService } from './services/pimlico.service.js';
-// Import Polkadot EVM RPC service
-import { PolkadotEvmRpcService } from './services/polkadot-evm-rpc.service.js';
 // Import Token List service
 import { TokenListService } from './services/token-list.service.js';
-// Import RPC Balance service
-import { RpcBalanceService } from './services/rpc-balance.service.js';
+// Import Zerion Service
+import { ZerionService } from './services/zerion.service.js';
+// Import Cache Service
+import { CacheService } from './services/cache.service.js';
 // Import Substrate module
 import { SubstrateModule } from './substrate/substrate.module.js';
 // Import EVM module
@@ -76,12 +76,12 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     AptosFaucetService,
     // Pimlico bundler/paymaster service
     PimlicoService,
-    // Polkadot EVM RPC service
-    PolkadotEvmRpcService,
     // Token List service
     TokenListService,
-    // RPC Balance service
-    RpcBalanceService,
+    // Zerion Service
+    ZerionService,
+    // Cache Service
+    CacheService,
     // Cache repositories
     AddressCacheRepository,
     BalanceCacheRepository,
@@ -109,12 +109,12 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     Eip7702DelegationRepository,
     // Export Pimlico service
     PimlicoService,
-    // Export Polkadot EVM RPC service
-    PolkadotEvmRpcService,
     // Export Token List service
     TokenListService,
-    // Export RPC Balance service
-    RpcBalanceService,
+    // Export Zerion Service
+    ZerionService,
+    // Export Cache Service
+    CacheService,
     // Export cache repositories
     AddressCacheRepository,
     BalanceCacheRepository,

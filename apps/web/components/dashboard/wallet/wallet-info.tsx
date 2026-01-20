@@ -26,6 +26,8 @@ import { WalletCard } from "./wallet-card";
 import { ChainSelector } from "../ui/chain-selector";
 import { DEFAULT_CHAIN, getChainById } from "@/lib/chains";
 import { useWalletConfig } from "@/hooks/useWalletConfig";
+import { useWalletData } from "@/hooks/useWalletData";
+import { clearAllCache } from "@/lib/cache-utils";
 import {
   trackButtonClick,
   trackChangeButton,
@@ -48,6 +50,7 @@ const WalletInfo = ({ selectedChainId, onChainChange }: WalletInfoProps) => {
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [signInPromptOpen, setSignInPromptOpen] = useState(false);
   const { wallets, loading, error, loadWallets, getWalletByChainType, getWalletByChainId } = useWalletV2();
+  const { refresh } = useWalletData();
   const walletConfig = useWalletConfig();
 
   // Auth - use Google user ID when authenticated
@@ -227,6 +230,10 @@ const WalletInfo = ({ selectedChainId, onChainChange }: WalletInfoProps) => {
         // Force refresh to fetch new wallets immediately
         await loadWallets(walletIdToUse, true);
 
+        // Clear balance/transaction cache and refresh
+        clearAllCache(walletIdToUse);
+        await refresh();
+
         // Track successful wallet generation
         const duration = Date.now() - startTime;
 
@@ -390,6 +397,9 @@ const WalletInfo = ({ selectedChainId, onChainChange }: WalletInfoProps) => {
           onSwitchWallet={async () => {
             // Reload wallets after switching
             await loadWallets(userId, true);
+            // Clear balance/transaction cache and refresh
+            clearAllCache(userId);
+            await refresh();
           }}
         />
       )}

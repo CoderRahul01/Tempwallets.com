@@ -132,68 +132,87 @@ export function WalletHistoryModal({
             </div>
           ) : (
             <div className="space-y-3 max-h-[400px] overflow-y-auto">
-              {wallets.map((wallet) => (
-                <div
-                  key={wallet.id}
-                  className={`p-4 rounded-lg border transition-colors ${
-                    wallet.isActive
-                      ? 'bg-[#4C856F]/20 border-[#4C856F]'
-                      : 'bg-[#292929] border-gray-700 hover:border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Wallet className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        <span className="text-white font-medium truncate">
-                          {wallet.label || 'Unnamed Wallet'}
-                        </span>
-                        {wallet.isActive && (
-                          <span className="text-xs bg-[#4C856F] text-white px-2 py-0.5 rounded-full">
-                            Active
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Created: {formatDate(wallet.createdAt)}
-                      </p>
-                    </div>
+              {(() => {
+                // Deduplicate wallets locally if needed (by id) and sort by creation date
+                // Note: backend already sorts by desc, but we ensure uniqueness here
+                const uniqueWallets = Array.from(new Map(wallets.map(w => [w.id, w])).values());
 
-                    <div className="flex items-center gap-2 ml-3">
-                      {!wallet.isActive && (
+                // Re-calculate display indices based on original creation order (oldest first)
+                // This ensures "Wallet 1" stays "Wallet 1" even if newer ones are deleted/deduplicated
+                const sortedHistory = [...uniqueWallets].sort((a, b) =>
+                  new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+
+                // Map of wallet ID to its sequential index
+                const walletIndices = new Map(sortedHistory.map((w, i) => [w.id, i + 1]));
+
+                // Show in reverse order (newest first) for UI
+                return [...uniqueWallets].sort((a, b) =>
+                  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                ).map((wallet) => (
+                  <div
+                    key={wallet.id}
+                    className={`p-4 rounded-lg border transition-colors ${wallet.isActive
+                        ? 'bg-[#4C856F]/20 border-[#4C856F]'
+                        : 'bg-[#292929] border-gray-700 hover:border-gray-600'
+                      }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <span className="text-white font-medium truncate">
+                            {wallet.label?.startsWith('Wallet ')
+                              ? `Wallet ${walletIndices.get(wallet.id)}`
+                              : wallet.label || `Wallet ${walletIndices.get(wallet.id)}`}
+                          </span>
+                          {wallet.isActive && (
+                            <span className="text-xs bg-[#4C856F] text-white px-2 py-0.5 rounded-full">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Created: {formatDate(wallet.createdAt)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 ml-3">
+                        {!wallet.isActive && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSwitchWallet(wallet.id)}
+                            disabled={switching === wallet.id}
+                            className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                          >
+                            {switching === wallet.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <ArrowRightLeft className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleSwitchWallet(wallet.id)}
-                          disabled={switching === wallet.id}
-                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                          onClick={() => handleDeleteWallet(wallet.id)}
+                          disabled={deleting === wallet.id || wallet.isActive}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-900/20 disabled:opacity-30"
+                          title={wallet.isActive ? "Can't delete active wallet" : "Delete wallet"}
                         >
-                          {switching === wallet.id ? (
+                          {deleting === wallet.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <ArrowRightLeft className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           )}
                         </Button>
-                      )}
-                      
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteWallet(wallet.id)}
-                        disabled={deleting === wallet.id || wallet.isActive}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-900/20 disabled:opacity-30"
-                        title={wallet.isActive ? "Can't delete active wallet" : "Delete wallet"}
-                      >
-                        {deleting === wallet.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           )}
         </div>

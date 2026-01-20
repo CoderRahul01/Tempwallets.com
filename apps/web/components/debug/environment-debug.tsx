@@ -15,7 +15,7 @@ export function EnvironmentDebug() {
 
   useEffect(() => {
     const checkApi = async () => {
-      const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005';
+      const url = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5005';
       setApiUrl(url);
 
       try {
@@ -113,12 +113,12 @@ export function EnvironmentDebug() {
               <span>Connection Status:</span>
               <span className={
                 apiStatus === 'ok' ? 'text-green-600' :
-                apiStatus === 'error' ? 'text-red-600' :
-                'text-yellow-600'
+                  apiStatus === 'error' ? 'text-red-600' :
+                    'text-yellow-600'
               }>
                 {apiStatus === 'ok' ? 'Connected' :
-                 apiStatus === 'error' ? 'Failed' :
-                 'Checking...'}
+                  apiStatus === 'error' ? 'Failed' :
+                    'Checking...'}
               </span>
             </div>
           </div>

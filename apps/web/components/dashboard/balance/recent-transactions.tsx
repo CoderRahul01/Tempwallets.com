@@ -23,20 +23,26 @@ const CHAIN_NAMES: Record<string, string> = {
   arbitrum: "Arbitrum",
   polygon: "Polygon",
   solana: "Solana",
+  avalanche: "Avalanche",
   // Legacy/other
   tron: "Tron",
   bitcoin: "Bitcoin",
-  ethereumErc4337: "Ethereum (ERC-4337)",
-  baseErc4337: "Base (ERC-4337)",
-  arbitrumErc4337: "Arbitrum (ERC-4337)",
-  polygonErc4337: "Polygon (ERC-4337)",
+  ethereumErc4337: "Ethereum",
+  baseErc4337: "Base",
+  arbitrumErc4337: "Arbitrum",
+  polygonErc4337: "Polygon",
+  avalancheErc4337: "Avalanche",
   // Substrate/Polkadot chains
   polkadot: "Polkadot",
-  hydrationSubstrate: "Hydration (Substrate)",
-  bifrostSubstrate: "Bifrost (Substrate)",
-  uniqueSubstrate: "Unique (Substrate)",
+  hydrationSubstrate: "Hydration",
+  bifrostSubstrate: "Bifrost",
+  uniqueSubstrate: "Unique",
   paseo: "Paseo",
   paseoAssethub: "Paseo AssetHub",
+  // Testnets
+  moonbeamTestnet: "Moonbeam Testnet",
+  astarShibuya: "Astar Shibuya",
+  paseoPassetHub: "Paseo PassetHub",
 };
 
 /**
@@ -128,29 +134,12 @@ const getExplorerUrl = (txHash: string, chain: string, isTestnet: boolean = fals
   return '#';
 };
 
-// Legacy function for backward compatibility (kept for potential future use)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const CHAIN_EXPLORER_URLS: Record<string, (txHash: string) => string> = {
-  // Zerion canonical chain ids
-  ethereum: (hash) => getExplorerUrl(hash, 'ethereum', false),
-  base: (hash) => getExplorerUrl(hash, 'base', false),
-  arbitrum: (hash) => getExplorerUrl(hash, 'arbitrum', false),
-  polygon: (hash) => getExplorerUrl(hash, 'polygon', false),
-  solana: (hash) => getExplorerUrl(hash, 'solana', false),
-  // Legacy/other
-  tron: (hash) => getExplorerUrl(hash, 'tron', false),
-  bitcoin: (hash) => getExplorerUrl(hash, 'bitcoin', false),
-  ethereumErc4337: (hash) => getExplorerUrl(hash, 'ethereum', false),
-  baseErc4337: (hash) => getExplorerUrl(hash, 'base', false),
-  arbitrumErc4337: (hash) => getExplorerUrl(hash, 'arbitrum', false),
-  polygonErc4337: (hash) => getExplorerUrl(hash, 'polygon', false),
-  // Substrate/Polkadot chains
-  polkadot: (hash) => getExplorerUrl(hash, 'polkadot', false),
-  hydrationSubstrate: (hash) => getExplorerUrl(hash, 'hydrationSubstrate', false),
-  bifrostSubstrate: (hash) => getExplorerUrl(hash, 'bifrostSubstrate', false),
-  uniqueSubstrate: (hash) => getExplorerUrl(hash, 'uniqueSubstrate', false),
-  paseo: (hash) => getExplorerUrl(hash, 'paseo', true), // Paseo is testnet
-  paseoAssethub: (hash) => getExplorerUrl(hash, 'paseoAssethub', true), // Paseo AssetHub is testnet
+// Explorer URLs are handled by getExplorerUrl function below
+// Helper to truncate transaction hash
+const truncateTxHash = (hash: string | null): string => {
+  if (!hash) return "N/A";
+  if (hash.length <= 12) return hash;
+  return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
 };
 
 const formatValue = (value: string, decimals: number = 18, tokenSymbol?: string): string => {
@@ -182,60 +171,98 @@ const truncateAddress = (address: string | null): string => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
-// Cache key for localStorage
-const getCacheKey = (fingerprint: string) => `transactions_cache_${fingerprint}`;
-const CACHE_TTL = 30 * 1000; // 30 seconds
+const TransactionItem = ({
+  tx,
+  direction,
+  isPending,
+  getTransactionExplorerUrl,
+  truncateAddress,
+  truncateTxHash,
+  formatValue,
+  formatDate,
+  CHAIN_NAMES
+}: {
+  tx: Transaction,
+  direction: 'in' | 'out',
+  isPending: boolean,
+  getTransactionExplorerUrl: (tx: Transaction) => string,
+  truncateAddress: (addr: string | null) => string,
+  truncateTxHash: (hash: string | null) => string,
+  formatValue: (val: string, dec?: number, sym?: string) => string,
+  formatDate: (ts: number | null) => string,
+  CHAIN_NAMES: Record<string, string>
+}) => (
+  <a
+    key={`${tx.chain}-${tx.txHash}`}
+    href={getTransactionExplorerUrl(tx)}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex items-center p-3 md:p-4 rounded-2xl border border-gray-100 bg-white hover:border-gray-200 transition-all shadow-sm group"
+  >
+    <div className="flex items-center w-full overflow-hidden">
+      {/* Direction Icon (Fixed Width) */}
+      <div className={`flex-shrink-0 flex items-center justify-center rounded-full p-2 mr-3 sm:mr-4 ${direction === 'in' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+        {direction === 'in' ? (
+          <ArrowDownLeft className="w-5 h-5 md:w-6 md:h-6" />
+        ) : (
+          <ArrowUpRight className="w-5 h-5 md:w-6 md:h-6" />
+        )}
+      </div>
 
-// Helper to get cached transactions
-const getCachedTransactions = (fingerprint: string): Transaction[] | null => {
-  try {
-    const cached = localStorage.getItem(getCacheKey(fingerprint));
-    if (!cached) return null;
+      {/* Symbol/Direction Label (Fixed Width) */}
+      <div className="flex-shrink-0 w-24 sm:w-28">
+        <div className="text-sm md:text-base font-bold text-gray-900 font-rubik-medium truncate uppercase">
+          {direction === 'in' ? 'Received' : 'Sent'}
+        </div>
+        <div className="text-[10px] text-gray-500 font-rubik-normal truncate">
+          {direction === 'in' ? `From: ${truncateAddress(tx.from)}` : `To: ${truncateAddress(tx.to)}`}
+        </div>
+      </div>
 
-    const { data, timestamp } = JSON.parse(cached);
-    if (Date.now() - timestamp > CACHE_TTL) {
-      localStorage.removeItem(getCacheKey(fingerprint));
-      return null;
-    }
+      {/* Chain Tag & Time (Fixed Width) */}
+      <div className="flex-shrink-0 w-20 sm:w-24 ml-auto px-2">
+        <div className="text-[9px] md:text-[10px] text-blue-500 font-rubik-medium bg-blue-50 px-2 py-0.5 rounded-full leading-tight whitespace-nowrap inline-block text-center w-full">
+          {CHAIN_NAMES[tx.chain] || tx.chain}
+        </div>
+        <div className="text-[10px] text-gray-400 font-rubik-normal mt-1 flex items-center justify-center gap-1">
+          {isPending ? <Clock className="h-2 w-2" /> : null}
+          {isPending ? 'Pending' : formatDate(tx.timestamp)}
+        </div>
+      </div>
 
-    return data;
-  } catch {
-    return null;
-  }
-};
-
-// Helper to set cached transactions
-const setCachedTransactions = (fingerprint: string, transactions: Transaction[]): void => {
-  try {
-    localStorage.setItem(getCacheKey(fingerprint), JSON.stringify({
-      data: transactions,
-      timestamp: Date.now(),
-    }));
-  } catch {
-    // Ignore localStorage errors (quota exceeded, etc.)
-  }
-};
+      {/* Amount (Aligned Right) */}
+      <div className="flex-shrink-0 ml-4 flex flex-col items-end min-w-[90px]">
+        <div className={`text-base md:text-lg font-bold font-rubik-bold truncate ${direction === 'in' ? 'text-green-600' : 'text-gray-900'}`}>
+          {direction === 'in' ? '+' : '-'}{formatValue(tx.value, 18, tx.tokenSymbol)}
+        </div>
+        <div className="text-[10px] text-gray-400 font-mono truncate">
+          {truncateTxHash(tx.txHash)}
+        </div>
+      </div>
+    </div>
+  </a>
+);
 
 const RecentTransactions = ({ showAll = false, transactions: propTransactions, hideHeader = false, selectedChainId }: RecentTransactionsProps) => {
-  const { fingerprint } = useBrowserFingerprint();
-  const { wallets } = useWalletV2();
+  const { wallets, loading: walletsLoading } = useWalletV2();
 
   // Create a set of all user wallet addresses for direction detection
   const userAddresses = useMemo(() => {
     return new Set(wallets.map(w => w.address.toLowerCase()));
   }, [wallets]);
 
-  // Use provider data (provider is always available since we wrap app with Providers)
-  const { transactions: providerTransactions, loading: providerLoading, errors: providerErrors, refresh: providerRefresh } = useWalletData();
+  // Use provider data
+  const {
+    transactions: providerTransactions,
+    loading: providerLoading,
+    errors: providerErrors,
+    refresh: providerRefresh
+  } = useWalletData();
 
-  // Use prop transactions if provided, otherwise use provider transactions, otherwise use local state
-  const useProviderData = propTransactions === undefined;
-  const [localTransactions, setLocalTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const isRefreshing = providerLoading.transactions || walletsLoading;
 
-  // Determine which data source to use
-  const allTransactions = propTransactions ?? (useProviderData ? providerTransactions : localTransactions);
+  // Use prop transactions if provided, otherwise use provider transactions
+  const allTransactions = propTransactions ?? providerTransactions;
 
   // Apply chain filter if selectedChainId is provided
   const finalTransactions = useMemo(() => {
@@ -243,117 +270,7 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
     return allTransactions.filter(tx => tx.chain === selectedChainId);
   }, [allTransactions, selectedChainId]);
 
-  const finalLoading = useProviderData ? providerLoading.transactions : loading;
-  const finalError = useProviderData ? providerErrors.transactions : error;
-  const refreshFn = useProviderData ? providerRefresh : undefined;
-
-  const loadTransactions = useCallback(async () => {
-    if (!fingerprint) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Fetch aggregated any-chain transactions in one call
-      const allTransactions = await walletApi.getTransactionsAny(fingerprint, showAll ? 100 : 20);
-
-      // Load Substrate transactions for all Substrate chains
-      const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
-      const substrateTransactions: Transaction[] = [];
-
-      // Fetch Substrate transactions in parallel with proper error handling
-      const substratePromises = SUBSTRATE_CHAINS.map(async (chain) => {
-        try {
-          const history = await walletApi.getSubstrateTransactions(fingerprint, chain, false, 10);
-          // Transform Substrate transactions to Transaction format
-          return history.transactions.map(tx => ({
-            txHash: tx.txHash,
-            from: tx.from,
-            to: tx.to || null,
-            value: tx.amount || '0',
-            timestamp: tx.timestamp ? Math.floor(tx.timestamp / 1000) : null, // Convert ms to seconds if needed
-            blockNumber: tx.blockNumber || null,
-            status: tx.status === 'finalized' || tx.status === 'inBlock' ? 'success' :
-              tx.status === 'failed' || tx.status === 'error' ? 'failed' : 'pending',
-            chain: chain,
-            tokenSymbol: undefined, // Substrate native token symbol would need to be fetched separately
-          } as Transaction));
-        } catch (chainErr) {
-          console.warn(`Failed to load transactions for ${chain}:`, chainErr);
-          return []; // Return empty array on error
-        }
-      });
-
-      try {
-        // Wait for all Substrate chain queries to complete (or fail)
-        const substrateResults = await Promise.allSettled(substratePromises);
-        substrateResults.forEach(result => {
-          if (result.status === 'fulfilled' && result.value) {
-            substrateTransactions.push(...result.value);
-          }
-        });
-      } catch (substrateErr) {
-        console.warn('Failed to load Substrate transactions:', substrateErr);
-        // Don't fail the whole load if Substrate fails
-      }
-
-      // Combine EVM and Substrate transactions
-      const combinedTransactions = [...allTransactions, ...substrateTransactions];
-
-      // Filter out transactions with invalid/missing data
-      const validTransactions = combinedTransactions.filter(tx =>
-        tx.txHash &&
-        tx.txHash.length > 0 &&
-        (tx.value !== undefined || tx.tokenSymbol !== undefined)
-      );
-
-      // Sort by timestamp (most recent first)
-      validTransactions.sort((a, b) => {
-        const timeA = a.timestamp || 0;
-        const timeB = b.timestamp || 0;
-        return timeB - timeA;
-      });
-
-      // Limit to 20 for recent, all for full view
-      const limited = showAll ? validTransactions : validTransactions.slice(0, 10);
-      setLocalTransactions(limited);
-
-      // Cache transactions for instant loading on tab switch
-      if (fingerprint) {
-        setCachedTransactions(fingerprint, limited);
-      }
-    } catch (err) {
-      // Only show error if it's a critical error from the main EVM transaction fetch
-      // Substrate transaction errors are handled gracefully above
-      console.error('Failed to load transactions:', err);
-      // Suppress error UI to show empty state instead
-    } finally {
-      setLoading(false);
-    }
-  }, [fingerprint, showAll]);
-
-  useEffect(() => {
-    // Only use local fetching if not using provider data
-    if (!useProviderData && fingerprint) {
-      // Try to load from cache first for instant display
-      const cached = getCachedTransactions(fingerprint);
-      if (cached && cached.length > 0) {
-        setLocalTransactions(cached);
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
-
-      // Always refresh in background
-      loadTransactions();
-
-      // Auto-refresh every 30 seconds
-      const interval = setInterval(() => {
-        loadTransactions();
-      }, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [fingerprint, loadTransactions, useProviderData]);
+  const refreshFn = providerRefresh;
 
   const getTransactionExplorerUrl = (tx: Transaction): string => {
     // Determine if this is a testnet chain
@@ -374,15 +291,22 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
   if (hideHeader) {
     return (
       <div className="w-full">
-        {finalError && finalTransactions.length === 0 ? (
+        {providerErrors.transactions && finalTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-red-500 mb-4 font-rubik-normal">{finalError}</p>
+            <p className="text-red-500 mb-4 font-rubik-normal">{providerErrors.transactions}</p>
             <button
-              onClick={refreshFn || loadTransactions}
+              onClick={refreshFn}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
             >
               Retry
             </button>
+          </div>
+        ) : isRefreshing && finalTransactions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-4" />
+            <p className="text-gray-500 font-rubik-normal text-center">
+              Searching for transactions...
+            </p>
           </div>
         ) : finalTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 md:py-20">
@@ -404,66 +328,21 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
           <div className="space-y-3">
             {(showAll ? finalTransactions : finalTransactions.slice(0, 10)).map((tx) => {
               const direction = userAddresses.has(tx.to?.toLowerCase() || '') ? 'in' : 'out';
-              const isSuccess = tx.status === 'success';
-              const isFailed = tx.status === 'failed';
               const isPending = tx.status === 'pending';
 
               return (
-                <a
+                <TransactionItem
                   key={`${tx.chain}-${tx.txHash}`}
-                  href={getTransactionExplorerUrl(tx)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center p-3 md:p-4 rounded-2xl border border-gray-100 bg-white hover:border-gray-200 transition-all shadow-sm group"
-                >
-                  <div className="flex items-center w-full overflow-hidden">
-                    {/* Direction Icon (Fixed Width) */}
-                    <div className={`flex-shrink-0 flex items-center justify-center rounded-full p-2 mr-3 sm:mr-4 ${direction === 'in' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
-                      {direction === 'in' ? (
-                        <ArrowDownLeft className="w-6 h-6 md:w-8 md:h-8" />
-                      ) : (
-                        <ArrowUpRight className="w-6 h-6 md:w-8 md:h-8" />
-                      )}
-                    </div>
-
-                    {/* Symbol/Direction Label (Fixed Width) */}
-                    <div className="flex-shrink-0 w-16 sm:w-20">
-                      <div className="text-base md:text-lg font-bold text-gray-900 font-rubik-medium truncate uppercase">
-                        {direction === 'in' ? 'RCVD' : 'SENT'}
-                      </div>
-                      <div className="text-[10px] text-gray-400 font-rubik-normal">
-                        {tx.tokenSymbol || 'ETH'}
-                      </div>
-                    </div>
-
-                    {/* Chain Tag (Fixed Width) */}
-                    <div className="flex-shrink-0 w-20 sm:w-24 ml-2 sm:ml-4">
-                      <div className="text-[9px] md:text-[10px] text-blue-500 font-rubik-medium bg-blue-500/10 px-2 py-0.5 rounded-full leading-tight whitespace-nowrap inline-block">
-                        {CHAIN_NAMES[tx.chain] || tx.chain}
-                      </div>
-                      <div className="text-[10px] text-gray-400 font-rubik-normal mt-1 flex items-center gap-1">
-                        {isPending ? <Clock className="h-2 w-2" /> : null}
-                        {isPending ? 'Pending' : formatDate(tx.timestamp)}
-                      </div>
-                    </div>
-
-                    {/* Amount (Aligned Left) */}
-                    <div className="flex-shrink-0 ml-4 sm:ml-8 flex-1 flex flex-col items-end">
-                      <div className={`text-lg md:text-xl font-bold font-rubik-bold truncate ${direction === 'in' ? 'text-green-600' : 'text-gray-900'}`}>
-                        {direction === 'in' ? '+' : '-'}{tx.tokenSymbol
-                          ? formatValue(tx.value, 18)
-                          : formatValue(tx.value, 18)
-                        }
-                      </div>
-                      <div className="text-[10px] text-gray-400 font-mono truncate max-w-[100px]">
-                        {truncateAddress(tx.txHash)}
-                      </div>
-                    </div>
-
-                    {/* External Link */}
-                    <ExternalLink className="h-4 w-4 text-gray-300 group-hover:text-gray-500 transition-colors ml-4" />
-                  </div>
-                </a>
+                  tx={tx}
+                  direction={direction}
+                  isPending={isPending}
+                  getTransactionExplorerUrl={getTransactionExplorerUrl}
+                  truncateAddress={truncateAddress}
+                  truncateTxHash={truncateTxHash}
+                  formatValue={formatValue}
+                  formatDate={formatDate}
+                  CHAIN_NAMES={CHAIN_NAMES}
+                />
               );
             })}
           </div>
@@ -494,22 +373,22 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
             </Link>
           )}
           <button
-            onClick={refreshFn || loadTransactions}
-            disabled={finalLoading}
+            onClick={refreshFn}
+            disabled={providerLoading.transactions}
             className="text-gray-500 text-sm hover:opacity-70 transition-opacity disabled:opacity-50"
           >
-            {finalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+            {providerLoading.transactions ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
           </button>
         </div>
       </div>
 
       {/* Transactions List */}
       <div className="px-4 md:px-6">
-        {finalError && finalTransactions.length === 0 ? (
+        {providerErrors.transactions && finalTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-red-500 mb-4 font-rubik-normal">{finalError}</p>
+            <p className="text-red-500 mb-4 font-rubik-normal">{providerErrors.transactions}</p>
             <button
-              onClick={refreshFn || loadTransactions}
+              onClick={refreshFn}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
             >
               Retry
@@ -535,66 +414,21 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
           <div className="space-y-3">
             {(showAll ? finalTransactions : finalTransactions.slice(0, 10)).map((tx) => {
               const direction = userAddresses.has(tx.to?.toLowerCase() || '') ? 'in' : 'out';
-              const isSuccess = tx.status === 'success';
-              const isFailed = tx.status === 'failed';
               const isPending = tx.status === 'pending';
 
               return (
-                <a
+                <TransactionItem
                   key={`${tx.chain}-${tx.txHash}`}
-                  href={getTransactionExplorerUrl(tx)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center p-3 md:p-4 rounded-2xl border border-gray-100 bg-white hover:border-gray-200 transition-all shadow-sm group"
-                >
-                  <div className="flex items-center w-full overflow-hidden">
-                    {/* Direction Icon (Fixed Width) */}
-                    <div className={`flex-shrink-0 flex items-center justify-center rounded-full p-2 mr-3 sm:mr-4 ${direction === 'in' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
-                      {direction === 'in' ? (
-                        <ArrowDownLeft className="w-6 h-6 md:w-8 md:h-8" />
-                      ) : (
-                        <ArrowUpRight className="w-6 h-6 md:w-8 md:h-8" />
-                      )}
-                    </div>
-
-                    {/* Symbol/Direction Label (Fixed Width) */}
-                    <div className="flex-shrink-0 w-16 sm:w-20">
-                      <div className="text-base md:text-lg font-bold text-gray-900 font-rubik-medium truncate uppercase">
-                        {direction === 'in' ? 'RCVD' : 'SENT'}
-                      </div>
-                      <div className="text-[10px] text-gray-400 font-rubik-normal">
-                        {tx.tokenSymbol || 'ETH'}
-                      </div>
-                    </div>
-
-                    {/* Chain Tag (Fixed Width) */}
-                    <div className="flex-shrink-0 w-20 sm:w-24 ml-2 sm:ml-4">
-                      <div className="text-[9px] md:text-[10px] text-blue-500 font-rubik-medium bg-blue-500/10 px-2 py-0.5 rounded-full leading-tight whitespace-nowrap inline-block">
-                        {CHAIN_NAMES[tx.chain] || tx.chain}
-                      </div>
-                      <div className="text-[10px] text-gray-400 font-rubik-normal mt-1 flex items-center gap-1">
-                        {isPending ? <Clock className="h-2 w-2" /> : null}
-                        {isPending ? 'Pending' : formatDate(tx.timestamp)}
-                      </div>
-                    </div>
-
-                    {/* Amount (Aligned Left) */}
-                    <div className="flex-shrink-0 ml-4 sm:ml-8 flex-1 flex flex-col items-end">
-                      <div className={`text-lg md:text-xl font-bold font-rubik-bold truncate ${direction === 'in' ? 'text-green-600' : 'text-gray-900'}`}>
-                        {direction === 'in' ? '+' : '-'}{tx.tokenSymbol
-                          ? formatValue(tx.value, 18)
-                          : formatValue(tx.value, 18)
-                        }
-                      </div>
-                      <div className="text-[10px] text-gray-400 font-mono truncate max-w-[100px]">
-                        {truncateAddress(tx.txHash)}
-                      </div>
-                    </div>
-
-                    {/* External Link */}
-                    <ExternalLink className="h-4 w-4 text-gray-300 group-hover:text-gray-500 transition-colors ml-4" />
-                  </div>
-                </a>
+                  tx={tx}
+                  direction={direction}
+                  isPending={isPending}
+                  getTransactionExplorerUrl={getTransactionExplorerUrl}
+                  truncateAddress={truncateAddress}
+                  truncateTxHash={truncateTxHash}
+                  formatValue={formatValue}
+                  formatDate={formatDate}
+                  CHAIN_NAMES={CHAIN_NAMES}
+                />
               );
             })}
           </div>

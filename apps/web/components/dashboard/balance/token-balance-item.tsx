@@ -13,6 +13,7 @@ interface TokenBalanceItemProps {
   balanceHuman?: string;
   isNative?: boolean;
   chainName?: string;
+  usdValue?: number;
 }
 
 
@@ -26,6 +27,7 @@ export function TokenBalanceItem({
   balance,
   decimals,
   balanceHuman,
+  usdValue,
 }: TokenBalanceItemProps) {
   const Icon = useTokenIcon(chain, symbol);
   const walletConfig = useWalletConfig();
@@ -73,10 +75,15 @@ export function TokenBalanceItem({
         </div>
 
         {/* Balance (Aligned Left) */}
-        <div className="flex-shrink-0 ml-4 sm:ml-8">
+        <div className="flex-shrink-0 ml-4 sm:ml-8 flex flex-col items-end">
           <div className="text-lg md:text-xl font-bold text-gray-900 font-rubik-bold">
             {displayBalance}
           </div>
+          {usdValue !== undefined && (
+            <div className="text-xs md:text-sm text-gray-500 font-rubik-normal">
+              ${usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          )}
         </div>
       </div>
     </div>

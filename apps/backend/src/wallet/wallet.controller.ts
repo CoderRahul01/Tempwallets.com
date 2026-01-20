@@ -21,7 +21,7 @@ import {
   SendEip7702Dto,
   WalletConnectSignDto,
 } from './dto/wallet.dto.js';
-import { PolkadotEvmRpcService } from './services/polkadot-evm-rpc.service.js';
+
 import { SubstrateChainKey } from './substrate/config/substrate-chain.config.js';
 import { AllChainTypes } from './types/chain.types.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -37,7 +37,6 @@ export class WalletController {
 
   constructor(
     private readonly walletService: WalletService,
-    private readonly polkadotEvmRpcService: PolkadotEvmRpcService,
     private readonly pimlicoConfig: PimlicoConfigService,
   ) { }
 
@@ -661,6 +660,46 @@ export class WalletController {
     }
   }
 
+  @Get('transactions-stream')
+  async streamTransactions(
+    @Res() res: Response,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+  ) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
+      throw new BadRequestException('userId is required');
+    }
+
+    this.logger.debug(`Streaming transactions for user ${finalUserId}`);
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    try {
+      for await (const txs of this.walletService.streamTransactions(
+        finalUserId,
+      )) {
+        res.write(`data: ${JSON.stringify(txs)}\n\n`);
+      }
+
+      // Send completion message
+      res.write(`data: ${JSON.stringify({ type: 'complete' })}\n\n`);
+      res.end();
+    } catch (error) {
+      this.logger.error(
+        `Error streaming transactions: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      res.write(
+        `event: error\ndata: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`,
+      );
+      res.end();
+    }
+  }
+
   /**
    * @deprecated Use /walletconnect/sign instead (new unified WalletConnect module)
    * This endpoint is kept for backward compatibility but will be removed in a future version
@@ -676,10 +715,10 @@ export class WalletController {
       throw new BadRequestException('userId is required');
     }
 
-    this.logger.warn(`Deprecated endpoint /wallet/walletconnect/sign called. Use /walletconnect/sign instead.`);
+    this.logger.warn(`Deprecated endpoint / wallet / walletconnect / sign called.Use / walletconnect / sign instead.`);
 
     this.logger.log(
-      `Signing WalletConnect transaction for user ${finalUserId} on chain ${dto.chainId}`,
+      `Signing WalletConnect transaction for user ${finalUserId} on chain ${dto.chainId} `,
     );
 
     try {
@@ -702,123 +741,17 @@ export class WalletController {
       return result;
     } catch (error) {
       this.logger.error(
-        `Failed to sign WalletConnect transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to sign WalletConnect transaction: ${error instanceof Error ? error.message : 'Unknown error'} `,
       );
       this.logger.error(
-        `Stack trace: ${error instanceof Error ? error.stack : 'No stack trace'}`,
+        `Stack trace: ${error instanceof Error ? error.stack : 'No stack trace'} `,
       );
       throw error;
     }
   }
-
-  @Get('test-rpc-balance')
-  async testRpcBalance(
-    @UserId() userId?: string,
-    @Query('userId') queryUserId?: string,
-    @Query('chain') chain?: string,
-  ) {
-    const finalUserId = userId || queryUserId;
-    if (!finalUserId) {
-      throw new BadRequestException('userId is required');
-    }
-    if (!chain) {
-      throw new BadRequestException('chain is required');
-    }
-
-    this.logger.log(
-      `Testing RPC balance for user ${finalUserId} on chain ${chain}`,
-    );
-
-    const validChains = ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub'];
-    if (!validChains.includes(chain)) {
-      throw new BadRequestException(
-        `chain must be one of: ${validChains.join(', ')}`,
-      );
-    }
-
-    try {
-      const addresses = await this.walletService.getAddresses(finalUserId);
-      const address = addresses.ethereum;
-
-      if (!address) {
-        throw new BadRequestException('No Ethereum address found for user');
-      }
-
-      const balance = await this.polkadotEvmRpcService.getNativeBalance(
-        address,
-        chain,
-      );
-
-      return {
-        chain,
-        address,
-        balance,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to test RPC balance: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-      throw error;
-    }
-  }
-
-  @Get('test-rpc-transactions')
-  async testRpcTransactions(
-    @UserId() userId?: string,
-    @Query('userId') queryUserId?: string,
-    @Query('chain') chain?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const finalUserId = userId || queryUserId;
-    if (!finalUserId) {
-      throw new BadRequestException('userId is required');
-    }
-    if (!chain) {
-      throw new BadRequestException('chain is required');
-    }
-
-    this.logger.log(
-      `Testing RPC transactions for user ${finalUserId} on chain ${chain}`,
-    );
-
-    const validChains = ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub'];
-    if (!validChains.includes(chain)) {
-      throw new BadRequestException(
-        `chain must be one of: ${validChains.join(', ')}`,
-      );
-    }
-
-    const limitNum = limit ? parseInt(limit, 10) : 10;
-    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
-      throw new BadRequestException('limit must be between 1 and 100');
-    }
-
-    try {
-      const addresses = await this.walletService.getAddresses(finalUserId);
-      const address = addresses.ethereum;
-
-      if (!address) {
-        throw new BadRequestException('No Ethereum address found for user');
-      }
-
-      const transactions = await this.polkadotEvmRpcService.getTransactions(
-        address,
-        chain,
-        limitNum,
-      );
-
-      return {
-        chain,
-        address,
-        transactions,
-        count: transactions.length,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to test RPC transactions: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-      throw error;
-    }
+  @Get('health')
+  async healthCheck() {
+    return { status: 'ok' };
   }
 
   /**
@@ -852,7 +785,7 @@ export class WalletController {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to get Substrate addresses: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to get Substrate addresses: ${error instanceof Error ? error.message : 'Unknown error'} `,
       );
       throw error;
     }
@@ -877,7 +810,7 @@ export class WalletController {
     const useTestnetBool = useTestnet === 'true';
     const forceRefresh = refresh === 'true';
     this.logger.log(
-      `Getting Substrate balances for user ${finalUserId} (testnet: ${useTestnetBool}${forceRefresh ? ', force refresh' : ''})`,
+      `Getting Substrate balances for user ${finalUserId}(testnet: ${useTestnetBool}${forceRefresh ? ', force refresh' : ''})`,
     );
 
     try {
@@ -896,7 +829,7 @@ export class WalletController {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to get Substrate balances for user ${finalUserId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to get Substrate balances for user ${finalUserId}: ${error instanceof Error ? error.message : 'Unknown error'} `,
       );
       throw error;
     }
@@ -943,7 +876,7 @@ export class WalletController {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to get Substrate transactions: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to get Substrate transactions: ${error instanceof Error ? error.message : 'Unknown error'} `,
       );
       throw error;
     }
@@ -994,7 +927,7 @@ export class WalletController {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to send Substrate transfer: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to send Substrate transfer: ${error instanceof Error ? error.message : 'Unknown error'} `,
       );
       throw error;
     }
