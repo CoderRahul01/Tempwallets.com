@@ -87,7 +87,7 @@ function AuthenticationBanner({
               Wallet Connected
             </p>
             <div className="flex items-center gap-2">
-              <p 
+              <p
                 className="text-sm text-gray-700 font-mono cursor-pointer hover:text-gray-900 transition-colors"
                 onClick={handleCopyAddress}
                 title="Click to copy full address"
@@ -113,8 +113,8 @@ function AuthenticationBanner({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    disabled
-                    className="inline-flex items-center justify-center px-3 py-1 rounded-lg bg-black text-white text-xs font-rubik-medium cursor-not-allowed opacity-80"
+                    onClick={() => onFundChannel?.()}
+                    className="inline-flex items-center justify-center px-3 py-1 rounded-lg bg-[#4C856F] text-white text-xs font-rubik-medium transition-all hover:bg-[#4C856F]/90 active:scale-[0.98]"
                   >
                     <Plus className="h-3 w-3 mr-1" />
                     Unified Balance
@@ -122,15 +122,14 @@ function AuthenticationBanner({
                 </TooltipTrigger>
                 <TooltipContent
                   side="top"
-                  className="bg-black/85 text-white text-xs px-3 py-2 rounded-md border border-white/10 max-w-xs space-y-1.5"
+                  className="bg-black/90 text-white text-xs px-3 py-2 rounded-md border border-white/10 max-w-xs space-y-1"
                 >
                   <p className="font-semibold">Unified Balance</p>
-                  <p className="text-[11px] font-medium text-gray-200">Coming soon</p>
-                  <p className="text-[11px]">
-                    Unified balance funding is disabled in production right now. This feature will be available soon.
+                  <p className="text-[11px] text-white/90">
+                    Unified balance allows you to move funds from your on-chain wallet to a gasless balance for Lightning Node operations.
                   </p>
-                  <p className="pt-1 text-[11px] text-white/80">
-                    Add Funds to Unified Balance
+                  <p className="pt-1 text-[11px] text-white/60">
+                    Click to add funds via on-chain transaction.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -191,11 +190,10 @@ function LightningNodeCard({
 
   return (
     <div
-      className={`bg-white rounded-2xl p-4 space-y-3 border transition-colors cursor-pointer group ${
-        isInvitation
-          ? 'border-gray-200 hover:border-gray-300'
-          : 'border-gray-200 hover:border-gray-300'
-      }`}
+      className={`bg-white rounded-2xl p-4 space-y-3 border transition-colors cursor-pointer group ${isInvitation
+        ? 'border-gray-200 hover:border-gray-300'
+        : 'border-gray-200 hover:border-gray-300'
+        }`}
       onClick={onClick}
     >
       {/* Header with Status */}
@@ -282,7 +280,7 @@ function LightningNodeCard({
         <div className="text-xs text-gray-500">
           Created {new Date(node.createdAt).toLocaleDateString()}
         </div>
-  <div className="flex items-center gap-1 text-xs text-gray-700 group-hover:text-black">
+        <div className="flex items-center gap-1 text-xs text-gray-700 group-hover:text-black">
           <span>{isInvitation ? 'View Invitation' : 'View Details'}</span>
           <ChevronRight className="h-3 w-3" />
         </div>

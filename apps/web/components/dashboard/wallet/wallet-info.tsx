@@ -22,6 +22,7 @@ import { WalletConnectModal } from "../modals/walletconnect-modal";
 import { EvmWalletConnectModal } from "../modals/evm-walletconnect-modal";
 import { WalletHistoryModal } from "./wallet-history-modal";
 import { SendCryptoModal } from "../modals/send-crypto-modal";
+import { ReceiveCryptoModal } from "../modals/receive-crypto-modal";
 import { WalletCard } from "./wallet-card";
 import { ChainSelector } from "../ui/chain-selector";
 import { DEFAULT_CHAIN, getChainById } from "@/lib/chains";
@@ -48,6 +49,7 @@ const WalletInfo = ({ selectedChainId, onChainChange }: WalletInfoProps) => {
   const [evmWalletConnectOpen, setEvmWalletConnectOpen] = useState(false);
   const [walletHistoryOpen, setWalletHistoryOpen] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [signInPromptOpen, setSignInPromptOpen] = useState(false);
   const { wallets, loading, error, loadWallets, getWalletByChainType, getWalletByChainId } = useWalletV2();
   const { refresh } = useWalletData();
@@ -246,6 +248,12 @@ const WalletInfo = ({ selectedChainId, onChainChange }: WalletInfoProps) => {
       }
     } else if (action === 'copy' && currentWallet) {
       await copyToClipboard(currentWallet.address);
+    } else if (action === 'connect') {
+      if (selectedChain.type === 'evm') {
+        setEvmWalletConnectOpen(true);
+      } else {
+        setSubstrateWalletConnectOpen(true);
+      }
     } else if (action === 'send') {
       // Track send button click
       trackButtonClick.send();
@@ -265,18 +273,6 @@ const WalletInfo = ({ selectedChainId, onChainChange }: WalletInfoProps) => {
       } else {
         // Show sign-in prompt for unauthenticated users
         setSignInPromptOpen(true);
-      }
-    } else if (action === 'connect') {
-      // Track receive button click (connect is used for receive)
-      trackButtonClick.receive();
-
-      // Open appropriate WalletConnect modal based on chain type
-      if (selectedChain.hasWalletConnect) {
-        if (selectedChain.type === 'evm') {
-          setEvmWalletConnectOpen(true);
-        } else if (selectedChain.type === 'substrate') {
-          setSubstrateWalletConnectOpen(true);
-        }
       }
     }
   };
@@ -403,6 +399,41 @@ const WalletInfo = ({ selectedChainId, onChainChange }: WalletInfoProps) => {
           }}
         />
       )}
+
+      {/* Sign-In Prompt Dialog */}
+      <AlertDialog open={signInPromptOpen} onOpenChange={setSignInPromptOpen}>
+        <AlertDialogContent className="border-white/10 bg-black/90 text-white shadow-2xl backdrop-blur sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-semibold flex items-center gap-2">
+              Sign In Required
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-white/70 pt-2">
+              If you want to view the history of your past wallets that you have used, please sign in using Google SSO.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2 sm:gap-0">
+            <AlertDialogCancel className="bg-white/10 text-white hover:bg-white/20 border-white/20">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setSignInPromptOpen(false);
+                login();
+              }}
+              className="bg-[#4C856F] text-white hover:bg-[#4C856F]/90"
+            >
+              Sign In with Google
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <ReceiveCryptoModal
+        isOpen={receiveModalOpen}
+        onClose={() => setReceiveModalOpen(false)}
+        wallets={wallets}
+        selectedChainId={selectedChainId}
+      />
 
       {/* Sign-In Prompt Dialog */}
       <AlertDialog open={signInPromptOpen} onOpenChange={setSignInPromptOpen}>

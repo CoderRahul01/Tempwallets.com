@@ -301,6 +301,90 @@ export function useLightningNodes() {
     return discoverSessions();
   }, [discoverSessions]);
 
+  /**
+   * Fund payment channel
+   */
+  const fundChannel = useCallback(async (data: { chain: string, asset: string, amount: string }) => {
+    if (!userId) return { ok: false, message: 'Not authenticated' };
+    setLoading(true);
+    try {
+      const response = await lightningNodeApi.fundChannel({
+        userId,
+        ...data
+      });
+      return response;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fund channel';
+      setError(message);
+      return { ok: false, message };
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  /**
+   * Deposit funds to node
+   */
+  const deposit = useCallback(async (data: { appSessionId: string, participantAddress: string, amount: string, asset: string }) => {
+    if (!userId) return { ok: false, message: 'Not authenticated' };
+    setLoading(true);
+    try {
+      const response = await lightningNodeApi.depositFunds({
+        userId,
+        ...data
+      });
+      return response;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to deposit funds';
+      setError(message);
+      return { ok: false, message };
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  /**
+   * Withdraw funds from node
+   */
+  const withdraw = useCallback(async (data: { appSessionId: string, participantAddress: string, amount: string, asset: string }) => {
+    if (!userId) return { ok: false, message: 'Not authenticated' };
+    setLoading(true);
+    try {
+      const response = await lightningNodeApi.withdrawFunds({
+        userId,
+        ...data
+      });
+      return response;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to withdraw funds';
+      setError(message);
+      return { ok: false, message };
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  /**
+   * Transfer funds in node
+   */
+  const transfer = useCallback(async (data: { appSessionId: string, fromAddress: string, toAddress: string, amount: string, asset: string }) => {
+    if (!userId) return { ok: false, message: 'Not authenticated' };
+    setLoading(true);
+    try {
+      const response = await lightningNodeApi.transferFunds({
+        userId,
+        ...data
+      });
+      return response;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to transfer funds';
+      setError(message);
+      return { ok: false, message };
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
   // Auto-authenticate and discover sessions when userId changes
   useEffect(() => {
     if (userId && !authenticated) {
@@ -330,6 +414,10 @@ export function useLightningNodes() {
     joinNode, // deprecated but kept for backward compatibility
     refreshNodes,
     heartbeat,
+    fundChannel,
+    deposit,
+    withdraw,
+    transfer,
 
     // UI state
     loading,

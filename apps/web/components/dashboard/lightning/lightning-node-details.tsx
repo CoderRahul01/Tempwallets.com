@@ -265,11 +265,10 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
         <div className="flex items-center justify-between bg-white rounded-xl p-4 border border-gray-200">
           <span className="text-sm text-gray-600">Status</span>
           <span
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              lightningNode.status === 'open'
-                ? 'bg-gray-200 text-gray-800'
-                : 'bg-gray-100 text-gray-800'
-            }`}
+            className={`px-3 py-1 rounded-full text-xs font-medium ${lightningNode.status === 'open'
+              ? 'bg-gray-200 text-gray-800'
+              : 'bg-gray-100 text-gray-800'
+              }`}
           >
             {lightningNode.status === 'open' ? 'Open' : 'Closed'}
           </span>
@@ -310,60 +309,36 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
         {/* Action Buttons – Coming Soon */}
         {lightningNode.status === 'open' && currentParticipant && (
           <div className="space-y-3">
-            <TooltipProvider>
-              {/* Primary Actions: Deposit, Transfer, Withdraw */}
-              <div className="grid grid-cols-3 gap-3">
-                <Tooltip delayDuration={150}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled
-                      className="border-blue-200 text-blue-500 bg-blue-50 cursor-not-allowed opacity-80"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Deposit
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="bg-black/80 text-white text-xs px-3 py-2 rounded-md border border-white/10 max-w-xs">
-                    <p>Coming soon: depositing additional funds into this Lightning Node will be available later.</p>
-                  </TooltipContent>
-                </Tooltip>
+            {/* Primary Actions: Deposit, Transfer, Withdraw */}
+            <div className="grid grid-cols-3 gap-3">
+              <Button
+                type="button"
+                onClick={() => setDepositModalOpen(true)}
+                className="bg-[#4C856F] text-white hover:bg-[#4C856F]/90"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Deposit
+              </Button>
 
-                <Tooltip delayDuration={150}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      className="bg-gray-300 text-gray-700 cursor-not-allowed opacity-80"
-                      disabled
-                    >
-                      <ArrowRightLeft className="mr-2 h-4 w-4" />
-                      Transfer
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="bg-black/80 text-white text-xs px-3 py-2 rounded-md border border-white/10 max-w-xs">
-                    <p>Coming soon: transferring funds between participants is not yet available.</p>
-                  </TooltipContent>
-                </Tooltip>
+              <Button
+                type="button"
+                onClick={() => setTransferModalOpen(true)}
+                className="bg-[#292929] text-white hover:bg-[#333333]"
+              >
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                Transfer
+              </Button>
 
-                <Tooltip delayDuration={150}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled
-                      className="border-orange-200 text-orange-600 bg-orange-50 cursor-not-allowed opacity-80"
-                    >
-                      <Minus className="mr-2 h-4 w-4" />
-                      Withdraw
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="bg-black/80 text-white text-xs px-3 py-2 rounded-md border border-white/10 max-w-xs">
-                    <p>Coming soon: withdrawing funds back to unified balance will be enabled in production soon.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </TooltipProvider>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setWithdrawModalOpen(true)}
+                className="bg-transparent border-white/10 text-white hover:bg-white/5"
+              >
+                <Minus className="mr-2 h-4 w-4" />
+                Withdraw
+              </Button>
+            </div>
 
             {/* Secondary Action: Close Node (still functional) */}
             <Button
@@ -378,9 +353,6 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
                 <X className="mr-2 h-4 w-4" />
               )}
               Close Node
-              <span className="ml-2 text-[10px] bg-gray-200 px-2 py-0.5 rounded-full">
-                Coming Soon
-              </span>
             </Button>
           </div>
         )}
@@ -406,9 +378,8 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
               {lightningNode.participants.map((participant, index) => (
                 <div
                   key={participant.address}
-                  className={`p-4 flex items-center justify-between ${
-                    index !== lightningNode.participants.length - 1 ? 'border-b border-gray-100' : ''
-                  }`}
+                  className={`p-4 flex items-center justify-between ${index !== lightningNode.participants.length - 1 ? 'border-b border-gray-100' : ''
+                    }`}
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -466,22 +437,20 @@ export function LightningNodeDetails({ lightningNodeId, onClose }: LightningNode
                 {lightningNode.transactions.map((tx, index) => (
                   <div
                     key={tx.id}
-                    className={`p-4 ${
-                      index !== lightningNode.transactions!.length - 1 ? 'border-b border-gray-100' : ''
-                    }`}
+                    className={`p-4 ${index !== lightningNode.transactions!.length - 1 ? 'border-b border-gray-100' : ''
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700">
                         {tx.type}
                       </span>
                       <span
-                        className={`text-xs px-2 py-0.5 rounded ${
-                          tx.status === 'confirmed'
-                            ? 'bg-green-100 text-green-700'
-                            : tx.status === 'pending'
+                        className={`text-xs px-2 py-0.5 rounded ${tx.status === 'confirmed'
+                          ? 'bg-green-100 text-green-700'
+                          : tx.status === 'pending'
                             ? 'bg-yellow-100 text-yellow-700'
                             : 'bg-red-100 text-red-700'
-                        }`}
+                          }`}
                       >
                         {tx.status}
                       </span>

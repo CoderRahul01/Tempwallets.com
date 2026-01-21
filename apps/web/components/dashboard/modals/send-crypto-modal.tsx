@@ -19,11 +19,13 @@ import {
   SelectValue,
 } from "@repo/ui/components/ui/select";
 import { Label } from "@repo/ui/components/ui/label";
-import { Loader2, AlertCircle, CheckCircle2, ExternalLink, Zap, Clipboard } from "lucide-react";
-import { walletApi, TokenBalance, ApiError, AnyChainAsset } from "@/lib/api";
+import { Loader2, AlertCircle, CheckCircle2, ExternalLink, Zap, Clipboard, QrCode } from "lucide-react";
+import { walletApi, TokenBalance, ApiError, AnyChainAsset, walletApi as api } from "@/lib/api";
 import { useTokenIcon } from "@/lib/token-icons";
 import { trackTransaction } from "@/lib/tempwallets-analytics";
 import { chains, getChainById } from "@/lib/chains";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
+import { QRCodeSVG } from 'qrcode.react';
 
 interface SendCryptoModalProps {
   open: boolean;
@@ -326,6 +328,39 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
   const [fieldErrors, setFieldErrors] = useState<{ amount?: string; address?: string }>({});
   const [txHash, setTxHash] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+
+  // Fetch address for current chain
+  useEffect(() => {
+    if (!userId || !activeChainId) return;
+
+    const fetchAddress = async () => {
+      try {
+        const payload = await walletApi.getAddresses(userId);
+        let address = null;
+
+        // Check smart account first
+        if (payload.smartAccount?.address) {
+          // Some chains might have specific smart account addresses
+          const chains = payload.smartAccount.chains as Record<string, string>;
+          address = chains?.[activeChainId] || payload.smartAccount.address;
+        }
+
+        // Check auxiliary wallets if not found
+        if (!address && payload.auxiliary) {
+          const aux = payload.auxiliary.find(w => w.chain === activeChainId);
+          if (aux) address = aux.address;
+        }
+
+        setWalletAddress(address);
+      } catch (err) {
+        console.error("Failed to fetch address for Receive tab:", err);
+      }
+    };
+
+    fetchAddress();
+  }, [userId, activeChainId]);
 
   const loadTokens = useCallback(async () => {
     if (!userId || !activeChainId) return;
@@ -582,14 +617,21 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
           );
         }
 
-        const gaslessResult = await walletApi.sendEip7702Gasless({
+        const payload = {
           userId,
           chainId,
           recipientAddress: recipientAddress.trim(),
           amount: amount, // Human-readable amount
           tokenAddress: selectedToken.address || undefined,
-          tokenDecimals: selectedToken.decimals, // Always pass decimals from Zerion (validated above)
-        });
+          tokenDecimals: selectedToken.decimals,
+        };
+        console.log('[Send Debug] EIP-7702 Payload:', payload);
+
+        const gaslessResult = await walletApi.sendEip7702Gasless(payload);
+        console.log('[Send Debug] EIP-7702 Result:', gaslessResult);
+
+        // ... rest of the logic
+
 
         // Use transactionHash if available, otherwise use userOpHash
         result = {
@@ -641,16 +683,21 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         result = { txHash: aptosResult.transactionHash };
       } else {
         // Use regular EVM/other chain send endpoint
-        const sendResult = await walletApi.sendCrypto({
+        const payload = {
           userId,
           chain: tokenChain, // Use token's chain, not modal's chain prop
           tokenAddress: selectedToken.address || undefined,
           tokenDecimals: selectedToken.decimals,
           amount: amount, // human-readable amount; server converts using ERC-20 decimals / Zerion
           recipientAddress: recipientAddress.trim(),
-        });
+        };
+        console.log('[Send Debug] Regular Payload:', payload);
+
+        const sendResult = await walletApi.sendCrypto(payload);
+        console.log('[Send Debug] Regular Result:', sendResult);
         result = { txHash: sendResult.txHash };
       }
+
 
       setTxHash(result.txHash);
       setSuccess(true);
@@ -674,6 +721,7 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         }, 3000);
       }, 1000);
     } catch (err) {
+      console.error('[Send Error] Full error object:', err);
       let errorMessage = "Failed to send transaction. Please try again.";
       let errorCode: string | number | undefined;
 
@@ -724,240 +772,302 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/10 bg-black/95 text-white shadow-2xl backdrop-blur sm:max-w-[380px] p-0 rounded-[28px] [&>button]:text-white/40 [&>button]:hover:text-white [&>button]:hover:bg-white/10 [&>button]:opacity-100 [&>button]:top-5 [&>button]:right-5">
-        <DialogHeader className="px-6 pt-6 pb-4">
-          <div className="flex items-center gap-3">
-            <DialogTitle className="text-xl font-bold flex items-center gap-2.5 tracking-tight group">
-              <div className="flex items-center justify-center bg-white/5 rounded-full p-1.5 translate-y-[-1px]">
-                <ChainIcon className="h-6 w-6" />
-              </div>
-              <span className="font-rubik-medium">{CHAIN_NAMES[activeChainId] || activeChainId}</span>
-            </DialogTitle>
-
-            <Select value={activeChainId} onValueChange={setActiveChainId}>
-              <SelectTrigger className="w-auto h-7 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full text-[10px] font-bold text-white transition-colors gap-1 px-3 flex items-center uppercase tracking-wider focus:ring-0">
-                <span>CHANGE</span>
-              </SelectTrigger>
-              <SelectContent className="bg-black/95 border-white/10 text-white rounded-xl min-w-[140px]">
-                {chains.filter(c => !c.isTestnet && !c.id.endsWith('Gasless') && c.type === 'evm').map((c) => {
-                  const Icon = c.icon;
-                  const isSelected = activeChainId === c.id;
-                  const displayName = c.name;
-
-                  return (
-                    <SelectItem
-                      key={c.id}
-                      value={c.id}
-                      className="text-xs focus:bg-white/10 focus:text-white cursor-pointer py-2"
-                    >
-                      <div className="flex items-center justify-between w-full min-w-[140px]">
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4" />
-                          <span>{displayName}</span>
-                        </div>
-                        {isSelected && (
-                          <div className="h-1.5 w-1.5 rounded-full bg-[#007AFF] mr-1" />
-                        )}
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogDescription className="text-sm text-white/40 font-rubik-normal text-left mt-0.5 ml-0.5">
-            Transfer to recipient address
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 px-6 pb-6 mt-2">
-          {/* Token Selection */}
-          <div className="space-y-1.5">
-            <Label htmlFor="token" className="text-sm font-medium text-white/80">Token</Label>
-            {loadingTokens ? (
-              <div className="flex items-center justify-center gap-3 text-sm text-white/40 py-4 bg-white/5 rounded-xl border border-white/5">
-                <Loader2 className="h-4 w-4 animate-spin text-[#007AFF]" />
-                <span>Loading tokens...</span>
-              </div>
-            ) : tokens.length === 0 ? (
-              <div className="text-xs text-red-400 py-2 bg-red-400/10 rounded-lg px-3 border border-red-400/20">
-                Token not available for this network check your balance.
-              </div>
-            ) : (
-              <Select
-                value={selectedToken ? `${selectedToken.chain || 'unknown'}:${selectedToken.address || 'native'}` : undefined}
-                onValueChange={(value) => {
-                  const token = tokens.find(t => `${t.chain || 'unknown'}:${t.address || 'native'}` === value);
-                  setSelectedToken(token ?? null);
-                }}
-              >
-                <SelectTrigger id="token" className="h-9 rounded-xl border-white/20 bg-white/5 text-sm text-white hover:bg-white/10">
-                  {selectedToken ? (
-                    <SelectedTokenDisplay token={selectedToken} />
-                  ) : (
-                    <SelectValue placeholder="Select token" />
-                  )}
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-white/20 bg-black/95 text-white">
-                  {tokens.map((token) => {
-                    const key = `${token.chain || 'unknown'}:${token.address || 'native'}`;
-                    return (
-                      <TokenSelectItem
-                        key={key}
-                        value={key}
-                        token={token}
-                      />
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            )}
+      <DialogContent className="border-white/10 bg-black/95 text-white shadow-2xl backdrop-blur sm:max-w-[400px] p-0 rounded-[28px] [&>button]:text-white/40 [&>button]:hover:text-white [&>button]:hover:bg-white/10 [&>button]:opacity-100 [&>button]:top-5 [&>button]:right-5 overflow-hidden">
+        <Tabs defaultValue="send" className="w-full">
+          <div className="px-6 pt-6 pb-2 border-b border-white/5">
+            <TabsList className="bg-white/5 w-full h-11 p-1 rounded-xl">
+              <TabsTrigger value="send" className="flex-1 rounded-lg data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all font-rubik-medium">
+                Send
+              </TabsTrigger>
+              <TabsTrigger value="receive" className="flex-1 rounded-lg data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all font-rubik-medium">
+                Receive
+              </TabsTrigger>
+            </TabsList>
           </div>
 
-          {/* Amount Input */}
-          <div className="space-y-1.5">
-            <Label htmlFor="amount" className="text-sm font-medium text-white/80">Amount</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="any"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => {
-                setAmount(e.target.value);
-                if (fieldErrors.amount) {
-                  setFieldErrors({ ...fieldErrors, amount: undefined });
-                }
-              }}
-              disabled={loading || !selectedToken}
-              className="h-11 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/20 focus:border-[#007AFF]/50 focus:ring-[#007AFF]/20 transition-all font-rubik-medium px-4"
-            />
-            <div className="flex items-center justify-between px-0.5 mt-1">
-              {selectedToken ? (
-                <p className="text-[10px] md:text-xs text-white/40">
-                  Available: {formatBalance(selectedToken.balance, selectedToken.decimals)} {selectedToken.symbol}
-                </p>
-              ) : <div />}
+          <TabsContent value="send" className="m-0">
+            <DialogHeader className="px-6 pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <DialogTitle className="text-xl font-bold flex items-center gap-2.5 tracking-tight group">
+                  <div className="flex items-center justify-center bg-white/5 rounded-full p-1.5 translate-y-[-1px]">
+                    <ChainIcon className="h-6 w-6" />
+                  </div>
+                  <span className="font-rubik-medium">{CHAIN_NAMES[activeChainId] || activeChainId}</span>
+                </DialogTitle>
 
-              {selectedToken && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const available = formatBalance(selectedToken.balance, selectedToken.decimals);
-                    setAmount(available);
+                <Select value={activeChainId} onValueChange={setActiveChainId}>
+                  <SelectTrigger className="w-auto h-7 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full text-[10px] font-bold text-white transition-colors gap-1 px-3 flex items-center uppercase tracking-wider focus:ring-0">
+                    <span>CHANGE</span>
+                  </SelectTrigger>
+                  <SelectContent className="bg-black/95 border-white/10 text-white rounded-xl min-w-[140px]">
+                    {chains.filter(c => !c.isTestnet && !c.id.endsWith('Gasless') && c.type === 'evm').map((c) => {
+                      const Icon = c.icon;
+                      const isSelected = activeChainId === c.id;
+                      const displayName = c.name;
+
+                      return (
+                        <SelectItem
+                          key={c.id}
+                          value={c.id}
+                          className="text-xs focus:bg-white/10 focus:text-white cursor-pointer py-2"
+                        >
+                          <div className="flex items-center justify-between w-full min-w-[140px]">
+                            <div className="flex items-center gap-2">
+                              <Icon className="w-4 h-4" />
+                              <span>{displayName}</span>
+                            </div>
+                            {isSelected && (
+                              <div className="h-1.5 w-1.5 rounded-full bg-[#007AFF] mr-1" />
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogDescription className="text-sm text-white/40 font-rubik-normal text-left mt-0.5 ml-0.5">
+                Transfer to recipient address
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 px-6 pb-6 mt-2">
+              {/* Token Selection */}
+              <div className="space-y-1.5">
+                <Label htmlFor="token" className="text-sm font-medium text-white/80">Token</Label>
+                {loadingTokens ? (
+                  <div className="flex items-center justify-center gap-3 text-sm text-white/40 py-4 bg-white/5 rounded-xl border border-white/5">
+                    <Loader2 className="h-4 w-4 animate-spin text-[#007AFF]" />
+                    <span>Loading tokens...</span>
+                  </div>
+                ) : tokens.length === 0 ? (
+                  <div className="text-xs text-red-400 py-2 bg-red-400/10 rounded-lg px-3 border border-red-400/20">
+                    Token not available for this network check your balance.
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedToken ? `${selectedToken.chain || 'unknown'}:${selectedToken.address || 'native'}` : undefined}
+                    onValueChange={(value) => {
+                      const token = tokens.find(t => `${t.chain || 'unknown'}:${t.address || 'native'}` === value);
+                      setSelectedToken(token ?? null);
+                    }}
+                  >
+                    <SelectTrigger id="token" className="h-9 rounded-xl border-white/20 bg-white/5 text-sm text-white hover:bg-white/10">
+                      {selectedToken ? (
+                        <SelectedTokenDisplay token={selectedToken} />
+                      ) : (
+                        <SelectValue placeholder="Select token" />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-white/20 bg-black/95 text-white">
+                      {tokens.map((token) => {
+                        const key = `${token.chain || 'unknown'}:${token.address || 'native'}`;
+                        return (
+                          <TokenSelectItem
+                            key={key}
+                            value={key}
+                            token={token}
+                          />
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Amount Input */}
+              <div className="space-y-1.5">
+                <Label htmlFor="amount" className="text-sm font-medium text-white/80">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="any"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
                     if (fieldErrors.amount) {
                       setFieldErrors({ ...fieldErrors, amount: undefined });
                     }
                   }}
-                  className="text-[10px] md:text-xs font-bold text-[#007AFF] hover:text-[#007AFF]/80 transition-all px-2 py-0.5 rounded-md hover:bg-[#007AFF]/10 active:scale-95"
-                >
-                  Send MAX
-                </button>
-              )}
-            </div>
-            {fieldErrors.amount && (
-              <p className="text-xs text-red-400 flex items-center gap-1 mt-1">
-                <AlertCircle className="h-3 w-3" />
-                {fieldErrors.amount}
-              </p>
-            )}
-            {selectedToken && parseFloat(selectedToken.balance) === 0 && (
-              <p className="text-xs text-amber-400 flex items-center gap-1 mt-1">
-                <AlertCircle className="h-3 w-3" />
-                Token balance is not there
-              </p>
-            )}
-          </div>
+                  disabled={loading || !selectedToken}
+                  className="h-11 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/20 focus:border-[#007AFF]/50 focus:ring-[#007AFF]/20 transition-all font-rubik-medium px-4"
+                />
+                <div className="flex items-center justify-between px-0.5 mt-1">
+                  {selectedToken ? (
+                    <p className="text-[10px] md:text-xs text-white/40">
+                      Available: {formatBalance(selectedToken.balance, selectedToken.decimals)} {selectedToken.symbol}
+                    </p>
+                  ) : <div />}
 
-          {/* Recipient Address Input */}
-          <div className="space-y-1.5">
-            <Label htmlFor="recipient" className="text-sm font-medium text-white/80">Recipient</Label>
-            <div className="relative group">
-              <Input
-                id="recipient"
-                placeholder="Enter address"
-                value={recipientAddress}
-                onChange={(e) => {
-                  setRecipientAddress(e.target.value);
-                  if (fieldErrors.address) {
-                    setFieldErrors({ ...fieldErrors, address: undefined });
-                  }
-                }}
-                disabled={loading}
-                className="h-11 pr-11 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/20 focus:border-[#007AFF]/50 focus:ring-[#007AFF]/20 transition-all font-rubik-normal px-4"
-              />
-              <button
-                type="button"
-                onClick={handlePasteFromClipboard}
-                disabled={loading}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1.5 text-white/40 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-lg"
-                title="Paste from clipboard"
-              >
-                <Clipboard className="h-4 w-4" />
-              </button>
-            </div>
-            {fieldErrors.address && (
-              <p className="text-[10px] text-red-400 flex items-center gap-1 mt-1 font-medium px-1">
-                <AlertCircle className="h-3 w-3" />
-                {fieldErrors.address}
-              </p>
-            )}
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-2.5">
-              <p className="text-xs text-red-400 flex items-center gap-1.5">
-                <AlertCircle className="h-3 w-3" />
-                {error}
-              </p>
-            </div>
-          )}
-
-          {/* Success Display */}
-          {success && txHash && (
-            <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-2.5">
-              <p className="text-xs text-green-400 flex items-center gap-1.5 mb-1.5">
-                <CheckCircle2 className="h-3 w-3" />
-                Transaction sent!
-              </p>
-              <a
-                href={getExplorerUrl(txHash, selectedToken?.chain || activeChainId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-white/70 hover:text-white hover:underline flex items-center gap-1"
-              >
-                View explorer <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          )}
-
-          <div className="flex gap-4 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-              className="flex-1 h-12 rounded-2xl border-white/10 text-white bg-transparent hover:bg-white/5 font-bold transition-all"
-            >
-              {success ? "Close" : "Cancel"}
-            </Button>
-            {!success && (
-              <Button
-                onClick={handleSend}
-                disabled={loading || !selectedToken || !amount || !recipientAddress}
-                className="flex-1 h-12 rounded-2xl bg-[#FE6A16] hover:bg-[#FE6A16]/90 text-white font-bold transition-all shadow-lg shadow-orange-500/10"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Send"
+                  {selectedToken && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const available = formatBalance(selectedToken.balance, selectedToken.decimals);
+                        setAmount(available);
+                        if (fieldErrors.amount) {
+                          setFieldErrors({ ...fieldErrors, amount: undefined });
+                        }
+                      }}
+                      className="text-[10px] md:text-xs font-bold text-[#007AFF] hover:text-[#007AFF]/80 transition-all px-2 py-0.5 rounded-md hover:bg-[#007AFF]/10 active:scale-95"
+                    >
+                      Send MAX
+                    </button>
+                  )}
+                </div>
+                {fieldErrors.amount && (
+                  <p className="text-xs text-red-400 flex items-center gap-1 mt-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.amount}
+                  </p>
                 )}
-              </Button>
-            )}
-          </div>
-        </div>
+                {selectedToken && parseFloat(selectedToken.balance) === 0 && (
+                  <p className="text-xs text-amber-400 flex items-center gap-1 mt-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Token balance is not there
+                  </p>
+                )}
+              </div>
+
+              {/* Recipient Address Input */}
+              <div className="space-y-1.5">
+                <Label htmlFor="recipient" className="text-sm font-medium text-white/80">Recipient</Label>
+                <div className="relative group">
+                  <Input
+                    id="recipient"
+                    placeholder="Enter address"
+                    value={recipientAddress}
+                    onChange={(e) => {
+                      setRecipientAddress(e.target.value);
+                      if (fieldErrors.address) {
+                        setFieldErrors({ ...fieldErrors, address: undefined });
+                      }
+                    }}
+                    disabled={loading}
+                    className="h-11 pr-11 rounded-xl border-white/10 bg-white/5 text-base text-white placeholder:text-white/20 focus:border-[#007AFF]/50 focus:ring-[#007AFF]/20 transition-all font-rubik-normal px-4"
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboard}
+                    disabled={loading}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1.5 text-white/40 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-lg"
+                    title="Paste from clipboard"
+                  >
+                    <Clipboard className="h-4 w-4" />
+                  </button>
+                </div>
+                {fieldErrors.address && (
+                  <p className="text-[10px] text-red-400 flex items-center gap-1 mt-1 font-medium px-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {fieldErrors.address}
+                  </p>
+                )}
+              </div>
+
+              {/* Error Display */}
+              {error && (
+                <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-2.5">
+                  <p className="text-xs text-red-400 flex items-center gap-1.5">
+                    <AlertCircle className="h-3 w-3" />
+                    {error}
+                  </p>
+                </div>
+              )}
+
+              {/* Success Display */}
+              {success && txHash && (
+                <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-2.5">
+                  <p className="text-xs text-green-400 flex items-center gap-1.5 mb-1.5">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Transaction sent!
+                  </p>
+                  <a
+                    href={getExplorerUrl(txHash, selectedToken?.chain || activeChainId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-white/70 hover:text-white hover:underline flex items-center gap-1"
+                  >
+                    View explorer <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+
+              <div className="flex gap-4 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="flex-1 h-12 rounded-2xl border-white/10 text-white bg-transparent hover:bg-white/5 font-bold transition-all"
+                >
+                  {success ? "Close" : "Cancel"}
+                </Button>
+                {!success && (
+                  <Button
+                    onClick={handleSend}
+                    disabled={loading || !selectedToken || !amount || !recipientAddress}
+                    className="flex-1 h-12 rounded-2xl bg-[#FE6A16] hover:bg-[#FE6A16]/90 text-white font-bold transition-all shadow-lg shadow-orange-500/10"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-white" />
+                    ) : (
+                      "Send"
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="receive" className="m-0">
+            <div className="px-6 py-8 flex flex-col items-center">
+              <div className="bg-white p-4 rounded-2xl shadow-lg mb-6">
+                <QRCodeSVG
+                  value={walletAddress || ""}
+                  size={180}
+                  level="H"
+                  includeMargin={false}
+                  className="rounded-lg"
+                />
+              </div>
+
+              <div className="w-full space-y-4">
+                <div className="space-y-1.5 text-center">
+                  <p className="text-xs font-rubik-normal text-white/40 uppercase tracking-widest">Your {CHAIN_NAMES[activeChainId] || activeChainId} Address</p>
+                  <div
+                    onClick={() => {
+                      if (walletAddress) {
+                        navigator.clipboard.writeText(walletAddress);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }
+                    }}
+                    className="flex items-center justify-between gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all cursor-pointer group"
+                  >
+                    <code className="flex-1 text-sm font-mono break-all text-white/90">
+                      {walletAddress || "Loading address..."}
+                    </code>
+                    {copied ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-400" />
+                    ) : (
+                      <Clipboard className="h-4 w-4 text-white/40 group-hover:text-white/60" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white/5 border border-white/5 rounded-2xl flex gap-3 items-start">
+                  <div className="bg-[#4C856F]/20 p-1.5 rounded-lg shrink-0">
+                    <Zap className="h-3.5 w-3.5 text-[#4C856F]" />
+                  </div>
+                  <div className="text-[11px] text-white/60 leading-relaxed font-rubik-normal">
+                    Only send <span className="text-white font-medium">{CHAIN_NAMES[activeChainId] || activeChainId}</span> compatible assets to this address.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   );
 }
