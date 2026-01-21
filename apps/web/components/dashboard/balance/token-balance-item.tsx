@@ -3,7 +3,7 @@
 import { formatBalance, formatBalanceSmart } from '@/lib/balance-utils';
 import { useTokenIcon } from '@/lib/token-icons';
 import { useWalletConfig } from '@/hooks/useWalletConfig';
-import { CHAIN_NAMES } from './balance-view';
+import { getChainById } from '@/lib/chains';
 
 interface TokenBalanceItemProps {
   chain: string;
@@ -32,7 +32,9 @@ export function TokenBalanceItem({
   const Icon = useTokenIcon(chain, symbol);
   const walletConfig = useWalletConfig();
   const displayBalance = balanceHuman || formatBalanceSmart(balance, decimals);
-  const chainName = CHAIN_NAMES[chain] || chain; // Derive chainName internally
+
+  // Resolve chain name using helper
+  const chainName = getChainById(chain)?.name || chain;
 
   // Map Zerion/Internal chain IDs to config IDs to get the correct color
   const chainMap: Record<string, string> = {

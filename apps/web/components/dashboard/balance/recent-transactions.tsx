@@ -6,8 +6,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2, ArrowUpRight, ArrowDownLeft, ExternalLink, Clock } from "lucide-react";
 import { walletApi, Transaction } from "@/lib/api";
 import { useBrowserFingerprint } from "@/hooks/useBrowserFingerprint";
-import { useWalletData } from "@/hooks/useWalletData";
+
 import { useWalletV2 } from "@/hooks/useWalletV2";
+
+import { useAuth } from '@/hooks/useAuth';
 
 interface RecentTransactionsProps {
   showAll?: boolean;
@@ -243,34 +245,110 @@ const TransactionItem = ({
   </a>
 );
 
+
+
 const RecentTransactions = ({ showAll = false, transactions: propTransactions, hideHeader = false, selectedChainId }: RecentTransactionsProps) => {
-  const { wallets, loading: walletsLoading } = useWalletV2();
+  const { wallets } = useWalletV2();
+  const { userId } = useAuth();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Create a set of all user wallet addresses for direction detection
   const userAddresses = useMemo(() => {
     return new Set(wallets.map(w => w.address.toLowerCase()));
   }, [wallets]);
 
-  // Use provider data
-  const {
-    transactions: providerTransactions,
-    loading: providerLoading,
-    errors: providerErrors,
-    refresh: providerRefresh
-  } = useWalletData();
+  const fetchTransactions = useCallback(async () => {
+    if (!userId) return;
 
-  const isRefreshing = providerLoading.transactions || walletsLoading;
+    // Use prop transactions if provided and no chain filter
+    if (propTransactions && !selectedChainId) {
+      setTransactions(propTransactions);
+      setLoading(false);
+      return;
+    }
 
-  // Use prop transactions if provided, otherwise use provider transactions
-  const allTransactions = propTransactions ?? providerTransactions;
+    setLoading(true);
+    setError(null);
 
-  // Apply chain filter if selectedChainId is provided
-  const finalTransactions = useMemo(() => {
-    if (!selectedChainId) return allTransactions;
-    return allTransactions.filter(tx => tx.chain === selectedChainId);
-  }, [allTransactions, selectedChainId]);
+    try {
+      let fetchedTransactions: Transaction[] = [];
 
-  const refreshFn = providerRefresh;
+      if (selectedChainId) {
+        // Check if this is a Substrate chain
+        const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
+        const isSubstrate = SUBSTRATE_CHAINS.includes(selectedChainId);
+
+        if (isSubstrate) {
+          const history = await walletApi.getSubstrateTransactions(
+            userId,
+            selectedChainId,
+            false,
+            10
+          );
+          fetchedTransactions = history.transactions.map(
+            (tx) =>
+            ({
+              txHash: tx.txHash,
+              from: tx.from,
+              to: tx.to || null,
+              value: tx.amount || '0',
+              timestamp: tx.timestamp
+                ? Math.floor(tx.timestamp / 1000)
+                : null,
+              blockNumber: tx.blockNumber || null,
+              status:
+                tx.status === 'finalized' || tx.status === 'inBlock'
+                  ? 'success'
+                  : tx.status === 'failed' || tx.status === 'error'
+                    ? 'failed'
+                    : 'pending',
+              chain: selectedChainId,
+              tokenSymbol: undefined,
+            } as Transaction)
+          );
+        } else {
+          // EVM / Standard chains
+          fetchedTransactions = await walletApi.getTransactionHistory(userId, selectedChainId, 50);
+        }
+      } else {
+        // Fetch all (fallback if used without selectedChainId in some context, but mainly this component is used with selectedChainId now)
+        fetchedTransactions = await walletApi.getTransactionsAny(userId, 50);
+      }
+
+      // Sort by timestamp
+      const sorted = fetchedTransactions.sort((a, b) => {
+        const timeA = a.timestamp || 0;
+        const timeB = b.timestamp || 0;
+        return timeB - timeA;
+      });
+
+      setTransactions(sorted);
+    } catch (err) {
+      console.error('Failed to load transactions:', err);
+      setError('Failed to load transactions');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, propTransactions, selectedChainId]);
+
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
+
+  const refreshFn = fetchTransactions;
+
+  // Use prop transactions if provided and we are strictly using props (legacy mode), 
+  // BUT if selectedChainId is present, we prefer the fetched data for that chain.
+  // Actually, the new logic above handles fetching if selectedChainId is set.
+  // If propTransactions is passed AND selectedChainId is passed, maybe we should filter props? 
+  // But the goal is to fetch fresh data.
+  // Let's rely on state 'transactions'.
+
+  const finalTransactions = transactions;
+  const isRefreshing = loading;
 
   const getTransactionExplorerUrl = (tx: Transaction): string => {
     // Determine if this is a testnet chain
@@ -291,9 +369,9 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
   if (hideHeader) {
     return (
       <div className="w-full">
-        {providerErrors.transactions && finalTransactions.length === 0 ? (
+        {error && finalTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-red-500 mb-4 font-rubik-normal">{providerErrors.transactions}</p>
+            <p className="text-red-500 mb-4 font-rubik-normal">{error}</p>
             <button
               onClick={refreshFn}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
@@ -374,19 +452,19 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
           )}
           <button
             onClick={refreshFn}
-            disabled={providerLoading.transactions}
+            disabled={loading}
             className="text-gray-500 text-sm hover:opacity-70 transition-opacity disabled:opacity-50"
           >
-            {providerLoading.transactions ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
           </button>
         </div>
       </div>
 
       {/* Transactions List */}
       <div className="px-4 md:px-6">
-        {providerErrors.transactions && finalTransactions.length === 0 ? (
+        {error && finalTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-red-500 mb-4 font-rubik-normal">{providerErrors.transactions}</p>
+            <p className="text-red-500 mb-4 font-rubik-normal">{error}</p>
             <button
               onClick={refreshFn}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"

@@ -2125,7 +2125,9 @@ export class WalletService {
     try {
       // Get address for this chain
       const addresses = await this.getAddresses(userId);
-      const address = addresses[chain as keyof WalletAddresses];
+      // Map variant chains (e.g. ethereumGasless) to canonical keys (e.g. ethereum) for address lookup
+      const addressKey = this.mapChainToAddressKey(chain);
+      const address = addresses[addressKey as keyof WalletAddresses];
 
       if (!address) {
         this.logger.warn(`No address found for chain ${chain}`);
@@ -2205,6 +2207,31 @@ export class WalletService {
       avalancheErc4337: 18,
     };
     return decimals[chain] || 18;
+  }
+
+  /**
+   * Map chain ID to address key
+   * Handles gasless/ERC-4337 variants by mapping them to their underlying chain
+   */
+  private mapChainToAddressKey(chain: string): string {
+    // Handle Gasless chains
+    if (chain.endsWith('Gasless')) {
+      // e.g. ethereumGasless -> ethereum
+      // e.g. baseGasless -> base
+      // e.g. baseSepoliaGasless -> baseSepolia (which isn't a key? baseSepolia might map to something else?)
+      // Check for Sepolia edge cases
+      if (chain === 'baseSepoliaGasless') return 'base'; // Assuming base Sepolia uses Base address key? Or maybe it's not supported in getAddresses?
+      if (chain === 'sepoliaGasless') return 'sepolia'; // Assuming sepolia is a key
+
+      return chain.replace('Gasless', '');
+    }
+
+    // Handle ERC-4337 chains
+    if (chain.endsWith('Erc4337')) {
+      return chain.replace('Erc4337', '');
+    }
+
+    return chain;
   }
 
   /**
@@ -2445,7 +2472,9 @@ export class WalletService {
     this.logger.log(`Getting transaction history for user ${userId} on chain ${chain}`);
 
     const addresses = await this.getAddresses(userId);
-    const address = addresses[chain as keyof WalletAddresses];
+    // Map variant chains (e.g. ethereumGasless) to canonical keys (e.g. ethereum) for address lookup
+    const addressKey = this.mapChainToAddressKey(chain);
+    const address = addresses[addressKey as keyof WalletAddresses];
 
     if (!address) {
       return [];

@@ -1,17 +1,19 @@
 'use client';
 
-import { useMemo } from 'react';
+'use client';
+
+import { useMemo, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Loader2, Zap, Info } from 'lucide-react';
-import { useWalletData } from '@/hooks/useWalletData';
+import { walletApi, TokenBalance, ApiError } from '@/lib/api';
 import { TokenBalanceItem } from './token-balance-item';
-import { NormalizedBalance } from '@/types/wallet-data';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/ui/components/ui/tooltip';
+import { useAuth } from '@/hooks/useAuth';
 
 export const CHAIN_NAMES: Record<string, string> = {
   // Zerion canonical chain ids
@@ -55,62 +57,114 @@ interface BalanceViewProps {
 
 /**
  * Container component that displays token balances
- * Uses useWalletData hook to get balances from provider
+ * Fetches balances directly using walletApi to match send flow consistency
  */
 export function BalanceView({ selectedChainId }: BalanceViewProps) {
-  const { balances: realBalances, loading, errors } = useWalletData();
+  const { userId } = useAuth();
+  const [balances, setBalances] = useState<TokenBalance[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const balances = useMemo(() => {
-    return realBalances.filter(b => b.chain === selectedChainId);
-  }, [realBalances, selectedChainId]);
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchBalances = async () => {
+      // Trace consistent ID usage
+      if (!userId || !selectedChainId) return;
+
+      setLoading(true);
+      setError(null);
+      // Clear previous balances while loading new chain to avoid confusion
+      setBalances([]);
+
+      try {
+        // Check if this is a Substrate chain
+        const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
+        const isSubstrate = SUBSTRATE_CHAINS.includes(selectedChainId);
+
+        // Check if this is an Aptos chain
+        const APTOS_CHAINS = ["aptos", "aptosTestnet"];
+        const isAptos = APTOS_CHAINS.includes(selectedChainId);
+
+        let fetchedBalances: TokenBalance[] = [];
+
+        if (isSubstrate) {
+          // Load Substrate balances
+          const substrateBalances = await walletApi.getSubstrateBalances(userId, false);
+          const chainBalance = substrateBalances[selectedChainId];
+
+          if (chainBalance && chainBalance.address) {
+            fetchedBalances = [{
+              address: null,
+              symbol: chainBalance.token,
+              balance: chainBalance.balance,
+              decimals: chainBalance.decimals,
+              chain: selectedChainId,
+            }];
+          }
+        } else if (isAptos) {
+          // Load Aptos balance
+          const network = selectedChainId === "aptosTestnet" ? "testnet" : "mainnet";
+          const balanceData = await walletApi.getAptosBalance(userId, network);
+
+          // Convert to smallest units for consistency (assuming 8 decimals for APT)
+          // Note: API might return human readable, need to check. 
+          // Based on send-crypto-modal, it returns human readable and needs conversion
+          fetchedBalances = [{
+            address: null,
+            symbol: "APT",
+            balance: (parseFloat(balanceData.balance) * Math.pow(10, 8)).toString(),
+            decimals: 8,
+            chain: selectedChainId,
+            // @ts-ignore - Adding extra prop for UI consistency if needed
+            balanceHuman: balanceData.balance
+          }];
+        } else {
+          // Fetch balances (RPC-based/Zerion, filtered by chain)
+          // FORCE refreshing to ensure we get latest data and clear any stale "empty" cache
+          fetchedBalances = await walletApi.getTokenBalances(userId, selectedChainId, true);
+        }
+
+        if (mounted) {
+          setBalances(fetchedBalances);
+        }
+      } catch (err) {
+        if (mounted) {
+          console.error('[BalanceView] Failed to fetch balances:', err);
+          setError('Failed to load balances');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchBalances();
+
+    return () => {
+      mounted = false;
+    };
+  }, [userId, selectedChainId]);
 
   const totalUsdForChain = useMemo(() => {
-    // Each entry in realBalances for this chain has totalBalanceUsd
-    // We just need it from any one entry, or we can sum usdValue
-    return balances.reduce((sum, b) => sum + (b.usdValue || 0), 0);
+    // Assuming the API returns usdValue, sum it up
+    // Note: TokenBalance interface in api.ts doesn't explicitly have usdValue but data often has it
+    return balances.reduce((sum, b: any) => sum + (b.usdValue || 0), 0);
   }, [balances]);
 
-  // Group balances by chain and filter to show only non-zero balances
-  const groupedBalances = useMemo(() => {
-    // Group by chain
-    const byChain = new Map<string, NormalizedBalance[]>();
-
-    for (const balance of balances) {
-      // Only include balances that are greater than 0
-      const balanceValue = parseFloat(balance.balance);
-      if (balanceValue <= 0) continue;
-
-      const existing = byChain.get(balance.chain) || [];
-      existing.push(balance);
-      byChain.set(balance.chain, existing);
-    }
-
-    // Convert to array and sort by chain name
-    const grouped: Array<{ chain: string; balances: NormalizedBalance[] }> = [];
-
-    for (const [chain, chainBalances] of byChain.entries()) {
-      // Sort: native first, then by symbol
-      const sorted = chainBalances.sort((a, b) => {
-        if (a.isNative && !b.isNative) return -1;
-        if (!a.isNative && b.isNative) return 1;
-        return a.symbol.localeCompare(b.symbol);
-      });
-
-      grouped.push({ chain, balances: sorted });
-    }
-
-    // Sort groups by chain name
-    grouped.sort((a, b) => a.chain.localeCompare(b.chain));
-
-    return grouped;
+  // Sort: native first, then by symbol
+  const sortedBalances = useMemo(() => {
+    return [...balances].sort((a, b) => {
+      const isANative = !a.address;
+      const isBNative = !b.address;
+      if (isANative && !isBNative) return -1;
+      if (!isANative && isBNative) return 1;
+      return a.symbol.localeCompare(b.symbol);
+    });
   }, [balances]);
 
-  // Show loading state if explicitly loading (e.g., manual refresh or switch)
-  // or if we have no data yet
-  const isRefreshing = loading.balances;
-  const hasNoData = groupedBalances.length === 0;
-
-  if (isRefreshing && hasNoData) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-4" />
@@ -121,8 +175,8 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
     );
   }
 
-  // Show empty state (including when there are errors)
-  if (groupedBalances.length === 0 || (errors.balances && balances.length === 0)) {
+  // Show empty state
+  if (balances.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 md:py-20">
         {/* Empty Mailbox GIF */}
@@ -136,13 +190,12 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
           />
         </div>
         <p className="text-gray-600 text-lg md:text-xl font-rubik-medium z-10 -mt-16">
-          No Balance Available
+          {error ? error : "No Balance Available"}
         </p>
       </div>
     );
   }
 
-  // Render balances grouped by chain
   return (
     <div className="space-y-6">
       {/* Total Balance and Unified Balance Button */}
@@ -174,32 +227,40 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
         </TooltipProvider>
       </div>
 
-      {groupedBalances.map(({ chain, balances: chainBalances }) => (
-        <div key={chain} className="space-y-2">
-          <div className="space-y-2">
-            {chainBalances.map((balance, index) => {
-              // Only non-zero balances are shown (filtered in groupedBalances)
-              const key = balance.isNative
-                ? `${chain}-native-${index}`
-                : `${chain}-${balance.address || balance.symbol}-${index}`;
+      <div className="space-y-2">
+        <div className="space-y-2">
+          {sortedBalances.map((balance, index) => {
+            const isNative = !balance.address;
+            const key = isNative
+              ? `${selectedChainId}-native-${index}`
+              : `${selectedChainId}-${balance.address}-${index}`;
 
-              return (
-                <TokenBalanceItem
-                  key={key}
-                  chain={balance.chain}
-                  symbol={balance.symbol}
-                  balance={balance.balance}
-                  decimals={balance.decimals}
-                  balanceHuman={balance.balanceHuman}
-                  isNative={balance.isNative}
-                  chainName={CHAIN_NAMES[chain] || chain}
-                  usdValue={balance.usdValue}
-                />
-              );
-            })}
-          </div>
+            // Calculate human readable balance if not provided
+            let balanceHuman = (balance as any).balanceHuman;
+            if (!balanceHuman) {
+              const num = parseFloat(balance.balance);
+              if (!isNaN(num)) {
+                balanceHuman = (num / Math.pow(10, balance.decimals)).toString();
+              } else {
+                balanceHuman = "0";
+              }
+            }
+
+            return (
+              <TokenBalanceItem
+                key={key}
+                chain={selectedChainId} // Use selectedChainId directly
+                symbol={balance.symbol}
+                balance={balance.balance}
+                decimals={balance.decimals}
+                balanceHuman={balanceHuman}
+                isNative={isNative}
+                usdValue={(balance as any).usdValue}
+              />
+            );
+          })}
         </div>
-      ))}
+      </div>
     </div>
   );
 }

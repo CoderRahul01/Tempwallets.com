@@ -5,7 +5,7 @@ import { Loader2, RotateCw } from 'lucide-react';
 import { BalanceView } from './balance-view';
 import RecentTransactions from './recent-transactions';
 import { LightningNodesView } from '../lightning/lightning-nodes-view';
-import { useWalletData } from '@/hooks/useWalletData';
+
 import { LightningNodesProvider } from '@/hooks/lightning-nodes-context';
 import { useLightningNodes } from '@/hooks/useLightningNodes';
 
@@ -23,15 +23,14 @@ interface BalanceTransactionsToggleProps {
 
 export function BalanceTransactionsToggle({ selectedChainId }: BalanceTransactionsToggleProps) {
   const [activeView, setActiveView] = useState<ViewType>('balance');
-  const { loading, refreshBalances, refreshTransactions } = useWalletData();
+  const [refreshKey, setRefreshKey] = useState(0);
   const { loading: lightningLoading, refreshNodes } = useLightningNodes();
-  const isLoading = loading.balances || loading.transactions || lightningLoading;
 
   const handleRefresh = () => {
     if (activeView === 'balance') {
-      refreshBalances();
+      setRefreshKey(prev => prev + 1);
     } else if (activeView === 'transactions') {
-      refreshTransactions();
+      setRefreshKey(prev => prev + 1);
     } else if (activeView === 'lightningNodes') {
       refreshNodes();
     }
@@ -86,13 +85,13 @@ export function BalanceTransactionsToggle({ selectedChainId }: BalanceTransactio
         {/* Refresh Button on Right */}
         <button
           onClick={handleRefresh}
-          disabled={isLoading}
+          disabled={activeView === 'lightningNodes' ? lightningLoading : false}
           type="button"
           className="text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 hover:border-gray-300 bg-white shadow-sm hover:shadow active:scale-[0.98]"
           style={{ touchAction: 'manipulation' }}
           aria-label="Refresh"
         >
-          {isLoading ? (
+          {activeView === 'lightningNodes' && lightningLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <RotateCw className="h-4 w-4" />
@@ -103,9 +102,14 @@ export function BalanceTransactionsToggle({ selectedChainId }: BalanceTransactio
       {/* Content Area */}
       <div className="mx-4 md:mx-6 mb-4 flex-1">
         {activeView === 'balance' ? (
-          <BalanceView selectedChainId={selectedChainId} />
+          <BalanceView key={`${selectedChainId}-${refreshKey}`} selectedChainId={selectedChainId} />
         ) : activeView === 'transactions' ? (
-          <RecentTransactions showAll={false} hideHeader selectedChainId={selectedChainId} />
+          <RecentTransactions
+            key={`${selectedChainId}-${refreshKey}`}
+            showAll={false}
+            hideHeader
+            selectedChainId={selectedChainId}
+          />
         ) : (
           <LightningNodesProvider>
             <LightningNodesView />
