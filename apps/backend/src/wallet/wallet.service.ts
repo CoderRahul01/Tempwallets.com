@@ -8,20 +8,21 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { SeedRepository } from './seed.repository.js';
 import { BalanceProviderFactory } from './factories/balance-provider.factory.js';
-import { TokenBalance } from './types/account.types.js';
 import { SeedManager } from './managers/seed.manager.js';
 import { AddressManager } from './managers/address.manager.js';
 import { AccountFactory } from './factories/account.factory.js';
 import { NativeEoaFactory } from './factories/native-eoa.factory.js';
-import { Eip7702AccountFactory } from './factories/eip7702-account.factory.js';
+import { IAccount, TokenBalance } from './types/account.types.js';
 import { SubstrateManager } from './substrate/managers/substrate.manager.js';
 import { SubstrateChainKey } from './substrate/config/substrate-chain.config.js';
 import { BalanceCacheRepository } from './repositories/balance-cache.repository.js';
 import { WalletHistoryRepository } from './repositories/wallet-history.repository.js';
-import { Eip7702DelegationRepository } from './repositories/eip7702-delegation.repository.js';
-import { IAccount } from './types/account.types.js';
 import { ZerionService } from './services/zerion.service.js';
 import { ViemErrorFormatter } from './diagnostics/viem-error.formatter.js';
+import { SendService } from './services/standard-wallet/send.service.js';
+import { ReceiveService } from './services/standard-wallet/receive.service.js';
+import { BalanceService } from './services/standard-wallet/balance.service.js';
+import { ChainMapService } from './services/standard-wallet/chain-map.service.js';
 import { CacheService } from './services/cache.service.js';
 import { AllChainTypes } from './types/chain.types.js';
 import {
@@ -142,15 +143,17 @@ export class WalletService {
     private addressManager: AddressManager,
     private accountFactory: AccountFactory,
     private nativeEoaFactory: NativeEoaFactory,
-    private eip7702AccountFactory: Eip7702AccountFactory,
     private substrateManager: SubstrateManager,
     private balanceCacheRepository: BalanceCacheRepository,
     private walletHistoryRepository: WalletHistoryRepository,
     private pimlicoConfig: PimlicoConfigService,
-    private eip7702DelegationRepository: Eip7702DelegationRepository,
     private zerionService: ZerionService,
     private cacheService: CacheService,
     private balanceProviderFactory: BalanceProviderFactory,
+    private sendService: SendService,
+    private receiveService: ReceiveService,
+    private balanceService: BalanceService,
+    private chainMapService: ChainMapService,
   ) { }
 
   /**
@@ -202,6 +205,15 @@ export class WalletService {
   async getAddresses(userId: string): Promise<WalletAddresses> {
     // Use the AddressManager for address operations
     return this.addressManager.getAddresses(userId);
+  }
+
+  /**
+   * Get the seed phrase for a user
+   * @param userId - The user ID
+   * @returns The seed phrase
+   */
+  async getSeedPhrase(userId: string): Promise<string> {
+    return this.seedRepository.getSeedPhrase(userId);
   }
 
   /**
@@ -1019,19 +1031,6 @@ export class WalletService {
     return this.getBalances(userId, true); // Force refresh
   }
 
-  /**
-   * Get ERC-4337 paymaster token balances
-   * @param userId - The user ID
-   * @returns Array of paymaster token balances
-   */
-  async getErc4337PaymasterBalances(
-    userId: string,
-  ): Promise<Array<{ chain: string; balance: string }>> {
-    this.logger.warn(
-      'EIP-7702 migration: paymaster balances for legacy ERC-4337 are disabled.',
-    );
-    return [];
-  }
 
   /**
    * Convert human-readable amount to smallest units (BigInt)
@@ -1099,154 +1098,8 @@ export class WalletService {
     ],
   };
 
-  /**
-   * Check if chain is ERC-4337 smart account chain
-   * @param chain - Internal chain name
-   * @returns true if chain is ERC-4337
-   */
-  private isErc4337Chain(chain: string): boolean {
-    return chain.includes('Erc4337') || chain.includes('erc4337');
-  }
 
-  /**
-   * Check if a smart account is deployed on-chain
-   * @param account - WDK account instance
-   * @returns true if account is deployed, false otherwise
-   */
-  private async checkIfDeployed(account: any): Promise<boolean> {
-    try {
-      const address = await account.getAddress();
 
-      // Get provider from account
-      let provider: any = null;
-      if ('provider' in account) {
-        provider = account.provider;
-      } else if (
-        'getProvider' in account &&
-        typeof account.getProvider === 'function'
-      ) {
-        provider = await account.getProvider();
-      }
-
-      if (!provider || typeof provider.request !== 'function') {
-        this.logger.warn(
-          `Cannot check deployment status: provider not available for address ${address}`,
-        );
-        return false;
-      }
-
-      // Check if contract code exists at address
-      const code = await provider.request({
-        method: 'eth_getCode',
-        params: [address, 'latest'],
-      });
-
-      const isDeployed = code && code !== '0x' && code !== '0x0';
-
-      this.logger.log(
-        `[Deployment Check] Address: ${address}, deployed: ${isDeployed}, code length: ${code?.length || 0}`,
-      );
-
-      return isDeployed;
-    } catch (e) {
-      this.logger.error(
-        `Failed to check deployment status: ${e instanceof Error ? e.message : 'Unknown error'}`,
-      );
-      return false;
-    }
-  }
-
-  /**
-   * Deploy an ERC-4337 smart account using UserOperation
-   * @param account - WDK ERC-4337 account instance
-   * @param address - Account address
-   * @param chain - Internal chain name
-   * @returns Promise that resolves when deployment is complete
-   */
-  private async deployErc4337Account(
-    account: any,
-    address: string,
-    chain: string,
-  ): Promise<void> {
-    this.logger.log(
-      `[Deploy] Starting deployment for ERC-4337 account ${address} on ${chain}`,
-    );
-
-    try {
-      // Method 1: Try deployAccount() if available
-      if (
-        'deployAccount' in account &&
-        typeof account.deployAccount === 'function'
-      ) {
-        await account.deployAccount();
-        return;
-      }
-
-      // Method 2: Try deploy() if available
-      if ('deploy' in account && typeof account.deploy === 'function') {
-        await account.deploy();
-        return;
-      }
-
-      // Method 3: Send a zero-value transaction to self to trigger deployment
-      // ERC-4337 accounts typically auto-deploy on first UserOperation
-      if ('send' in account && typeof account.send === 'function') {
-        await account.send(address, '0');
-
-        // Wait a bit for deployment to be confirmed
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // Verify deployment
-        const isNowDeployed = await this.checkIfDeployed(account);
-        if (!isNowDeployed) {
-          throw new Error(
-            'Deployment transaction sent but account not deployed yet. Please try again in a moment.',
-          );
-        }
-        return;
-      }
-
-      // Method 4: Try transfer with structured params
-      if ('transfer' in account && typeof account.transfer === 'function') {
-        this.logger.debug(
-          `[Deploy] Using account.transfer() to trigger deployment`,
-        );
-        const result = await account.transfer({
-          to: address,
-          amount: 0,
-        });
-        this.logger.log(
-          `[Deploy] Deployment triggered via transfer: ${JSON.stringify(result)}`,
-        );
-
-        // Wait for deployment confirmation
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // Verify deployment
-        const isNowDeployed = await this.checkIfDeployed(account);
-        if (!isNowDeployed) {
-          throw new Error(
-            'Deployment transaction sent but account not deployed yet. Please try again in a moment.',
-          );
-        }
-        return;
-      }
-
-      // If no deployment method found, throw error
-      throw new Error(
-        `No deployment method available for ERC-4337 account. ` +
-        `Account type may not support auto-deployment. ` +
-        `Available methods: ${Object.keys(account)
-          .filter((k) => typeof account[k] === 'function')
-          .join(', ')}`,
-      );
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`[Deploy] Deployment failed: ${errorMessage}`);
-      throw error;
-    }
-  }
 
   /**
    * Fetch token decimals from RPC using ERC-20 decimals() call
@@ -1458,17 +1311,6 @@ export class WalletService {
     chain: AllChainTypes,
     userId?: string,
   ): Promise<IAccount> {
-    const isEip7702 = this.pimlicoConfig.isEip7702Enabled(chain);
-
-    if (isEip7702) {
-      return this.eip7702AccountFactory.createAccount(
-        seedPhrase,
-        chain as any,
-        0,
-        userId,
-      );
-    }
-
     const evmChains: AllChainTypes[] = [
       'ethereum',
       'base',
@@ -1481,7 +1323,6 @@ export class WalletService {
     ];
 
     if (evmChains.includes(chain)) {
-      // Zerion fallback removed
       return this.nativeEoaFactory.createAccount(
         seedPhrase,
         chain as
@@ -1535,50 +1376,22 @@ export class WalletService {
       throw new BadRequestException('Amount must be a positive number');
     }
 
-    const forceEip7702 = options?.forceEip7702 === true;
-    let isEip7702Chain = false;
-    try {
-      isEip7702Chain = this.pimlicoConfig.isEip7702Enabled(chain);
-    } catch (error) {
-      this.logger.error(`Error checking EIP-7702 enablement for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-    const accountType = isEip7702Chain ? 'EIP-7702' : 'EOA';
-
     try {
       const seedPhrase = await this.seedRepository.getSeedPhrase(userId);
 
-      // Auto-route native sends on EIP-7702 enabled chains to the gasless flow to avoid zeroed gas fields
-      // Auto-route to gasless flow on EIP-7702 enabled chains to avoid zeroed gas fields and provide sponsorship
-      if (isEip7702Chain && !forceEip7702) {
-        let eipConfig;
-        try {
-          eipConfig = this.pimlicoConfig.getEip7702Config(chain as any);
-        } catch (error) {
-          this.logger.error(`Error getting EIP-7702 config for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          // Fall back to EOA flow if config fails
-          isEip7702Chain = false;
-        }
-
-        if (eipConfig) {
-          this.logger.warn(
-            `[Auto-Route] Chain ${chain} has EIP-7702 enabled. ` +
-            `Routing to sendEip7702Gasless() for proper gasless flow (token: ${tokenAddress || 'native'}).`,
-          );
-
-          const result = await this.sendEip7702Gasless(
-            userId,
-            eipConfig.chainId,
-            recipientAddress,
-            amount,
-            tokenAddress,
-            tokenDecimals,
-          );
-
-          return { txHash: result.transactionHash || result.userOpHash };
-        }
+      // Use the modular SendService for standard EVM chains
+      const isEvmChain = this.EOA_CHAIN_KEYS.includes(chain as any);
+      if (isEvmChain) {
+        this.logger.log(`[Send] Using modular SendService for ${chain}`);
+        const result = await this.sendService.send(seedPhrase, chain as any, {
+          to: recipientAddress,
+          amount: amount,
+          tokenAddress: tokenAddress,
+        });
+        return { txHash: result.txHash };
       }
 
-      // Create account using appropriate factory
+      // Fallback/Legacy logic for other chains (Solana, Bitcoin, etc.)
       const account = await this.createAccountForChain(
         seedPhrase,
         chain,
@@ -1588,7 +1401,7 @@ export class WalletService {
 
       this.logger.log(
         `[Send Debug] User is sending ${amount} ${tokenAddress || 'native'} from ${chain} ` +
-        `(accountType: ${accountType}, address: ${walletAddress})`,
+        `(address: ${walletAddress})`,
       );
 
       // Get decimals: Use provided tokenDecimals, or fetch from Zerion, or use native decimals
@@ -1672,9 +1485,8 @@ export class WalletService {
       // Convert human-readable amount to smallest units using Zerion's decimals
       const amountSmallest = this.convertToSmallestUnits(amount, finalDecimals);
       this.logger.log(
-        `Send pre-check: chain=${chain}, accountType=${accountType}, token=${tokenAddress || 'native'}, ` +
-        `humanAmount=${amount}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
-        `amountSmallest=${amountSmallest.toString()}`,
+        `Send pre-check: chain=${chain}, token=${tokenAddress || 'native'}, ` +
+        `amount=${amount}, decimals=${finalDecimals} (via ${decimalsSource}), smallest=${amountSmallest.toString()}`,
       );
 
       // Validate balance using Zerion as primary source
@@ -1801,13 +1613,13 @@ export class WalletService {
                 // Don't wrap in "method not supported" if it's a real transaction error
                 const errorDetail = e2 instanceof Error ? e2.message : 'unknown error';
                 throw new ServiceUnavailableException(
-                  `Token transfer failed for account type ${accountType} on chain ${chain}: ${errorDetail}`,
+                  `Token transfer failed for account type EOA on chain ${chain}: ${errorDetail}`,
                 );
               }
             }
           } else {
             throw new ServiceUnavailableException(
-              `Token transfer not supported for account type ${accountType} on chain ${chain}. ` +
+              `Token transfer not supported for account type EOA on chain ${chain}. ` +
               `The account does not support the transfer method.`,
             );
           }
@@ -1841,7 +1653,7 @@ export class WalletService {
           } else {
             throw new BadRequestException(
               `Native token send not supported for chain ${chain}. ` +
-              `Account type: ${accountType}. Please check if this chain/account combination is supported.`,
+              `Account type: EOA. Please check if this chain/account combination is supported.`,
             );
           }
         }
@@ -1854,7 +1666,7 @@ export class WalletService {
 
         // Structured logging for successful transaction
         this.logger.log(
-          `Transaction successful: chain=${chain}, accountType=${accountType}, ` +
+          `Transaction successful: chain=${chain}, ` +
           `token=${tokenAddress || 'native'}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
           `humanAmount=${amount}, amountSmallest=${amountSmallest.toString()}, ` +
           `method=${sendMethod}, txHash=${txHash}, recipient=${recipientAddress}`,
@@ -1877,7 +1689,7 @@ export class WalletService {
         // Structured error logging
         const errorMessage = ViemErrorFormatter.format(error);
         this.logger.error(
-          `Transaction failed: chain=${chain}, accountType=${accountType}, ` +
+          `Transaction failed: chain=${chain}, ` +
           `token=${tokenAddress || 'native'}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
           `humanAmount=${amount}, amountSmallest=${amountSmallest.toString()}, ` +
           `method=${sendMethod}, error=${errorMessage}`,
@@ -1962,68 +1774,6 @@ export class WalletService {
     }
   }
 
-  async sendEip7702Gasless(
-    userId: string,
-    chainId: number,
-    recipientAddress: string,
-    amount: string,
-    tokenAddress?: string,
-    tokenDecimals?: number,
-  ): Promise<{
-    success: boolean;
-    userOpHash: string;
-    transactionHash?: string;
-    isFirstTransaction: boolean;
-    explorerUrl?: string;
-  }> {
-    const chainIdMap: Record<number, AllChainTypes> = {
-      1: 'ethereum',
-      8453: 'base',
-      42161: 'arbitrum',
-      10: 'optimism',
-      137: 'polygon',
-      43114: 'avalanche',
-      11155111: 'sepolia',
-      56: 'bnb',
-    };
-
-    const chain = chainIdMap[chainId];
-    if (!chain) {
-      throw new BadRequestException(`Unsupported EIP-7702 chainId: ${chainId}`);
-    }
-
-    try {
-      if (!this.pimlicoConfig.isEip7702Enabled(chain)) {
-        throw new BadRequestException(
-          `EIP-7702 is not enabled for chain ${chain}. Enable via config before sending gasless transactions.`,
-        );
-      }
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error;
-      throw new BadRequestException(`EIP-7702 validation failed for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-
-    // Determine if this is the first delegation/transaction before sending
-    const isFirstTransaction =
-      !(await this.eip7702DelegationRepository.hasDelegation(userId, chainId));
-
-    const { txHash } = await this.sendCrypto(
-      userId,
-      chain,
-      recipientAddress,
-      amount,
-      tokenAddress,
-      tokenDecimals,
-      { forceEip7702: true },
-    );
-
-    return {
-      success: true,
-      userOpHash: txHash,
-      transactionHash: txHash,
-      isFirstTransaction,
-    };
-  }
 
   /**
    * Sign a WalletConnect transaction request

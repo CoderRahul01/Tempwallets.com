@@ -127,6 +127,7 @@ export class Eip7702AccountFactory {
     const smartAccount = await to7702SimpleSmartAccount({
       client: publicClient,
       owner: eoaAccount,
+      entryPoint,
     });
 
     const smartAccountAddress = await smartAccount.getAddress();
@@ -273,6 +274,11 @@ class Eip7702SmartAccountWrapper implements IAccount {
 
   async transfer(params: TokenTransferParams): Promise<string> {
     const { to, amount, tokenAddress } = params;
+
+    if (!to) {
+      throw new Error('Recipient address (to) is required for transfer');
+    }
+
     const value = BigInt(amount);
 
     this.logger.log(`[EIP-7702 Transfer] Starting transaction`);

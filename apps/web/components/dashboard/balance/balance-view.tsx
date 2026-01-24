@@ -1,11 +1,9 @@
 'use client';
 
-'use client';
-
 import { useMemo, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Loader2, Zap, Info } from 'lucide-react';
-import { walletApi, TokenBalance, ApiError } from '@/lib/api';
+import { walletApi, TokenBalance, AnyChainAsset, ApiError } from '@/lib/api';
 import { TokenBalanceItem } from './token-balance-item';
 import {
   Tooltip,
@@ -61,7 +59,7 @@ interface BalanceViewProps {
  */
 export function BalanceView({ selectedChainId }: BalanceViewProps) {
   const { userId } = useAuth();
-  const [balances, setBalances] = useState<TokenBalance[]>([]);
+  const [balances, setBalances] = useState<AnyChainAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +68,7 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
 
     const fetchBalances = async () => {
       // Trace consistent ID usage
-      if (!userId || !selectedChainId) return;
+      if (!userId) return;
 
       setLoading(true);
       setError(null);
@@ -78,55 +76,12 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
       setBalances([]);
 
       try {
-        // Check if this is a Substrate chain
-        const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
-        const isSubstrate = SUBSTRATE_CHAINS.includes(selectedChainId);
-
-        // Check if this is an Aptos chain
-        const APTOS_CHAINS = ["aptos", "aptosTestnet"];
-        const isAptos = APTOS_CHAINS.includes(selectedChainId);
-
-        let fetchedBalances: TokenBalance[] = [];
-
-        if (isSubstrate) {
-          // Load Substrate balances
-          const substrateBalances = await walletApi.getSubstrateBalances(userId, false);
-          const chainBalance = substrateBalances[selectedChainId];
-
-          if (chainBalance && chainBalance.address) {
-            fetchedBalances = [{
-              address: null,
-              symbol: chainBalance.token,
-              balance: chainBalance.balance,
-              decimals: chainBalance.decimals,
-              chain: selectedChainId,
-            }];
-          }
-        } else if (isAptos) {
-          // Load Aptos balance
-          const network = selectedChainId === "aptosTestnet" ? "testnet" : "mainnet";
-          const balanceData = await walletApi.getAptosBalance(userId, network);
-
-          // Convert to smallest units for consistency (assuming 8 decimals for APT)
-          // Note: API might return human readable, need to check. 
-          // Based on send-crypto-modal, it returns human readable and needs conversion
-          fetchedBalances = [{
-            address: null,
-            symbol: "APT",
-            balance: (parseFloat(balanceData.balance) * Math.pow(10, 8)).toString(),
-            decimals: 8,
-            chain: selectedChainId,
-            // @ts-ignore - Adding extra prop for UI consistency if needed
-            balanceHuman: balanceData.balance
-          }];
-        } else {
-          // Fetch balances (RPC-based/Zerion, filtered by chain)
-          // FORCE refreshing to ensure we get latest data and clear any stale "empty" cache
-          fetchedBalances = await walletApi.getTokenBalances(userId, selectedChainId, true);
-        }
+        // Fetch aggregated assets from all chains (Unified View)
+        // FORCE refreshing to ensure we get latest data and clear any stale "empty" cache
+        const allAssets = await walletApi.getAssetsAny(userId, true);
 
         if (mounted) {
-          setBalances(fetchedBalances);
+          setBalances(allAssets);
         }
       } catch (err) {
         if (mounted) {
@@ -145,22 +100,18 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
     return () => {
       mounted = false;
     };
-  }, [userId, selectedChainId]);
+  }, [userId]); // Removed selectedChainId dependency to show unified view
 
   const totalUsdForChain = useMemo(() => {
-    // Assuming the API returns usdValue, sum it up
-    // Note: TokenBalance interface in api.ts doesn't explicitly have usdValue but data often has it
-    return balances.reduce((sum, b: any) => sum + (b.usdValue || 0), 0);
+    return balances.reduce((sum, b) => sum + (b.usdValue || 0), 0);
   }, [balances]);
 
-  // Sort: native first, then by symbol
+  // Sort: highest USD value first
   const sortedBalances = useMemo(() => {
     return [...balances].sort((a, b) => {
-      const isANative = !a.address;
-      const isBNative = !b.address;
-      if (isANative && !isBNative) return -1;
-      if (!isANative && isBNative) return 1;
-      return a.symbol.localeCompare(b.symbol);
+      const valA = a.usdValue || 0;
+      const valB = b.usdValue || 0;
+      return valB - valA; // Descending
     });
   }, [balances]);
 
@@ -169,7 +120,7 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
       <div className="flex flex-col items-center justify-center py-16">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-4" />
         <p className="text-gray-500 font-rubik-normal text-center">
-          Searching for balances...
+          Loading unified portfolio...
         </p>
       </div>
     );
@@ -190,7 +141,7 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
           />
         </div>
         <p className="text-gray-600 text-lg md:text-xl font-rubik-medium z-10 -mt-16">
-          {error ? error : "No Balance Available"}
+          {error ? error : "No Assets Found"}
         </p>
       </div>
     );
@@ -231,31 +182,18 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
         <div className="space-y-2">
           {sortedBalances.map((balance, index) => {
             const isNative = !balance.address;
-            const key = isNative
-              ? `${selectedChainId}-native-${index}`
-              : `${selectedChainId}-${balance.address}-${index}`;
-
-            // Calculate human readable balance if not provided
-            let balanceHuman = (balance as any).balanceHuman;
-            if (!balanceHuman) {
-              const num = parseFloat(balance.balance);
-              if (!isNaN(num)) {
-                balanceHuman = (num / Math.pow(10, balance.decimals)).toString();
-              } else {
-                balanceHuman = "0";
-              }
-            }
+            const key = `${balance.chain}-${balance.symbol}-${index}`;
 
             return (
               <TokenBalanceItem
                 key={key}
-                chain={selectedChainId} // Use selectedChainId directly
+                chain={balance.chain} // Use asset's specific chain
                 symbol={balance.symbol}
                 balance={balance.balance}
                 decimals={balance.decimals}
-                balanceHuman={balanceHuman}
+                balanceHuman={balance.balanceHuman}
                 isNative={isNative}
-                usdValue={(balance as any).usdValue}
+                usdValue={balance.usdValue}
               />
             );
           })}

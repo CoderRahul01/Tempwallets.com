@@ -55,17 +55,38 @@ export class ZerionService {
       .toLowerCase();
   }
 
-  async getBalances(address: string, chain: string): Promise<TokenBalance[]> {
+  /**
+   * Map Zerion chain IDs back to internal chain identifiers
+   */
+  private mapFromZerionChain(zerionChain: string): string {
+    const mapping: Record<string, string> = {
+      ethereum: 'ethereum',
+      base: 'base',
+      arbitrum: 'arbitrum',
+      polygon: 'polygon',
+      avalanche: 'avalanche',
+      optimism: 'optimism',
+      sepolia: 'sepolia',
+      'moonbeam-alpha': 'moonbeamTestnet',
+      'astar-shibuya': 'astarShibuya',
+      'paseo-assethub': 'paseoPassetHub',
+    };
+
+    return mapping[zerionChain] || zerionChain;
+  }
+
+  async getBalances(address: string, chain?: string, forceRefresh: boolean = false): Promise<TokenBalance[]> {
     if (!this.apiKey) {
       this.logger.error('Cannot fetch balances: ZERION_API_KEY is missing');
       return [];
     }
 
-    const zerionChain = this.mapToZerionChain(chain);
-    const url = `https://api.zerion.io/v1/wallets/${address}/positions/?filter[chain_ids]=${zerionChain}&currency=usd`;
+    const zerionChain = chain ? this.mapToZerionChain(chain) : null;
+    const filterParam = zerionChain ? `&filter[chain_ids]=${zerionChain}` : '';
+    const url = `https://api.zerion.io/v1/wallets/${address}/positions/?currency=usd${filterParam}`;
 
     try {
-      this.logger.debug(`Fetching balances from Zerion for ${address} on ${zerionChain}`);
+      this.logger.debug(`Fetching balances from Zerion for ${address} ${chain ? `on ${zerionChain}` : '(all chains)'}`);
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -88,9 +109,13 @@ export class ZerionService {
         const info = attr.fungible_info;
         const quantity = attr.quantity;
 
+        // Extract chain ID from relationship
+        const posZerionChain = pos.relationships?.chain?.data?.id;
+        const internalChain = posZerionChain ? this.mapFromZerionChain(posZerionChain) : (chain || 'unknown');
+
         return {
-          chain: chain,
-          address: info?.implementations?.find((i: any) => i.chain_id === zerionChain)?.address || null,
+          chain: internalChain,
+          address: info?.implementations?.find((i: any) => i.chain_id === posZerionChain)?.address || null,
           symbol: info?.symbol || 'UNKNOWN',
           balance: quantity?.int || '0',
           decimals: quantity?.decimals || 18,
@@ -106,17 +131,18 @@ export class ZerionService {
     }
   }
 
-  async getTransactions(address: string, chain: string): Promise<any[]> {
+  async getTransactions(address: string, chain?: string): Promise<any[]> {
     if (!this.apiKey) {
       this.logger.error('Cannot fetch transactions: ZERION_API_KEY is missing');
       return [];
     }
 
-    const zerionChain = this.mapToZerionChain(chain);
-    const url = `https://api.zerion.io/v1/wallets/${address}/transactions/?filter[chain_ids]=${zerionChain}`;
+    const zerionChain = chain ? this.mapToZerionChain(chain) : null;
+    const filterParam = zerionChain ? `&filter[chain_ids]=${zerionChain}` : '';
+    const url = `https://api.zerion.io/v1/wallets/${address}/transactions/${filterParam ? `?${filterParam.slice(1)}` : ''}`;
 
     try {
-      this.logger.debug(`Fetching transactions from Zerion for ${address} on ${zerionChain}`);
+      this.logger.debug(`Fetching transactions from Zerion for ${address} ${chain ? `on ${zerionChain}` : '(all chains)'}`);
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -136,16 +162,18 @@ export class ZerionService {
 
       return transactions.map((tx: any) => {
         const attr = tx.attributes;
-        // Basic mapping, WalletService will refine this
+        const txZerionChain = tx.relationships?.chain?.data?.id;
+        const internalChain = txZerionChain ? this.mapFromZerionChain(txZerionChain) : (chain || 'unknown');
+
         return {
           txHash: attr.hash,
-          from: attr.mintern_address || '', // Typical field in Zerion V1 for sender
+          from: attr.mintern_address || '',
           to: attr.address || '',
           value: attr.value?.toString() || '0',
           timestamp: attr.minit_at ? Math.floor(new Date(attr.minit_at).getTime() / 1000) : null,
           blockNumber: attr.block_number || null,
-          status: 'success', // Zerion mostly returns confirmed transactions
-          chain: chain,
+          status: 'success',
+          chain: internalChain,
         };
       });
     } catch (error) {

@@ -76,7 +76,7 @@ export class SendCryptoDto {
   recipientAddress: string;
 }
 
-export class SendEip7702Dto {
+export class SendStandardDto {
   @IsString()
   @IsNotEmpty()
   userId: string;

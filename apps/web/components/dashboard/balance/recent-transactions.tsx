@@ -273,49 +273,9 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
     setError(null);
 
     try {
-      let fetchedTransactions: Transaction[] = [];
-
-      if (selectedChainId) {
-        // Check if this is a Substrate chain
-        const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
-        const isSubstrate = SUBSTRATE_CHAINS.includes(selectedChainId);
-
-        if (isSubstrate) {
-          const history = await walletApi.getSubstrateTransactions(
-            userId,
-            selectedChainId,
-            false,
-            10
-          );
-          fetchedTransactions = history.transactions.map(
-            (tx) =>
-            ({
-              txHash: tx.txHash,
-              from: tx.from,
-              to: tx.to || null,
-              value: tx.amount || '0',
-              timestamp: tx.timestamp
-                ? Math.floor(tx.timestamp / 1000)
-                : null,
-              blockNumber: tx.blockNumber || null,
-              status:
-                tx.status === 'finalized' || tx.status === 'inBlock'
-                  ? 'success'
-                  : tx.status === 'failed' || tx.status === 'error'
-                    ? 'failed'
-                    : 'pending',
-              chain: selectedChainId,
-              tokenSymbol: undefined,
-            } as Transaction)
-          );
-        } else {
-          // EVM / Standard chains
-          fetchedTransactions = await walletApi.getTransactionHistory(userId, selectedChainId, 50);
-        }
-      } else {
-        // Fetch all (fallback if used without selectedChainId in some context, but mainly this component is used with selectedChainId now)
-        fetchedTransactions = await walletApi.getTransactionsAny(userId, 50);
-      }
+      // Unified View: Always fetch transactions from all chains
+      // Backend's getTransactionsAny aggregates from Zerion and other sources
+      const fetchedTransactions = await walletApi.getTransactionsAny(userId, 50);
 
       // Sort by timestamp
       const sorted = fetchedTransactions.sort((a, b) => {
@@ -331,7 +291,7 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
     } finally {
       setLoading(false);
     }
-  }, [userId, propTransactions, selectedChainId]);
+  }, [userId, propTransactions]); // Removed selectedChainId dependency from fetch logic
 
 
   useEffect(() => {

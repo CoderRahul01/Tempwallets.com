@@ -2,18 +2,24 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AddressManager } from './address.manager.js';
 import { SeedManager } from './seed.manager.js';
 import { AccountFactory } from '../factories/account.factory.js';
-import { PimlicoAccountFactory } from '../factories/pimlico-account.factory.js';
+import { Eip7702AccountFactory } from '../factories/eip7702-account.factory.js';
 import { SubstrateManager } from '../substrate/managers/substrate.manager.js';
 import { AddressCacheRepository } from '../repositories/address-cache.repository.js';
 import { WalletAddresses } from '../interfaces/wallet.interfaces.js';
+import { NativeEoaFactory } from '../factories/native-eoa.factory.js';
+import { AptosAddressManager } from '../aptos/managers/aptos-address.manager.js';
+import { PimlicoConfigService } from '../config/pimlico.config.js';
 
 describe('AddressManager', () => {
   let addressManager: AddressManager;
   let seedManager: jest.Mocked<SeedManager>;
   let accountFactory: jest.Mocked<AccountFactory>;
-  let pimlicoAccountFactory: jest.Mocked<PimlicoAccountFactory>;
+  let eip7702AccountFactory: jest.Mocked<Eip7702AccountFactory>;
   let substrateManager: jest.Mocked<SubstrateManager>;
   let addressCacheRepository: jest.Mocked<AddressCacheRepository>;
+  let nativeEoaFactory: jest.Mocked<NativeEoaFactory>;
+  let aptosAddressManager: jest.Mocked<AptosAddressManager>;
+  let pimlicoConfig: jest.Mocked<PimlicoConfigService>;
 
   const mockUserId = 'test-fingerprint-123';
   const mockSeedPhrase =
@@ -31,13 +37,25 @@ describe('AddressManager', () => {
       createAccount: jest.fn(),
     };
 
-    const mockPimlicoAccountFactory = {
+    const mockEip7702AccountFactory = {
       createAccount: jest.fn(),
     };
 
     const mockSubstrateManager = {
       getAddress: jest.fn(),
       getAddresses: jest.fn().mockResolvedValue({}),
+    };
+
+    const mockNativeEoaFactory = {
+      createAccount: jest.fn(),
+    };
+
+    const mockAptosAddressManager = {
+      deriveAddress: jest.fn(),
+    };
+
+    const mockPimlicoConfig = {
+      isEip7702Enabled: jest.fn(),
     };
 
     const mockAddressCacheRepository = {
@@ -61,8 +79,8 @@ describe('AddressManager', () => {
           useValue: mockAccountFactory,
         },
         {
-          provide: PimlicoAccountFactory,
-          useValue: mockPimlicoAccountFactory,
+          provide: Eip7702AccountFactory,
+          useValue: mockEip7702AccountFactory,
         },
         {
           provide: SubstrateManager,
@@ -72,15 +90,30 @@ describe('AddressManager', () => {
           provide: AddressCacheRepository,
           useValue: mockAddressCacheRepository,
         },
+        {
+          provide: NativeEoaFactory,
+          useValue: mockNativeEoaFactory,
+        },
+        {
+          provide: AptosAddressManager,
+          useValue: mockAptosAddressManager,
+        },
+        {
+          provide: PimlicoConfigService,
+          useValue: mockPimlicoConfig,
+        },
       ],
     }).compile();
 
     addressManager = module.get<AddressManager>(AddressManager);
     seedManager = module.get(SeedManager);
     accountFactory = module.get(AccountFactory);
-    pimlicoAccountFactory = module.get(PimlicoAccountFactory);
+    eip7702AccountFactory = module.get(Eip7702AccountFactory);
     substrateManager = module.get(SubstrateManager);
     addressCacheRepository = module.get(AddressCacheRepository);
+    nativeEoaFactory = module.get(NativeEoaFactory);
+    aptosAddressManager = module.get(AptosAddressManager);
+    pimlicoConfig = module.get(PimlicoConfigService);
   });
 
   afterEach(() => {
@@ -314,7 +347,7 @@ describe('AddressManager', () => {
           .mockResolvedValue('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'),
       };
       accountFactory.createAccount.mockResolvedValue(mockAccount as any);
-      pimlicoAccountFactory.createAccount.mockResolvedValue(mockAccount as any);
+      eip7702AccountFactory.createAccount.mockResolvedValue(mockAccount as any);
 
       const streamed: Array<{ chain: string; address: string | null }> = [];
       for await (const item of addressManager.streamAddresses(mockUserId)) {
@@ -341,7 +374,7 @@ describe('AddressManager', () => {
           .mockResolvedValue('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'),
       };
       accountFactory.createAccount.mockResolvedValue(mockAccount as any);
-      pimlicoAccountFactory.createAccount.mockResolvedValue(mockAccount as any);
+      eip7702AccountFactory.createAccount.mockResolvedValue(mockAccount as any);
       substrateManager.getAddresses.mockResolvedValue({
         polkadot: null,
         hydration: null,

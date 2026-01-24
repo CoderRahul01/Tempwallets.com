@@ -76,31 +76,28 @@ const CHAIN_NAMES: Record<string, string> = {
   avalancheErc4337: "Avalanche",
 };
 
-// EIP-7702 chain ID mapping
-// ✅ FIX: Include both base chain names and ERC4337 variants
-const EIP7702_CHAIN_IDS: Record<string, number> = {
+// EVM chain ID mapping for standard transactions
+const EVM_CHAIN_IDS: Record<string, number> = {
   ethereum: 1,
   base: 8453,
-  baseErc4337: 8453, // ✅ Add ERC4337 variant
   arbitrum: 42161,
-  arbitrumErc4337: 42161, // ✅ Add ERC4337 variant
   optimism: 10,
   polygon: 137,
-  polygonErc4337: 137, // ✅ Add ERC4337 variant
   avalanche: 43114,
-  avalancheErc4337: 43114, // ✅ Add ERC4337 variant
-  // Only chains confirmed for EIP-7702 gasless flow
   sepolia: 11155111,
 };
 
-// ✅ FIX: Check both direct chain name and normalized version
-const isEip7702Chain = (chain: string): boolean => {
+const getEvmChainId = (chain: string): number | null => {
   // Direct check
-  if (chain in EIP7702_CHAIN_IDS) return true;
+  if (chain in EVM_CHAIN_IDS) return EVM_CHAIN_IDS[chain] ?? null;
 
-  // Normalize chain name (remove Erc4337 suffix for base chains)
-  const normalized = chain.replace(/Erc4337$/i, '').toLowerCase();
-  return normalized in EIP7702_CHAIN_IDS;
+  // Normalize chain name (remove aliases/technical suffixes)
+  const normalized = chain.replace(/(Gasless|Erc4337)$/i, '').toLowerCase();
+  for (const [key, id] of Object.entries(EVM_CHAIN_IDS)) {
+    if (key.toLowerCase() === normalized) return id;
+  }
+
+  return null;
 };
 
 // Address validation per chain type
@@ -567,134 +564,66 @@ export function SendCryptoModal({ open, onOpenChange, chain, userId, onSuccess }
         modalChain: chain,
       });
 
-      // 🔍 DETAILED CHAIN DETECTION DEBUG
-      console.log('🔍 [Chain Detection] Avalanche EIP-7702 Check:', {
-        selectedTokenChain: selectedToken.chain,
-        modalChain: chain,
-        finalTokenChain: tokenChain,
-        isInEIP7702Mapping: tokenChain in EIP7702_CHAIN_IDS,
-        chainIdFromMapping: EIP7702_CHAIN_IDS[tokenChain],
-        allEIP7702Chains: Object.keys(EIP7702_CHAIN_IDS),
-      });
+      // Determine which endpoint to use
+      const evmChainId = getEvmChainId(tokenChain);
+      const isEvm = evmChainId !== null;
 
-      // Check if this is a Substrate chain
       const SUBSTRATE_CHAINS = ["polkadot", "hydrationSubstrate", "bifrostSubstrate", "uniqueSubstrate", "paseo", "paseoAssethub"];
       const isSubstrate = SUBSTRATE_CHAINS.includes(tokenChain);
 
-      // Check if this is an Aptos chain
       const APTOS_CHAINS = ["aptos", "aptosTestnet"];
       const isAptos = APTOS_CHAINS.includes(tokenChain);
 
-      // ✅ FIX: Check if this is an EIP-7702 gasless chain
-      // Normalize chain name first (handle both 'base' and 'baseErc4337')
-      const normalizedChain = tokenChain.replace(/Erc4337$/i, '').toLowerCase();
-      const isGasless = isEip7702Chain(normalizedChain) || isEip7702Chain(tokenChain);
+      let result: { txHash: string };
 
-      // 🔍 LOG WHICH ENDPOINT WILL BE USED
-      if (isGasless) {
-        const chainId = EIP7702_CHAIN_IDS[normalizedChain] || EIP7702_CHAIN_IDS[tokenChain];
-        console.log('✅ [Endpoint] Using EIP-7702 gasless endpoint (/wallet/eip7702/send)');
-        console.log('✅ [ChainID]', chainId, `(from ${normalizedChain} or ${tokenChain})`);
-      } else if (isSubstrate) {
-        console.log('ℹ️ [Endpoint] Using Substrate endpoint');
-      } else if (isAptos) {
-        console.log('ℹ️ [Endpoint] Using Aptos endpoint');
-      } else {
-        console.log('⚠️ [Endpoint] Using regular sendCrypto endpoint (/wallet/send)');
-        console.log('⚠️ [Reason] isGasless =', isGasless, ', tokenChain =', tokenChain);
-      }
-
-      let result: { txHash: string; userOpHash?: string; explorerUrl?: string; isFirstTransaction?: boolean };
-
-      if (isGasless) {
-        // ✅ FIX: Use EIP-7702 gasless endpoint
-        // Try both normalized and original chain name
-        const chainId = EIP7702_CHAIN_IDS[normalizedChain] || EIP7702_CHAIN_IDS[tokenChain];
-        if (!chainId) {
-          throw new Error(
-            `Chain ID not found for ${tokenChain} (normalized: ${normalizedChain}). ` +
-            `Available chains: ${Object.keys(EIP7702_CHAIN_IDS).join(', ')}`
-          );
-        }
-
-        const payload = {
+      if (isEvm) {
+        console.log('✅ [Endpoint] Using Standard Send endpoint');
+        const standardResult = await walletApi.sendStandard({
           userId,
-          chainId,
+          chainId: evmChainId!,
           recipientAddress: recipientAddress.trim(),
-          amount: amount, // Human-readable amount
+          amount: amount,
           tokenAddress: selectedToken.address || undefined,
           tokenDecimals: selectedToken.decimals,
-        };
-        console.log('[Send Debug] EIP-7702 Payload:', payload);
-
-        const gaslessResult = await walletApi.sendEip7702Gasless(payload);
-        console.log('[Send Debug] EIP-7702 Result:', gaslessResult);
-
-        // ... rest of the logic
-
-
-        // Use transactionHash if available, otherwise use userOpHash
-        result = {
-          txHash: gaslessResult.transactionHash || gaslessResult.userOpHash,
-          userOpHash: gaslessResult.userOpHash,
-          explorerUrl: gaslessResult.explorerUrl,
-          isFirstTransaction: gaslessResult.isFirstTransaction,
-        };
-
-        // If we only have userOpHash, wait for confirmation to get txHash
-        if (!gaslessResult.transactionHash && gaslessResult.userOpHash) {
-          try {
-            const confirmResult = await walletApi.waitEip7702Confirmation({
-              chainId,
-              userOpHash: gaslessResult.userOpHash,
-              timeoutMs: 60000,
-            });
-            result.txHash = confirmResult.transactionHash;
-            result.explorerUrl = confirmResult.explorerUrl;
-          } catch (waitError) {
-            // Even if waiting fails, show the userOpHash
-            console.warn('Failed to wait for confirmation:', waitError);
-          }
-        }
+        });
+        result = { txHash: standardResult.hash };
       } else if (isSubstrate) {
+        console.log('ℹ️ [Endpoint] Using Substrate endpoint');
         // Convert human-readable amount to smallest units for Substrate
         const amountInSmallestUnits = (parseFloat(amount) * Math.pow(10, selectedToken.decimals)).toString();
 
         // Use Substrate send endpoint
         const substrateResult = await walletApi.sendSubstrateTransfer({
           userId,
-          chain: tokenChain, // Use token's chain
+          chain: tokenChain,
           to: recipientAddress.trim(),
-          amount: amountInSmallestUnits, // Amount in smallest units
-          useTestnet: false, // TODO: Add testnet toggle if needed
-          transferMethod: 'transferAllowDeath', // Default transfer method
+          amount: amountInSmallestUnits,
+          useTestnet: false,
+          transferMethod: 'transferAllowDeath',
         });
 
         result = { txHash: substrateResult.txHash };
       } else if (isAptos) {
-        // Use Aptos send endpoint
-        const network = tokenChain === "aptosTestnet" ? "testnet" : "mainnet"; // Use token's chain
+        console.log('ℹ️ [Endpoint] Using Aptos endpoint');
+        const network = tokenChain === "aptosTestnet" ? "testnet" : "mainnet";
         const aptosResult = await walletApi.sendAptosTransaction({
           userId,
           recipientAddress: recipientAddress.trim(),
-          amount: parseFloat(amount), // Amount in APT (human-readable)
+          amount: parseFloat(amount),
           network,
         });
         result = { txHash: aptosResult.transactionHash };
       } else {
-        // Use regular EVM/other chain send endpoint
+        console.log('⚠️ [Endpoint] Using legacy sendCrypto endpoint');
         const payload = {
           userId,
-          chain: tokenChain, // Use token's chain, not modal's chain prop
+          chain: tokenChain,
           tokenAddress: selectedToken.address || undefined,
           tokenDecimals: selectedToken.decimals,
-          amount: amount, // human-readable amount; server converts using ERC-20 decimals / Zerion
+          amount: amount,
           recipientAddress: recipientAddress.trim(),
         };
-        console.log('[Send Debug] Regular Payload:', payload);
-
         const sendResult = await walletApi.sendCrypto(payload);
-        console.log('[Send Debug] Regular Result:', sendResult);
         result = { txHash: sendResult.txHash };
       }
 

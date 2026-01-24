@@ -7,6 +7,7 @@ import {
   type Chain,
   encodeFunctionData,
   parseAbi,
+  parseUnits,
 } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import {
@@ -20,7 +21,7 @@ import {
   bsc,
 } from 'viem/chains';
 import { ChainConfigService } from '../config/chain.config.js';
-import { IAccount } from '../types/account.types.js';
+import { IAccount, TokenTransferParams } from '../types/account.types.js';
 
 /**
  * Native EOA factory for EVM chains (no WDK dependency).
@@ -128,13 +129,11 @@ class NativeEoaAccountWrapper implements IAccount {
     return this.transfer({ to, amount });
   }
 
-  async transfer(params: {
-    to: string;
-    amount: string;
-    tokenAddress?: string;
-  }): Promise<string> {
-    const { to, amount, tokenAddress } = params;
-    const requestedValue = BigInt(amount);
+  async transfer(params: TokenTransferParams): Promise<string> {
+    const { to, amount, tokenAddress, decimals } = params;
+    // Default to 18 decimals for native tokens if not provided
+    const targetDecimals = decimals ?? 18;
+    const requestedValue = parseUnits(amount, targetDecimals);
 
     if (tokenAddress) {
       this.logger.log(
@@ -148,7 +147,7 @@ class NativeEoaAccountWrapper implements IAccount {
       });
 
       const hash = await this.walletClient.sendTransaction({
-        chain: this.walletClient.chain,
+        chain: (this.walletClient.chain || undefined) as any,
         account: this.walletClient.account!,
         to: tokenAddress as Address,
         data,
@@ -227,7 +226,7 @@ class NativeEoaAccountWrapper implements IAccount {
         );
 
         const hash = await this.walletClient.sendTransaction({
-          chain: this.walletClient.chain,
+          chain: (this.walletClient.chain || undefined) as any,
           account: this.walletClient.account!,
           to: to as Address,
           value: maxSendable,
@@ -244,7 +243,7 @@ class NativeEoaAccountWrapper implements IAccount {
 
       // Normal case - enough balance for both amount and gas
       const hash = await this.walletClient.sendTransaction({
-        chain: this.walletClient.chain,
+        chain: (this.walletClient.chain || undefined) as any,
         account: this.walletClient.account!,
         to: to as Address,
         value: requestedValue,

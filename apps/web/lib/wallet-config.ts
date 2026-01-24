@@ -62,8 +62,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
       advancedOnly: false,
     },
     group: 'evm-smart-account',
-    isSmartAccount: true,
-    eoaVariant: 'ethereum',
+    isSmartAccount: false,
   },
   {
     id: 'baseErc4337',
@@ -98,8 +97,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     },
     group: 'evm-smart-account',
     parentChain: 'ethereum',
-    isSmartAccount: true,
-    eoaVariant: 'base',
+    isSmartAccount: false,
   },
   {
     id: 'arbitrumErc4337',
@@ -134,8 +132,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
     },
     group: 'evm-smart-account',
     parentChain: 'ethereum',
-    isSmartAccount: true,
-    eoaVariant: 'arbitrum',
+    isSmartAccount: false,
   },
   {
     id: 'polygonErc4337',
@@ -169,8 +166,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
       advancedOnly: false,
     },
     group: 'evm-smart-account',
-    isSmartAccount: true,
-    eoaVariant: 'polygon',
+    isSmartAccount: false,
   },
   {
     id: 'avalancheErc4337',
@@ -204,8 +200,7 @@ const RAW_WALLET_CONFIGS: WalletConfig[] = [
       advancedOnly: false,
     },
     group: 'evm-smart-account',
-    isSmartAccount: true,
-    eoaVariant: 'avalanche',
+    isSmartAccount: false,
   },
 
   // ========================================

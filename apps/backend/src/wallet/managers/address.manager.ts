@@ -10,11 +10,9 @@ import { AllChainTypes } from '../types/chain.types.js';
 import { SeedManager } from './seed.manager.js';
 import { AccountFactory } from '../factories/account.factory.js';
 import { NativeEoaFactory } from '../factories/native-eoa.factory.js';
-import { Eip7702AccountFactory } from '../factories/eip7702-account.factory.js';
 import { SubstrateManager } from '../substrate/managers/substrate.manager.js';
 import { AddressCacheRepository } from '../repositories/address-cache.repository.js';
 import { AptosAddressManager } from '../aptos/managers/aptos-address.manager.js';
-import { PimlicoConfigService } from '../config/pimlico.config.js';
 
 /**
  * Address Manager
@@ -61,12 +59,10 @@ export class AddressManager implements IAddressManager {
     private seedManager: SeedManager,
     private accountFactory: AccountFactory,
     private nativeEoaFactory: NativeEoaFactory,
-    private eip7702AccountFactory: Eip7702AccountFactory,
     @Inject(forwardRef(() => SubstrateManager))
     private substrateManager: SubstrateManager,
     private addressCacheRepository: AddressCacheRepository,
     private aptosAddressManager: AptosAddressManager,
-    private pimlicoConfig: PimlicoConfigService,
   ) { }
 
   /**
@@ -151,10 +147,7 @@ export class AddressManager implements IAddressManager {
       ...evmChains.map(async (chain) => {
         if (addresses[chain]) return;
         try {
-          const useEip7702 = this.pimlicoConfig.isEip7702Enabled(chain);
-          const account = useEip7702
-            ? await this.eip7702AccountFactory.createAccount(seedPhrase, chain as any, 0)
-            : await this.nativeEoaFactory.createAccount(seedPhrase, chain, 0);
+          const account = await this.nativeEoaFactory.createAccount(seedPhrase, chain, 0);
 
           const address = await account.getAddress();
           addresses[chain] = address as any;
@@ -359,10 +352,7 @@ export class AddressManager implements IAddressManager {
       }
 
       try {
-        const useEip7702 = this.pimlicoConfig.isEip7702Enabled(chain);
-        const account = useEip7702
-          ? await this.eip7702AccountFactory.createAccount(seedPhrase, chain as any, 0)
-          : await this.nativeEoaFactory.createAccount(seedPhrase, chain, 0);
+        const account = await this.nativeEoaFactory.createAccount(seedPhrase, chain, 0);
         const address = await account.getAddress();
         await this.addressCacheRepository.saveAddress(userId, name, address);
         yield { chain: name, address };

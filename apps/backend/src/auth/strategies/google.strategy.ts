@@ -13,12 +13,19 @@ export interface GoogleProfile {
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private configService: ConfigService) {
+    const clientID = configService.get<string>('GOOGLE_CLIENT_ID');
+    const clientSecret = configService.get<string>('GOOGLE_CLIENT_SECRET');
+    if (!clientID || !clientSecret) {
+      throw new Error('GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is not defined');
+    }
+
     super({
-      clientID: configService.get<string>('GOOGLE_CLIENT_ID'),
-      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
+      clientID,
+      clientSecret,
       callbackURL: `${configService.get<string>('BACKEND_URL') || 'http://localhost:5005'}/auth/google/callback`,
       scope: ['email', 'profile'],
-      state: false, // Set to false to avoid Session-based state verification issues in local dev
+      state: false,
+      passReqToCallback: false,
     });
   }
 

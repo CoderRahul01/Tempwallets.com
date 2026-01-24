@@ -6,6 +6,7 @@ import { BalanceProviderFactory } from './factories/balance-provider.factory.js'
 import { PrismaModule } from '../database/prisma.module.js';
 import { CryptoModule } from '../crypto/crypto.module.js';
 // Import new modular services
+import { ChainConfigModule } from './config/chain-config.module.js';
 import { ChainConfigService } from './config/chain.config.js';
 import { PimlicoConfigService } from './config/pimlico.config.js';
 import { SeedManager } from './managers/seed.manager.js';
@@ -28,6 +29,8 @@ import { SubstrateModule } from './substrate/substrate.module.js';
 import { EvmModule } from './evm/evm.module.js';
 // Import Aptos module
 import { AptosModule } from './aptos/aptos.module.js';
+// Import Standard Wallet module
+import { StandardWalletModule } from './services/standard-wallet/standard-wallet.module.js';
 // Import cache repositories
 import { AddressCacheRepository } from './repositories/address-cache.repository.js';
 import { BalanceCacheRepository } from './repositories/balance-cache.repository.js';
@@ -48,6 +51,8 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     SubstrateModule,
     EvmModule,
     AptosModule,
+    ChainConfigModule,
+    StandardWalletModule,
   ],
   controllers: [WalletController],
   providers: [

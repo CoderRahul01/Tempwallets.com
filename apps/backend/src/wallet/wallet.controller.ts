@@ -18,7 +18,7 @@ import { WalletService } from './wallet.service.js';
 import {
   CreateOrImportSeedDto,
   SendCryptoDto,
-  SendEip7702Dto,
+  SendStandardDto,
   WalletConnectSignDto,
 } from './dto/wallet.dto.js';
 
@@ -28,6 +28,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalAuth } from '../auth/decorators/optional-auth.decorator.js';
 import { UserId } from '../auth/decorators/user-id.decorator.js';
 import { PimlicoConfigService } from './config/pimlico.config.js';
+import { SendService } from './services/standard-wallet/send.service.js';
+import { ReceiveService } from './services/standard-wallet/receive.service.js';
+import { BalanceService } from './services/standard-wallet/balance.service.js';
+import { ChainMapService } from './services/standard-wallet/chain-map.service.js';
 
 @Controller('wallet')
 @UseGuards(JwtAuthGuard)
@@ -38,12 +42,16 @@ export class WalletController {
   constructor(
     private readonly walletService: WalletService,
     private readonly pimlicoConfig: PimlicoConfigService,
+    private readonly sendService: SendService,
+    private readonly receiveService: ReceiveService,
+    private readonly balanceService: BalanceService,
+    private readonly chainMapService: ChainMapService,
   ) { }
 
-  @Post('eip7702/send')
+  @Post('standard/send')
   @HttpCode(HttpStatus.OK)
-  async sendEip7702Gasless(
-    @Body() dto: SendEip7702Dto,
+  async sendStandard(
+    @Body() dto: SendStandardDto,
     @UserId() userId?: string,
   ) {
     const finalUserId = userId || dto.userId;
@@ -51,59 +59,63 @@ export class WalletController {
       throw new BadRequestException('userId is required');
     }
 
-    const result = await this.walletService.sendEip7702Gasless(
-      finalUserId,
-      dto.chainId,
-      dto.recipientAddress,
-      dto.amount,
-      dto.tokenAddress,
-      dto.tokenDecimals,
-    );
-
-    return result;
-  }
-
-  @Get('eip7702/test/:chain')
-  @HttpCode(HttpStatus.OK)
-  async testEip7702Support(@Param('chain') chain: string) {
-    const validChains = [
-      'ethereum',
-      'sepolia',
-      'base',
-      'arbitrum',
-      'optimism',
-      'polygon',
-      'bnb',
-      'avalanche',
-    ] as const;
-
-    if (!validChains.includes(chain as any)) {
-      throw new BadRequestException(
-        `Invalid chain: ${chain}. Supported chains: ${validChains.join(', ')}`,
-      );
+    // Map numeric chainId to moniker
+    const moniker = this.chainMapService.getChainFromId(dto.chainId);
+    if (!moniker) {
+      throw new BadRequestException(`Unsupported chain ID: ${dto.chainId}`);
     }
 
-    const validation = await this.pimlicoConfig.validateEip7702Support(
-      chain as any,
-    );
+    const seedPhrase = await this.walletService.getSeedPhrase(finalUserId);
+    const result = await this.sendService.send(seedPhrase, moniker, {
+      to: dto.recipientAddress,
+      amount: dto.amount,
+      tokenAddress: dto.tokenAddress,
+      decimals: dto.tokenDecimals,
+    });
 
     return {
-      chain,
-      supported: validation.supported,
-      errors: validation.errors,
-      config: validation.config
-        ? {
-          chainId: validation.config.chainId,
-          bundlerUrl: validation.config.bundlerUrl,
-          paymasterUrl: validation.config.paymasterUrl,
-          delegationAddress: validation.config.delegationAddress,
-          entryPointAddress: validation.config.entryPointAddress,
-          hasApiKey: this.pimlicoConfig.hasPimlicoApiKey(),
-        }
-        : undefined,
-      enabled: this.pimlicoConfig.isEip7702Enabled(chain),
+      hash: result.txHash,
+      status: 'success',
+      method: result.method
     };
   }
+
+  @Get('standard/receive/:chain')
+  async getStandardReceiveInfo(
+    @Param('chain') chain: string,
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+  ) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
+      throw new BadRequestException('userId is required');
+    }
+
+    const addresses = await this.walletService.getAddresses(finalUserId);
+    const address = addresses.ethereum; // Primary EVM address
+    if (!address) throw new BadRequestException('No EVM address found');
+
+    return this.receiveService.getReceiveInfo(address, chain);
+  }
+
+  @Get('standard/balances')
+  async getStandardBalances(
+    @UserId() userId?: string,
+    @Query('userId') queryUserId?: string,
+    @Query('chain') chain?: string,
+  ) {
+    const finalUserId = userId || queryUserId;
+    if (!finalUserId) {
+      throw new BadRequestException('userId is required');
+    }
+
+    const addresses = await this.walletService.getAddresses(finalUserId);
+    const address = addresses.ethereum;
+    if (!address) return [];
+
+    return this.balanceService.getBalances(address, chain);
+  }
+
 
   @Post('seed')
   async createOrImportSeed(
@@ -375,32 +387,6 @@ export class WalletController {
     }
   }
 
-  @Get('erc4337/paymaster-balances')
-  async getErc4337PaymasterBalances(
-    @UserId() userId?: string,
-    @Query('userId') queryUserId?: string,
-  ) {
-    const finalUserId = userId || queryUserId;
-    if (!finalUserId) {
-      throw new BadRequestException('userId is required');
-    }
-
-    this.logger.log(
-      `Getting ERC-4337 paymaster balances for user ${finalUserId}`,
-    );
-
-    try {
-      const balances =
-        await this.walletService.getErc4337PaymasterBalances(finalUserId);
-
-      return balances;
-    } catch (error) {
-      this.logger.error(
-        `Failed to get paymaster balances: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-      throw error;
-    }
-  }
 
   @Post('send')
   @HttpCode(HttpStatus.OK)

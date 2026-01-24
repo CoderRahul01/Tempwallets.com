@@ -7,11 +7,19 @@ import { BalanceProviderFactory } from './factories/balance-provider.factory.js'
 import { SeedManager } from './managers/seed.manager.js';
 import { AddressManager } from './managers/address.manager.js';
 import { AccountFactory } from './factories/account.factory.js';
-import { PimlicoAccountFactory } from './factories/pimlico-account.factory.js';
 import { SubstrateManager } from './substrate/managers/substrate.manager.js';
 import { BalanceCacheRepository } from './repositories/balance-cache.repository.js';
 import { WalletAddresses } from './interfaces/wallet.interfaces.js';
 import { Eip7702DelegationRepository } from './repositories/eip7702-delegation.repository.js';
+import { NativeEoaFactory } from './factories/native-eoa.factory.js';
+import { Eip7702AccountFactory } from './factories/eip7702-account.factory.js';
+import { WalletHistoryRepository } from './repositories/wallet-history.repository.js';
+import { PimlicoConfigService } from './config/pimlico.config.js';
+import { CacheService } from './services/cache.service.js';
+import { SendService } from './services/standard-wallet/send.service.js';
+import { ReceiveService } from './services/standard-wallet/receive.service.js';
+import { BalanceService } from './services/standard-wallet/balance.service.js';
+import { ChainMapService } from './services/standard-wallet/chain-map.service.js';
 
 // Mock TokenListService to avoid import.meta.url issues
 jest.mock('./services/token-list.service.js', () => {
@@ -31,11 +39,19 @@ describe('WalletService', () => {
   let seedManager: jest.Mocked<SeedManager>;
   let addressManager: jest.Mocked<AddressManager>;
   let accountFactory: jest.Mocked<AccountFactory>;
-  let pimlicoAccountFactory: jest.Mocked<PimlicoAccountFactory>;
+  let eip7702AccountFactory: jest.Mocked<Eip7702AccountFactory>;
+  let nativeEoaFactory: jest.Mocked<NativeEoaFactory>;
+  let walletHistoryRepository: jest.Mocked<WalletHistoryRepository>;
+  let pimlicoConfig: jest.Mocked<PimlicoConfigService>;
   let substrateManager: jest.Mocked<SubstrateManager>;
   let balanceCacheRepository: jest.Mocked<BalanceCacheRepository>;
   let eip7702DelegationRepository: jest.Mocked<Eip7702DelegationRepository>;
   let balanceProviderFactory: jest.Mocked<BalanceProviderFactory>;
+  let cacheService: jest.Mocked<CacheService>;
+  let sendService: jest.Mocked<SendService>;
+  let receiveService: jest.Mocked<ReceiveService>;
+  let balanceService: jest.Mocked<BalanceService>;
+  let chainMapService: jest.Mocked<ChainMapService>;
 
   const mockUserId = 'test-fingerprint-123';
   const mockAddresses: WalletAddresses = {
@@ -78,9 +94,38 @@ describe('WalletService', () => {
       createAccount: jest.fn(),
     };
 
-    const mockPimlicoAccountFactory = {
+    const mockEip7702AccountFactory = {
       createAccount: jest.fn(),
     };
+
+    const mockNativeEoaFactory = {
+      createAccount: jest.fn(),
+    };
+
+    const mockWalletHistoryRepository = {
+      saveToHistory: jest.fn(),
+      getWalletHistory: jest.fn(),
+      getSeedFromHistory: jest.fn(),
+      setActiveWallet: jest.fn(),
+      deleteWallet: jest.fn(),
+    };
+
+    const mockPimlicoConfig = {
+      isEip7702Enabled: jest.fn(),
+      getEip7702Config: jest.fn(),
+    };
+
+    const mockCacheService = {
+      get: jest.fn(),
+      set: jest.fn(),
+    };
+
+    const mockSendService = {};
+    const mockReceiveService = {};
+    const mockBalanceService = {
+      getBalances: jest.fn(),
+    };
+    const mockChainMapService = {};
 
 
     const mockSubstrateManager = {
@@ -126,8 +171,40 @@ describe('WalletService', () => {
           useValue: mockAccountFactory,
         },
         {
-          provide: PimlicoAccountFactory,
-          useValue: mockPimlicoAccountFactory,
+          provide: Eip7702AccountFactory,
+          useValue: mockEip7702AccountFactory,
+        },
+        {
+          provide: NativeEoaFactory,
+          useValue: mockNativeEoaFactory,
+        },
+        {
+          provide: WalletHistoryRepository,
+          useValue: mockWalletHistoryRepository,
+        },
+        {
+          provide: PimlicoConfigService,
+          useValue: mockPimlicoConfig,
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheService,
+        },
+        {
+          provide: SendService,
+          useValue: mockSendService,
+        },
+        {
+          provide: ReceiveService,
+          useValue: mockReceiveService,
+        },
+        {
+          provide: BalanceService,
+          useValue: mockBalanceService,
+        },
+        {
+          provide: ChainMapService,
+          useValue: mockChainMapService,
         },
         {
           provide: SubstrateManager,
@@ -160,7 +237,15 @@ describe('WalletService', () => {
     seedManager = module.get(SeedManager);
     addressManager = module.get(AddressManager);
     accountFactory = module.get(AccountFactory);
-    pimlicoAccountFactory = module.get(PimlicoAccountFactory);
+    eip7702AccountFactory = module.get(Eip7702AccountFactory);
+    nativeEoaFactory = module.get(NativeEoaFactory);
+    walletHistoryRepository = module.get(WalletHistoryRepository);
+    pimlicoConfig = module.get(PimlicoConfigService);
+    cacheService = module.get(CacheService);
+    sendService = module.get(SendService);
+    receiveService = module.get(ReceiveService);
+    balanceService = module.get(BalanceService);
+    chainMapService = module.get(ChainMapService);
     substrateManager = module.get(SubstrateManager);
     balanceCacheRepository = module.get(BalanceCacheRepository);
     eip7702DelegationRepository = module.get(Eip7702DelegationRepository);
@@ -171,31 +256,21 @@ describe('WalletService', () => {
   });
 
   describe('getBalances()', () => {
-    it('should return cached data when available', async () => {
-      const cachedBalances = {
-        ethereum: {
-          balance: '1000000000000000000',
-          lastUpdated: Date.now(),
-        },
-        base: {
-          balance: '500000000000000000',
-          lastUpdated: Date.now(),
-        },
-      };
+    it('should return data from balanceService', async () => {
+      const mockBalances = [
+        { chain: 'ethereum', balance: '1000000000000000000', address: null, symbol: 'ETH', decimals: 18 },
+        { chain: 'base', balance: '500000000000000000', address: null, symbol: 'ETH', decimals: 18 },
+      ];
 
-      balanceCacheRepository.getCachedBalances.mockResolvedValue(
-        cachedBalances,
-      );
+      addressManager.getAddresses.mockResolvedValue(mockAddresses);
+      balanceService.getBalances.mockResolvedValue(mockBalances as any);
 
       const result = await walletService.getBalances(mockUserId, false);
 
-      // Should check cache first
-      expect(balanceCacheRepository.getCachedBalances).toHaveBeenCalledWith(
-        mockUserId,
-      );
-      // Should not call Zerion API
-      expect(zerionService.getBalances).not.toHaveBeenCalled();
-      expect(result).toBeDefined();
+      expect(addressManager.getAddresses).toHaveBeenCalledWith(mockUserId);
+      expect(balanceService.getBalances).toHaveBeenCalledWith(mockAddresses.ethereum, undefined);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({ chain: 'ethereum', balance: '1000000000000000000' });
     });
 
     it('should create wallet if it does not exist', async () => {
@@ -212,79 +287,46 @@ describe('WalletService', () => {
       expect(addressManager.getAddresses).toHaveBeenCalledWith(mockUserId);
     });
 
-    it('should fetch from API when cache miss', async () => {
-      balanceCacheRepository.getCachedBalances.mockResolvedValue(null);
+    it('should fetch from balanceService', async () => {
       addressManager.getAddresses.mockResolvedValue(mockAddresses);
-
-      zerionService.getBalances.mockResolvedValue([]);
+      balanceService.getBalances.mockResolvedValue([]);
 
       await walletService.getBalances(mockUserId, false);
 
-      // Should call Zerion API
-      expect(zerionService.getBalances).toHaveBeenCalled();
-      // Should save to cache
-      expect(balanceCacheRepository.updateCachedBalances).toHaveBeenCalled();
+      expect(balanceService.getBalances).toHaveBeenCalled();
     });
 
-    it('should force refresh when forceRefresh is true', async () => {
-      const cachedBalances = {
-        ethereum: {
-          balance: '1000000000000000000',
-          lastUpdated: Date.now(),
-        },
-      };
-
-      balanceCacheRepository.getCachedBalances.mockResolvedValue(
-        cachedBalances,
-      );
+    it('should pass forceRefresh to getBalances', async () => {
       addressManager.getAddresses.mockResolvedValue(mockAddresses);
-
-      zerionService.getBalances.mockResolvedValue([]);
+      balanceService.getBalances.mockResolvedValue([]);
 
       await walletService.getBalances(mockUserId, true);
 
-      // Should still call API even with cache
-      expect(zerionService.getBalances).toHaveBeenCalled();
-      // Should update cache
-      expect(balanceCacheRepository.updateCachedBalances).toHaveBeenCalled();
+      expect(balanceService.getBalances).toHaveBeenCalled();
     });
   });
 
   describe('refreshBalances()', () => {
-    it('should fetch from API and update cache', async () => {
+    it('should fetch from balanceService', async () => {
       addressManager.getAddresses.mockResolvedValue(mockAddresses);
-      zerionService.getBalances.mockResolvedValue([]);
+      balanceService.getBalances.mockResolvedValue([]);
 
       const result = await walletService.refreshBalances(mockUserId);
 
-      // Should get addresses
       expect(addressManager.getAddresses).toHaveBeenCalledWith(mockUserId);
-      // Should call Zerion API
-      expect(zerionService.getBalances).toHaveBeenCalled();
-      // Should update cache
-      expect(balanceCacheRepository.updateCachedBalances).toHaveBeenCalled();
+      expect(balanceService.getBalances).toHaveBeenCalled();
       expect(result).toBeDefined();
     });
   });
 
   describe('Cache operations', () => {
-    it('should properly store and retrieve cache', async () => {
-      const cachedBalances = {
-        ethereum: {
-          balance: '1000000000000000000',
-          lastUpdated: Date.now(),
-        },
-      };
-
-      balanceCacheRepository.getCachedBalances.mockResolvedValue(
-        cachedBalances,
-      );
+    it('should retrieve balances via balanceService', async () => {
+      addressManager.getAddresses.mockResolvedValue(mockAddresses);
+      balanceService.getBalances.mockResolvedValue([]);
 
       const result = await walletService.getBalances(mockUserId, false);
 
-      expect(balanceCacheRepository.getCachedBalances).toHaveBeenCalledWith(
-        mockUserId,
-      );
+      expect(balanceService.getBalances).toHaveBeenCalled();
       expect(result).toBeDefined();
     });
   });
