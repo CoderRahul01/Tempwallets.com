@@ -105,7 +105,7 @@ export function BalanceTransactionsToggle({ selectedChainId }: BalanceTransactio
           <BalanceView key={`${selectedChainId}-${refreshKey}`} selectedChainId={selectedChainId} />
         ) : activeView === 'transactions' ? (
           <RecentTransactions
-            key={`${selectedChainId}-${refreshKey}`}
+            key={`transactions-${refreshKey}`}
             showAll={false}
             hideHeader
             selectedChainId={selectedChainId}

@@ -23,6 +23,7 @@ model User {
   sessions        UserSession[]
   paymentChannels PaymentChannel[]
   lightningNodes  LightningNode[]
+  blockchainTransactions BlockchainTransaction[]
 
   @@index([googleId])
   @@index([fingerprint])
@@ -455,4 +456,36 @@ enum RequestStatus {
   REJECTED
   FAILED
   EXPIRED
+}
+
+// Persistent record of on-chain transactions performed via the dashboard
+model BlockchainTransaction {
+  id            String   @id @default(cuid())
+  userId        String
+  txHash        String
+  chain         String
+  from          String
+  to            String?
+  value         String
+  tokenSymbol   String?
+  tokenAddress  String?
+  tokenDecimals Int      @default(18)
+  timestamp     DateTime // Authentic blockchain timestamp
+  blockNumber   Int?
+  status        String   @default("success") // success, failed, pending
+  type          String   @default("transaction") // send, receive, etc.
+  usdValue      Float?
+  direction     String?  // in, out
+  metadata      Json?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([txHash, chain])
+  @@index([userId])
+  @@index([userId, chain])
+  @@index([userId, timestamp])
+  @@map("blockchain_transaction")
 }

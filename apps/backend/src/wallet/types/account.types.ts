@@ -62,4 +62,25 @@ export interface TokenBalance {
   balanceHuman?: string;
   name?: string;
   usdValue?: number;
+  price?: number;
+}
+
+/**
+ * Zerion transaction result
+ */
+export interface ZerionTransaction {
+  txHash: string;
+  from: string;
+  to: string | null;
+  value: string;
+  tokenSymbol: string;
+  tokenAddress: string;
+  tokenDecimals: number;
+  timestamp: number | null;
+  blockNumber: number | null;
+  status: 'success' | 'failed' | 'pending';
+  chain: string;
+  type: string;
+  usdValue: number;
+  direction: 'in' | 'out';
 }

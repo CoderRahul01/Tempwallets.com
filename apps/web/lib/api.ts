@@ -41,7 +41,11 @@ export interface TokenBalance {
   symbol: string;
   balance: string;
   decimals: number;
-  chain?: string; // Optional chain field for multi-chain token support
+  chain?: string;
+  balanceHuman?: string;
+  usdValue?: number;
+  price?: number;
+  name?: string;
 }
 
 // Any-chain aggregated asset returned by backend /wallet/assets-any
@@ -53,6 +57,8 @@ export interface AnyChainAsset {
   decimals: number; // actual token decimals (e.g., 6 for USDC, 18 for ETH/WETH, 8 for WBTC)
   balanceHuman?: string; // human-readable balance already converted by backend
   usdValue?: number; // USD value of the balance
+  price?: number; // Unit price in USD
+  name?: string; // Token name
 }
 
 export interface Transaction {
@@ -66,6 +72,10 @@ export interface Transaction {
   chain: string;
   tokenSymbol?: string;
   tokenAddress?: string;
+  tokenDecimals?: number;
+  type?: string;     // e.g., 'send', 'receive', 'trade', 'approval'
+  usdValue?: number; // USD value at the time of transaction
+  direction?: 'in' | 'out';
 }
 
 export interface WalletConnectNamespacePayload {
@@ -470,11 +480,18 @@ export const walletApi = {
     return fetchApi<AnyChainAsset[]>(`/wallet/assets-any?userId=${encodeURIComponent(userId)}${refreshParam}`);
   },
 
-  /**
-   * Get aggregated transactions (any-chain) for primary addresses
-   */
   async getTransactionsAny(userId: string, limit: number = 100): Promise<Transaction[]> {
     return fetchApi<Transaction[]>(`/wallet/transactions-any?userId=${encodeURIComponent(userId)}&limit=${limit}`);
+  },
+
+  /**
+   * Subscribe to real-time transaction updates
+   */
+  subscribeToTransactions(userId: string, onMessage: (txs: Transaction[]) => void): () => void {
+    return subscribeToSSE<Transaction[]>(
+      `${API_BASE_URL}/wallet/transactions-stream?userId=${encodeURIComponent(userId)}&poll=true`,
+      onMessage
+    );
   },
 
   /**

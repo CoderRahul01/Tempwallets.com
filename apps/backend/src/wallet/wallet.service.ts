@@ -1,3 +1,4 @@
+
 import {
   Injectable,
   BadRequestException,
@@ -6,13 +7,14 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../database/prisma.service.js';
 import { SeedRepository } from './seed.repository.js';
 import { BalanceProviderFactory } from './factories/balance-provider.factory.js';
 import { SeedManager } from './managers/seed.manager.js';
 import { AddressManager } from './managers/address.manager.js';
 import { AccountFactory } from './factories/account.factory.js';
 import { NativeEoaFactory } from './factories/native-eoa.factory.js';
-import { IAccount, TokenBalance } from './types/account.types.js';
+import { IAccount, TokenBalance, ZerionTransaction } from './types/account.types.js';
 import { SubstrateManager } from './substrate/managers/substrate.manager.js';
 import { SubstrateChainKey } from './substrate/config/substrate-chain.config.js';
 import { BalanceCacheRepository } from './repositories/balance-cache.repository.js';
@@ -154,6 +156,7 @@ export class WalletService {
     private receiveService: ReceiveService,
     private balanceService: BalanceService,
     private chainMapService: ChainMapService,
+    private prisma: PrismaService,
   ) { }
 
   /**
@@ -183,7 +186,7 @@ export class WalletService {
         }
       } catch (error) {
         this.logger.warn(
-          `Failed to save wallet history: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          `Failed to save wallet history: ${error instanceof Error ? error.message : 'Unknown error'} `,
         );
         // Continue even if history save fails
       }
@@ -312,9 +315,9 @@ export class WalletService {
         continue;
       }
 
-      const chainTag = `eip155:${config.chainId}`;
+      const chainTag = `eip155:${config.chainId} `;
       eip155Namespace.chains.push(chainTag);
-      eip155Namespace.accounts.push(`${chainTag}:${address}`);
+      eip155Namespace.accounts.push(`${chainTag}:${address} `);
       eip155Namespace.addressesByChain[chainTag] = address;
     }
 
@@ -345,8 +348,8 @@ export class WalletService {
 
         const chainConfig = this.substrateManager.getChainConfig(chain, false);
         const genesisHash = chainConfig.genesisHash;
-        const chainTag = `polkadot:${genesisHash}`;
-        const accountId = `polkadot:${genesisHash}:${address}`;
+        const chainTag = `polkadot:${genesisHash} `;
+        const accountId = `polkadot:${genesisHash}:${address} `;
 
         polkadotNamespace.chains.push(chainTag);
         polkadotNamespace.accounts.push(accountId);
@@ -358,7 +361,7 @@ export class WalletService {
       }
     } catch (error) {
       this.logger.error(
-        `Failed to register Polkadot namespace for WalletConnect: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to register Polkadot namespace for WalletConnect: ${error instanceof Error ? error.message : 'Unknown error'} `,
       );
       // Continue with other namespaces - error isolation (Issue #6)
     }
@@ -372,7 +375,7 @@ export class WalletService {
     // Return first namespace for backward compatibility, but log that multiple namespaces are available
     if (namespaces.length > 1) {
       this.logger.debug(
-        `Multiple WalletConnect namespaces available: ${namespaces.map((n) => n.namespace).join(', ')}`,
+        `Multiple WalletConnect namespaces available: ${namespaces.map((n) => n.namespace).join(', ')} `,
       );
     }
 
@@ -679,18 +682,9 @@ export class WalletService {
   async getTokenBalancesAny(
     userId: string,
     forceRefresh: boolean = false,
-  ): Promise<
-    Array<{
-      chain: string;
-      address: string | null;
-      symbol: string;
-      balance: string;
-      decimals: number;
-      balanceHuman?: string;
-    }>
-  > {
+  ): Promise<TokenBalance[]> {
     this.logger.log(
-      `Getting any-chain token balances for user ${userId}${forceRefresh ? ' (force refresh)' : ''}`,
+      `Getting any - chain token balances for user ${userId}${forceRefresh ? ' (force refresh)' : ''} `,
     );
 
     // List of all chains we want to query (EVM + Polkadot EVM)
@@ -710,7 +704,7 @@ export class WalletService {
           // Add chain property to each balance
           return balances.map(b => ({ ...b, chain }));
         } catch (err) {
-          this.logger.error(`Error fetching balances for ${chain}: ${err}`);
+          this.logger.error(`Error fetching balances for ${chain}: ${err} `);
           return [];
         }
       }),
@@ -745,6 +739,10 @@ export class WalletService {
       chain: string;
       tokenSymbol?: string;
       tokenAddress?: string;
+      tokenDecimals?: number;
+      type?: string;
+      usdValue?: number;
+      direction?: 'in' | 'out';
     }>
   > {
     const hasSeed = await this.seedRepository.hasSeed(userId);
@@ -752,29 +750,95 @@ export class WalletService {
       await this.createOrImportSeed(userId, 'random');
     }
 
+    // Aggregated sync: Fetch latest from Zerion for all addresses to fill in received/external txs
     const addresses = await this.getAddresses(userId);
-    const chains = Object.keys(addresses).filter(
-      (c) =>
-        this.isEvmChain(c) || ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub', 'hydration', 'unique', 'bifrost', 'bifrostTestnet'].includes(c),
+
+    // Explicitly list chains Zerion supports for the /transactions/ endpoint
+    const zerionSupportedChains = [
+      'ethereum', 'base', 'arbitrum', 'polygon', 'avalanche', 'optimism', 'solana',
+      'moonbeamTestnet', 'astarShibuya', 'sepolia'
+    ];
+    const syncChains = Object.entries(addresses).filter(([chain, addr]) =>
+      !!addr && zerionSupportedChains.includes(chain)
     );
 
-    // Fetch all in parallel but with a limit per chain to keep it manageable
-    const perChainLimit = Math.min(limit, 20);
-    const results = await Promise.allSettled(
-      chains.map((chain) => this.getTransactions(userId, chain, perChainLimit)),
-    );
+    // Run sync in parallel for each address
+    await Promise.allSettled(syncChains.map(async ([chain, address]) => {
+      try {
+        const latest = await this.zerionService.getTransactions(address!, chain, 50);
+        if (latest.length > 0) {
+          await Promise.all(latest.map(tx => {
+            // SKIP zero-value transactions (usually contract interactions or system calls)
+            if (!tx.value || tx.value === '0') {
+              return Promise.resolve();
+            }
 
-    const allTransactions: any[] = [];
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        allTransactions.push(...result.value);
+            const data = {
+              userId,
+              txHash: tx.txHash,
+              chain: tx.chain,
+              from: tx.from,
+              to: tx.to,
+              value: tx.value,
+              tokenSymbol: tx.tokenSymbol,
+              tokenAddress: tx.tokenAddress,
+              tokenDecimals: tx.tokenDecimals,
+              timestamp: tx.timestamp ? new Date(tx.timestamp * 1000) : new Date(),
+              blockNumber: tx.blockNumber,
+              status: tx.status,
+              type: tx.type,
+              usdValue: tx.usdValue,
+              direction: tx.direction
+            };
+
+            return this.prisma.blockchainTransaction.upsert({
+              where: {
+                txHash_chain: {
+                  txHash: tx.txHash,
+                  chain: tx.chain
+                }
+              },
+              update: data,
+              create: data
+            });
+          }));
+        }
+      } catch (err) {
+        this.logger.warn(`[History] Sync failed for ${chain}: ${err instanceof Error ? err.message : 'Unknown'}`);
       }
-    }
+    }));
 
-    // Sort by timestamp descending
-    allTransactions.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    // Cleanup: Remove any previously stored zero-value transactions for this user
+    await this.prisma.blockchainTransaction.deleteMany({
+      where: {
+        userId,
+        value: '0'
+      }
+    });
 
-    return allTransactions.slice(0, limit);
+    // Unified view: Fetch authenticated local transactions (now synced with Zerion)
+    const dbTransactions = await this.prisma.blockchainTransaction.findMany({
+      where: { userId },
+      orderBy: { timestamp: 'desc' },
+      take: limit,
+    });
+
+    return dbTransactions.map((tx) => ({
+      txHash: tx.txHash,
+      from: tx.from,
+      to: tx.to,
+      value: tx.value,
+      tokenSymbol: tx.tokenSymbol || undefined,
+      tokenAddress: tx.tokenAddress || undefined,
+      tokenDecimals: tx.tokenDecimals,
+      timestamp: Math.floor(tx.timestamp.getTime() / 1000), // Return timestamp in seconds
+      blockNumber: tx.blockNumber,
+      status: tx.status as 'success' | 'failed' | 'pending',
+      chain: tx.chain,
+      type: tx.type,
+      usdValue: tx.usdValue || 0,
+      direction: (tx.direction as 'in' | 'out') || undefined,
+    }));
   }
 
   /**
@@ -859,7 +923,7 @@ export class WalletService {
         };
       } catch (error) {
         this.logger.error(
-          `Error streaming balance for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          `Error streaming balance for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'} `,
         );
         yield {
           chain,
@@ -899,7 +963,22 @@ export class WalletService {
   > {
     const addresses = await this.getAddresses(userId);
     const chains = Object.entries(addresses).filter(
-      ([chain, address]) => address && (this.isEvmChain(chain) || ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub', 'hydration', 'unique', 'bifrost', 'bifrostTestnet'].includes(chain))
+      ([chain, address]) =>
+        address &&
+        (this.isEvmChain(chain) ||
+          [
+            'moonbeamTestnet',
+            'astarShibuya',
+            'paseoPassetHub',
+            'hydration',
+            'unique',
+            'bifrost',
+            'bifrostTestnet',
+            'solana',
+            'tron',
+            'bitcoin',
+            'aptos',
+          ].includes(chain)),
     );
 
     const seenTxHashes = new Set<string>();
@@ -912,8 +991,8 @@ export class WalletService {
 
       const pushResult = (txs: any[]) => {
         // Filter out already seen transactions
-        const newTxs = txs.filter(tx => !seenTxHashes.has(`${tx.chain}:${tx.txHash}`));
-        newTxs.forEach(tx => seenTxHashes.add(`${tx.chain}:${tx.txHash}`));
+        const newTxs = txs.filter((tx) => !seenTxHashes.has(`${tx.chain}:${tx.txHash} `));
+        newTxs.forEach((tx) => seenTxHashes.add(`${tx.chain}:${tx.txHash} `));
 
         if (newTxs.length > 0) {
           results.push(newTxs);
@@ -930,7 +1009,9 @@ export class WalletService {
           const txs = await this.getTransactions(userId, chain);
           pushResult(txs);
         } catch (error) {
-          this.logger.error(`Error streaming transactions for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          this.logger.error(
+            `Error streaming transactions for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'} `,
+          );
         } finally {
           finishedCount++;
           if (finishedCount === chains.length && resolveNext) {
@@ -940,7 +1021,6 @@ export class WalletService {
         }
       });
 
-      // Yield results as they arrive
       while (finishedCount < chains.length || results.length > 0) {
         if (results.length === 0) {
           await new Promise<void>((resolve) => {
@@ -948,27 +1028,35 @@ export class WalletService {
           });
         }
 
-        while (results.length > 0) {
-          yield results.shift()!;
+        const batch = results.shift();
+        if (batch) {
+          yield batch;
         }
       }
     }.bind(this);
 
-    // Initial stream
-    for await (const txs of fetchAndYield()) {
-      yield txs;
-    }
+    yield* fetchAndYield.call(this);
 
-    // Polling loop for real-time updates
+    // If polling is enabled, check for new transactions periodically
     if (options.poll) {
-      const intervalMs = options.intervalMs || 15000;
-      this.logger.log(`Starting real-time transaction polling for user ${userId} every ${intervalMs}ms`);
-
+      const intervalMs = options.intervalMs || 30000; // Poll every 30s by default
       while (true) {
-        await new Promise(resolve => setTimeout(resolve, intervalMs));
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
 
-        for await (const txs of fetchAndYield()) {
-          yield txs;
+        for (const [chain, address] of chains) {
+          try {
+            const txs = await this.getTransactions(userId, chain, 10);
+            const newTxs = txs.filter((tx) => !seenTxHashes.has(`${tx.chain}:${tx.txHash} `));
+
+            if (newTxs.length > 0) {
+              newTxs.forEach((tx) => seenTxHashes.add(`${tx.chain}:${tx.txHash} `));
+              yield newTxs;
+            }
+          } catch (error) {
+            this.logger.error(
+              `Error polling transactions for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'} `,
+            );
+          }
         }
       }
     }
@@ -994,7 +1082,7 @@ export class WalletService {
     ];
 
     this.logger.debug(
-      `Getting balances for user ${userId}${forceRefresh ? ' (force refresh)' : ''}`,
+      `Getting balances for user ${userId}${forceRefresh ? ' (force refresh)' : ''} `,
     );
 
     try {
@@ -1014,7 +1102,7 @@ export class WalletService {
           balance: asset.balance,
         }));
     } catch (error: any) {
-      this.logger.error(`Error in getBalances for ${userId}: ${error.message}`);
+      this.logger.error(`Error in getBalances for ${userId}: ${error.message} `);
       return [];
     }
   }
@@ -1070,7 +1158,7 @@ export class WalletService {
 
     const remainderStr = remainder.toString().padStart(decimals, '0');
     const trimmedRemainder = remainderStr.replace(/0+$/, '');
-    return `${whole}.${trimmedRemainder}`;
+    return `${whole}.${trimmedRemainder} `;
   }
 
   /**
@@ -1136,7 +1224,7 @@ export class WalletService {
         const parsed = parseInt(result, 16);
         if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 36) {
           this.logger.log(
-            `[RPC Decimals] Fetched decimals for ${tokenAddress}: ${parsed}`,
+            `[RPC Decimals] Fetched decimals for ${tokenAddress}: ${parsed} `,
           );
           return parsed;
         }
@@ -1145,7 +1233,7 @@ export class WalletService {
       return null;
     } catch (e) {
       this.logger.debug(
-        `RPC decimals() call failed for ${tokenAddress}: ${e instanceof Error ? e.message : 'Unknown error'}`,
+        `RPC decimals() call failed for ${tokenAddress}: ${e instanceof Error ? e.message : 'Unknown error'} `,
       );
       return null;
     }
@@ -1219,11 +1307,11 @@ export class WalletService {
       const sufficient = balanceBigInt >= amountSmallest;
 
       this.logger.log(
-        `[On-Chain Balance] Chain: ${account.chainId || 'unknown'}, ` +
+        `[On - Chain Balance]Chain: ${account.chainId || 'unknown'}, ` +
         `Address: ${await account.getAddress()}, ` +
         `Token: ${tokenAddress || 'native'}, ` +
         `balance: ${balanceBigInt.toString()}, requested: ${amountSmallest.toString()}, ` +
-        `sufficient: ${sufficient}`,
+        `sufficient: ${sufficient} `,
       );
 
       return {
@@ -1232,7 +1320,7 @@ export class WalletService {
       };
     } catch (e) {
       this.logger.error(
-        `On-chain balance validation failed: ${e instanceof Error ? e.message : 'Unknown error'}`,
+        `On - chain balance validation failed: ${e instanceof Error ? e.message : 'Unknown error'} `,
       );
       throw e;
     }
@@ -1259,7 +1347,7 @@ export class WalletService {
   }> {
     try {
       this.logger.log(
-        `[Zerion Balance] Fetching balances for ${walletAddress} on ${chain}`,
+        `[Zerion Balance] Fetching balances for ${walletAddress} on ${chain} `,
       );
       const balances = await this.zerionService.getBalances(
         walletAddress,
@@ -1290,12 +1378,12 @@ export class WalletService {
       };
     } catch (error) {
       this.logger.error(
-        `[Zerion Balance] Error fetching from Zerion: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `[Zerion Balance] Error fetching from Zerion: ${error instanceof Error ? error.message : 'Unknown error'} `,
       );
       return {
         sufficient: false,
         zerionBalance: '0',
-        error: `Zerion error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: `Zerion error: ${error instanceof Error ? error.message : 'Unknown error'} `,
       };
     }
   }
@@ -1360,7 +1448,7 @@ export class WalletService {
     options?: { forceEip7702?: boolean },
   ): Promise<{ txHash: string }> {
     this.logger.log(
-      `Sending crypto for user ${userId} on chain ${chain}: ${amount} to ${recipientAddress}`,
+      `Sending crypto for user ${userId} on chain ${chain}: ${amount} to ${recipientAddress} `,
     );
 
     // Check if wallet exists, create if not
@@ -1388,6 +1476,12 @@ export class WalletService {
           amount: amount,
           tokenAddress: tokenAddress,
         });
+
+        // Asynchronously record the transaction for history
+        this.recordTransaction(userId, result.txHash, chain, recipientAddress, amount, tokenAddress).catch(err => {
+          this.logger.error(`Failed to record transaction ${result.txHash}: ${err.message} `);
+        });
+
         return { txHash: result.txHash };
       }
 
@@ -1420,8 +1514,8 @@ export class WalletService {
           finalDecimals = tokenDecimals;
           decimalsSource = 'frontend-zerion';
           this.logger.log(
-            `[Decimals Optimization] Using frontend-provided token decimals: ${finalDecimals} ` +
-            `(source: ${decimalsSource}). Skipping redundant Zerion API call.`,
+            `[Decimals Optimization] Using frontend - provided token decimals: ${finalDecimals} ` +
+            `(source: ${decimalsSource}).Skipping redundant Zerion API call.`,
           );
         } else {
           // Frontend didn't provide decimals or they're invalid - fetch from Zerion
@@ -1449,7 +1543,7 @@ export class WalletService {
           } else {
             // If Zerion fails, try RPC decimals() as last resort
             this.logger.warn(
-              `[Decimals Fallback] Zerion did not have decimals for ${tokenAddress}. Trying RPC decimals() call.`,
+              `[Decimals Fallback] Zerion did not have decimals for ${tokenAddress}.Trying RPC decimals() call.`,
             );
             const rpcDecimals = await this.fetchDecimalsFromRPC(
               tokenAddress,
@@ -1465,8 +1559,8 @@ export class WalletService {
             } else {
               // All methods failed
               throw new BadRequestException(
-                `Cannot determine token decimals for ${tokenAddress} on ${chain}. ` +
-                `Attempted: Frontend (${tokenDecimals}), Zerion API, RPC decimals() (failed). ` +
+                `Cannot determine token decimals for ${tokenAddress} on ${chain}.` +
+                `Attempted: Frontend(${tokenDecimals}), Zerion API, RPC decimals()(failed). ` +
                 `This token may not exist on ${chain}, or data is incomplete. ` +
                 `Please refresh your wallet data and try again.`,
               );
@@ -1485,8 +1579,8 @@ export class WalletService {
       // Convert human-readable amount to smallest units using Zerion's decimals
       const amountSmallest = this.convertToSmallestUnits(amount, finalDecimals);
       this.logger.log(
-        `Send pre-check: chain=${chain}, token=${tokenAddress || 'native'}, ` +
-        `amount=${amount}, decimals=${finalDecimals} (via ${decimalsSource}), smallest=${amountSmallest.toString()}`,
+        `Send pre - check: chain = ${chain}, token = ${tokenAddress || 'native'}, ` +
+        `amount = ${amount}, decimals = ${finalDecimals} (via ${decimalsSource}), smallest = ${amountSmallest.toString()} `,
       );
 
       // Validate balance using Zerion as primary source
@@ -1498,16 +1592,16 @@ export class WalletService {
       );
 
       this.logger.log(
-        `Balance validation: zerionBalance=${balanceValidation.zerionBalance}, ` +
-        `requested=${amountSmallest.toString()}, sufficient=${balanceValidation.sufficient}`,
+        `Balance validation: zerionBalance = ${balanceValidation.zerionBalance}, ` +
+        `requested = ${amountSmallest.toString()}, sufficient = ${balanceValidation.sufficient} `,
       );
 
       // Use on-chain balance as source of truth - verify if Zerion says insufficient
       if (!balanceValidation.sufficient) {
         // Zerion says insufficient - verify with on-chain balance (source of truth)
         this.logger.warn(
-          `Zerion reported insufficient balance (${balanceValidation.zerionBalance}), ` +
-          `verifying with on-chain balance (source of truth)`,
+          `Zerion reported insufficient balance(${balanceValidation.zerionBalance}), ` +
+          `verifying with on - chain balance(source of truth)`,
         );
 
         try {
@@ -1521,22 +1615,22 @@ export class WalletService {
             // On-chain says sufficient - allow transaction (Zerion may be stale)
             this.logger.warn(
               `Balance discrepancy detected: Zerion shows ${balanceValidation.zerionBalance}, ` +
-              `on-chain shows ${onChainValidation.balance}, requested ${amountSmallest.toString()}. ` +
-              `Using on-chain balance (source of truth) - proceeding with transaction.`,
+              `on - chain shows ${onChainValidation.balance}, requested ${amountSmallest.toString()}.` +
+              `Using on - chain balance(source of truth) - proceeding with transaction.`,
             );
             // Don't throw error - proceed with send
           } else {
             // Both Zerion AND on-chain say insufficient
             const errorMessage =
               balanceValidation.error ||
-              `Insufficient balance confirmed by both Zerion and on-chain. ` +
+              `Insufficient balance confirmed by both Zerion and on - chain. ` +
               `Zerion: ${balanceValidation.zerionBalance} smallest units, ` +
-              `On-chain: ${onChainValidation.balance} smallest units, ` +
+              `On - chain: ${onChainValidation.balance} smallest units, ` +
               `Requested: ${amountSmallest.toString()} smallest units`;
 
             this.logger.error(
-              `Insufficient balance: ${errorMessage}, token=${tokenAddress || 'native'}, ` +
-              `decimals=${finalDecimals}, chain=${chain}`,
+              `Insufficient balance: ${errorMessage}, token = ${tokenAddress || 'native'}, ` +
+              `decimals = ${finalDecimals}, chain = ${chain} `,
             );
 
             throw new UnprocessableEntityException(errorMessage);
@@ -1548,15 +1642,15 @@ export class WalletService {
 
           // Couldn't get on-chain balance - trust Zerion
           this.logger.error(
-            `Could not verify with on-chain balance: ${e instanceof Error ? e.message : 'Unknown error'}. ` +
+            `Could not verify with on - chain balance: ${e instanceof Error ? e.message : 'Unknown error'}.` +
             `Trusting Zerion result.`,
           );
 
           const errorMessage =
             balanceValidation.error ||
-            `Insufficient balance. Zerion shows: ${balanceValidation.zerionBalance} smallest units, ` +
+            `Insufficient balance.Zerion shows: ${balanceValidation.zerionBalance} smallest units, ` +
             `Requested: ${amountSmallest.toString()} smallest units. ` +
-            `Could not verify with on-chain balance.`;
+            `Could not verify with on - chain balance.`;
 
           throw new UnprocessableEntityException(errorMessage);
         }
@@ -1564,7 +1658,7 @@ export class WalletService {
         // Zerion says sufficient - log for debugging but proceed
         this.logger.log(
           `Balance validation passed: Zerion shows ${balanceValidation.zerionBalance}, ` +
-          `requested ${amountSmallest.toString()}`,
+          `requested ${amountSmallest.toString()} `,
         );
       }
 
@@ -1581,7 +1675,7 @@ export class WalletService {
             typeof (account as any).transfer === 'function'
           ) {
             try {
-              this.logger.log(`[Send] Calling account.transfer with: to=${recipientAddress}, amount=${amountSmallest}, tokenAddress=${tokenAddress}`);
+              this.logger.log(`[Send] Calling account.transfer with: to = ${recipientAddress}, amount = ${amountSmallest}, tokenAddress = ${tokenAddress} `);
               const result = await (account as any).transfer({
                 to: recipientAddress,
                 amount: amountSmallest.toString(),
@@ -1594,7 +1688,7 @@ export class WalletService {
               sendMethod = 'transfer({to, amount, tokenAddress})';
             } catch (e1) {
               // Try with legacy keys if standard fails (for backward compatibility if any factory still uses them)
-              this.logger.warn(`Standard transfer failed, trying legacy keys: ${e1 instanceof Error ? e1.message : 'unknown'}`);
+              this.logger.warn(`Standard transfer failed, trying legacy keys: ${e1 instanceof Error ? e1.message : 'unknown'} `);
               try {
                 const result = await (account as any).transfer({
                   token: tokenAddress,
@@ -1608,18 +1702,18 @@ export class WalletService {
                 sendMethod = 'transfer({token, recipient, amount})';
               } catch (e2) {
                 this.logger.error(
-                  `Token transfer via account.transfer failed: ${e2 instanceof Error ? e2.message : 'unknown'}`,
+                  `Token transfer via account.transfer failed: ${e2 instanceof Error ? e2.message : 'unknown'} `,
                 );
                 // Don't wrap in "method not supported" if it's a real transaction error
                 const errorDetail = e2 instanceof Error ? e2.message : 'unknown error';
                 throw new ServiceUnavailableException(
-                  `Token transfer failed for account type EOA on chain ${chain}: ${errorDetail}`,
+                  `Token transfer failed for account type EOA on chain ${chain}: ${errorDetail} `,
                 );
               }
             }
           } else {
             throw new ServiceUnavailableException(
-              `Token transfer not supported for account type EOA on chain ${chain}. ` +
+              `Token transfer not supported for account type EOA on chain ${chain}.` +
               `The account does not support the transfer method.`,
             );
           }
@@ -1653,7 +1747,7 @@ export class WalletService {
           } else {
             throw new BadRequestException(
               `Native token send not supported for chain ${chain}. ` +
-              `Account type: EOA. Please check if this chain/account combination is supported.`,
+              `Account type: EOA.Please check if this chain / account combination is supported.`,
             );
           }
         }
@@ -1666,10 +1760,10 @@ export class WalletService {
 
         // Structured logging for successful transaction
         this.logger.log(
-          `Transaction successful: chain=${chain}, ` +
-          `token=${tokenAddress || 'native'}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
-          `humanAmount=${amount}, amountSmallest=${amountSmallest.toString()}, ` +
-          `method=${sendMethod}, txHash=${txHash}, recipient=${recipientAddress}`,
+          `Transaction successful: chain = ${chain}, ` +
+          `token = ${tokenAddress || 'native'}, decimals = ${finalDecimals} (source: ${decimalsSource}), ` +
+          `humanAmount = ${amount}, amountSmallest = ${amountSmallest.toString()}, ` +
+          `method = ${sendMethod}, txHash = ${txHash}, recipient = ${recipientAddress} `,
         );
 
         // Invalidate caches after successful send
@@ -1680,7 +1774,7 @@ export class WalletService {
           );
         } catch (cacheError) {
           this.logger.warn(
-            `Failed to invalidate cache: ${cacheError instanceof Error ? cacheError.message : 'Unknown error'}`,
+            `Failed to invalidate cache: ${cacheError instanceof Error ? cacheError.message : 'Unknown error'} `,
           );
         }
 
@@ -1689,10 +1783,10 @@ export class WalletService {
         // Structured error logging
         const errorMessage = ViemErrorFormatter.format(error);
         this.logger.error(
-          `Transaction failed: chain=${chain}, ` +
-          `token=${tokenAddress || 'native'}, decimals=${finalDecimals} (source: ${decimalsSource}), ` +
-          `humanAmount=${amount}, amountSmallest=${amountSmallest.toString()}, ` +
-          `method=${sendMethod}, error=${errorMessage}`,
+          `Transaction failed: chain = ${chain}, ` +
+          `token = ${tokenAddress || 'native'}, decimals = ${finalDecimals} (source: ${decimalsSource}), ` +
+          `humanAmount = ${amount}, amountSmallest = ${amountSmallest.toString()}, ` +
+          `method = ${sendMethod}, error = ${errorMessage} `,
         );
 
         // Re-throw known exceptions
@@ -1713,7 +1807,7 @@ export class WalletService {
         ) {
           throw new UnprocessableEntityException(
             `Insufficient balance for this transaction. ` +
-            `Please check your balance and try again. Error: ${errorMessage}`,
+            `Please check your balance and try again.Error: ${errorMessage} `,
           );
         }
 
@@ -1723,7 +1817,7 @@ export class WalletService {
           lowerError.includes('rpc')
         ) {
           throw new ServiceUnavailableException(
-            `Blockchain network is unavailable. Please try again later. Error: ${errorMessage}`,
+            `Blockchain network is unavailable.Please try again later.Error: ${errorMessage} `,
           );
         }
 
@@ -1732,7 +1826,7 @@ export class WalletService {
           lowerError.includes('address')
         ) {
           throw new BadRequestException(
-            `Invalid recipient address. Error: ${errorMessage}`,
+            `Invalid recipient address.Error: ${errorMessage} `,
           );
         }
 
@@ -1741,13 +1835,13 @@ export class WalletService {
           lowerError.includes('replacement')
         ) {
           throw new ServiceUnavailableException(
-            `Transaction nonce error. Please wait a moment and try again. Error: ${errorMessage}`,
+            `Transaction nonce error.Please wait a moment and try again.Error: ${errorMessage} `,
           );
         }
 
         // Generic fallback
         throw new ServiceUnavailableException(
-          `Transaction failed: ${errorMessage}`,
+          `Transaction failed: ${errorMessage} `,
         );
       }
     } catch (error) {
@@ -1762,14 +1856,14 @@ export class WalletService {
       // Log unexpected errors with full context
       const errorMessage = ViemErrorFormatter.format(error);
       this.logger.error(
-        `Unexpected error in sendCrypto: userId=${userId}, chain=${chain}, ` +
-        `token=${tokenAddress || 'native'}, amount=${amount}, error=${errorMessage}`,
+        `Unexpected error in sendCrypto: userId = ${userId}, chain = ${chain}, ` +
+        `token = ${tokenAddress || 'native'}, amount = ${amount}, error = ${errorMessage} `,
       );
       this.logger.error(
-        `Stack trace: ${error instanceof Error ? error.stack : 'No stack trace'}`,
+        `Stack trace: ${error instanceof Error ? error.stack : 'No stack trace'} `,
       );
       throw new ServiceUnavailableException(
-        `Failed to send crypto: ${errorMessage}`,
+        `Failed to send crypto: ${errorMessage} `,
       );
     }
   }
@@ -1806,7 +1900,7 @@ export class WalletService {
     const chainIdMatch = chainId.match(/^eip155:(\d+)$/);
     if (!chainIdMatch || !chainIdMatch[1]) {
       throw new BadRequestException(
-        `Invalid WalletConnect chain ID format: ${chainId}. Expected format: eip155:chainId`,
+        `Invalid WalletConnect chain ID format: ${chainId}. Expected format: eip155: chainId`,
       );
     }
 
@@ -1821,7 +1915,7 @@ export class WalletService {
     const internalChain = chainMap[chainIdMatch[1]];
     if (!internalChain) {
       throw new BadRequestException(
-        `Unsupported chain ID: ${chainIdMatch[1]}. Supported chains: ${Object.keys(chainMap).join(', ')}`,
+        `Unsupported chain ID: ${chainIdMatch[1]}. Supported chains: ${Object.keys(chainMap).join(', ')} `,
       );
     }
 
@@ -1858,16 +1952,16 @@ export class WalletService {
     const hasSeed = await this.seedRepository.hasSeed(userId);
 
     if (!hasSeed) {
-      this.logger.debug(`No wallet found for user ${userId}. Auto-creating...`);
+      this.logger.debug(`No wallet found for user ${userId}.Auto - creating...`);
       await this.createOrImportSeed(userId, 'random');
-      this.logger.debug(`Successfully auto-created wallet for user ${userId}`);
+      this.logger.debug(`Successfully auto - created wallet for user ${userId}`);
     }
 
     // Fast path: Check database cache first (unless force refresh)
     if (!forceRefresh) {
       const cached = await this.balanceCacheRepository.getChainBalances(userId, chain);
       if (cached && Date.now() - cached.lastUpdated.getTime() < this.CACHE_TTL) {
-        this.logger.debug(`Returning cached token balances from DB for user ${userId} on ${chain}`);
+        this.logger.debug(`Returning cached token balances from DB for user ${userId} on ${chain} `);
         return cached.assets;
       }
     }
@@ -1894,6 +1988,10 @@ export class WalletService {
         symbol: b.symbol,
         balance: b.balance,
         decimals: b.decimals,
+        balanceHuman: b.balanceHuman,
+        usdValue: b.usdValue,
+        price: b.price,
+        name: b.name,
       }));
 
       // Save to chain-specific cache
@@ -1907,7 +2005,7 @@ export class WalletService {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `Error getting token balances from Zerion: ${errorMessage}`,
+        `Error getting token balances from Zerion: ${errorMessage} `,
       );
 
       // Return empty array if Zerion fails (Zerion is primary source)
@@ -2111,12 +2209,12 @@ export class WalletService {
       // The primary balance source is Zerion API which is called in getTokenBalances()
       // This method is mainly used to serve from cache while a background refresh happens
       this.logger.debug(
-        `Serving cached token balances for ${chain} (${cachedTokens.length} tokens)`,
+        `Serving cached token balances for ${chain}(${cachedTokens.length} tokens)`,
       );
       return cachedTokens;
     } catch (error) {
       this.logger.warn(
-        `Failed to refresh token balances: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to refresh token balances: ${error instanceof Error ? error.message : 'Unknown error'} `,
       );
       return cachedTokens; // Return cached on error
     }
@@ -2217,9 +2315,11 @@ export class WalletService {
       chain: string;
       tokenSymbol?: string;
       tokenAddress?: string;
+      type?: string;
+      usdValue?: number;
     }>
   > {
-    this.logger.log(`Getting transaction history for user ${userId} on chain ${chain}`);
+    this.logger.log(`Getting transaction history for user ${userId} on chain ${chain} `);
 
     const addresses = await this.getAddresses(userId);
     // Map variant chains (e.g. ethereumGasless) to canonical keys (e.g. ethereum) for address lookup
@@ -2231,11 +2331,11 @@ export class WalletService {
     }
 
     if (this.isEvmChain(chain) || ['moonbeamTestnet', 'astarShibuya', 'paseoPassetHub', 'hydration', 'unique', 'bifrost', 'bifrostTestnet'].includes(chain)) {
-      const cacheKey = `txs:${address}:${chain}`;
+      const cacheKey = `txs:${address}:${chain} `;
       const cached = await this.cacheService.get<any[]>(cacheKey);
       if (cached) return cached;
 
-      const txs = await this.zerionService.getTransactions(address, chain);
+      const txs = await this.zerionService.getTransactions(address, chain, limit);
       await this.cacheService.set(cacheKey, txs, 30);
       return txs;
     }
@@ -2280,7 +2380,7 @@ export class WalletService {
     if (!forceRefresh) {
       const cachedResults = await Promise.all(
         substrateChains.map(async (chain) => {
-          const partitionedChainId = `substrate_${cacheType}_${chain}`;
+          const partitionedChainId = `substrate_${cacheType}_${chain} `;
           const cached = await this.balanceCacheRepository.getChainBalances(
             userId,
             partitionedChainId,
@@ -2334,7 +2434,7 @@ export class WalletService {
 
     // 2. Fetch fresh if no cache or force refresh
     this.logger.log(
-      `[WalletService] Getting Substrate balances for user ${userId} (testnet: ${useTestnet})`,
+      `[WalletService] Getting Substrate balances for user ${userId}(testnet: ${useTestnet})`,
     );
     const balances = await this.substrateManager.getBalances(
       userId,
@@ -2355,7 +2455,7 @@ export class WalletService {
       };
 
       // Store in partitioned cache
-      const partitionedChainId = `substrate_${cacheType}_${chain}`;
+      const partitionedChainId = `substrate_${cacheType}_${chain} `;
       await this.balanceCacheRepository.updateChainBalances(
         userId,
         partitionedChainId,
@@ -2441,7 +2541,101 @@ export class WalletService {
         useTestnet,
         transferMethod,
       },
-      accountIndex,
     );
+  }
+
+  private async recordTransaction(
+    userId: string,
+    txHash: string,
+    chain: string,
+    to: string,
+    value: string,
+    tokenAddress?: string,
+    tokenDecimals: number = 18,
+    tokenSymbol: string = 'ETH',
+  ) {
+    let authenticTx: ZerionTransaction | undefined = undefined;
+    let senderAddress = '';
+
+    try {
+      const addresses = await this.getAddresses(userId);
+      senderAddress = (addresses[chain as any] as string) || '';
+    } catch (e) {
+      this.logger.warn(
+        `Could not fetch addresses for user ${userId} in recordTransaction`,
+      );
+    }
+
+    // Retry loop: 3 attempts x 5s
+    for (let i = 0; i < 3; i++) {
+      // Wait for propagation
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      try {
+        if (senderAddress) {
+          const recentTxs = await this.zerionService.getTransactions(senderAddress, chain, 20);
+          authenticTx = recentTxs.find(tx => tx.txHash.toLowerCase() === txHash.toLowerCase());
+
+          if (authenticTx) {
+            this.logger.log(`[History] Found authentic tx ${txHash} on attempt ${i + 1}`);
+            break;
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`[History] Zerion fetch failed attempt ${i + 1}: ${err instanceof Error ? err.message : 'Unknown'}`);
+      }
+    }
+
+    // Fallback if not found: Save pending record driven by initial inputs
+    // NOTE: 'value' from UI is usually a human-readable string (e.g. "0.5")
+    // If we have to fall back, we should convert it to raw units for consistency with authentic records.
+    let fallbackValue = value;
+    if (!authenticTx) {
+      try {
+        const valNum = parseFloat(value);
+        if (!isNaN(valNum)) {
+          // Convert to raw units using tokenDecimals
+          fallbackValue = (valNum * Math.pow(10, tokenDecimals)).toString().split('.')[0] || '0';
+        }
+      } catch (e) {
+        this.logger.warn(`Could not normalize fallback value ${value}`);
+      }
+    }
+
+    const defaultSymbol = chain === 'polygon' ? 'POL' : (chain === 'base' || chain === 'arbitrum' || chain === 'ethereum' ? 'ETH' : 'TOKEN');
+
+    const data = {
+      userId,
+      txHash,
+      chain,
+      from: (authenticTx?.from || senderAddress || '') as string,
+      to: (authenticTx?.to || to || null) as string | null,
+      value: (authenticTx?.value || fallbackValue || '0') as string,
+      tokenSymbol: (authenticTx?.tokenSymbol || tokenSymbol || defaultSymbol) as string,
+      tokenAddress: (authenticTx?.tokenAddress || tokenAddress || null) as string | null,
+      tokenDecimals: authenticTx?.tokenDecimals || tokenDecimals || 18,
+      timestamp: authenticTx?.timestamp ? new Date(authenticTx.timestamp * 1000) : new Date(),
+      blockNumber: authenticTx?.blockNumber || null,
+      status: (authenticTx?.status || 'pending') as string,
+      type: 'send',
+      usdValue: authenticTx?.usdValue ?? null,
+      direction: 'out'
+    };
+
+    try {
+      await this.prisma.blockchainTransaction.upsert({
+        where: {
+          txHash_chain: {
+            txHash: data.txHash,
+            chain: data.chain
+          }
+        },
+        update: data,
+        create: data
+      });
+      this.logger.log(`[History] Persisted transaction ${txHash} (Status: ${data.status})`);
+    } catch (error) {
+      this.logger.error(`[History] Failed to persist transaction ${txHash}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 }

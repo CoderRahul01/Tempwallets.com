@@ -1,15 +1,16 @@
-"use client";
+'use client';
 
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Loader2, ArrowUpRight, ArrowDownLeft, ExternalLink, Clock } from "lucide-react";
+import { Loader2, ArrowUpRight, ArrowDownLeft, ExternalLink, Clock, Repeat, ArrowRight } from "lucide-react";
 import { walletApi, Transaction } from "@/lib/api";
 import { useBrowserFingerprint } from "@/hooks/useBrowserFingerprint";
 
 import { useWalletV2 } from "@/hooks/useWalletV2";
-
 import { useAuth } from '@/hooks/useAuth';
+import { useTokenIcon } from '@/lib/token-icons';
+import { useWalletConfig } from '@/hooks/useWalletConfig';
 
 interface RecentTransactionsProps {
   showAll?: boolean;
@@ -49,37 +50,26 @@ const CHAIN_NAMES: Record<string, string> = {
 
 /**
  * Format transaction hash for block explorer
- * Substrate chains need hash without 0x prefix for Subscan
  */
-const formatTxHash = (hash: string, isSubstrate: boolean = false): string => {
+const formatTxHash = (hash: string): string => {
   if (!hash) return '';
-  // Remove 0x prefix for Substrate chains (Subscan expects it without prefix)
-  if (isSubstrate && hash.startsWith('0x')) {
-    return hash.slice(2);
-  }
   return hash;
 };
 
 /**
  * Get block explorer URL for a transaction
- * Supports both testnet and mainnet explorers
  */
 const getExplorerUrl = (txHash: string, chain: string, isTestnet: boolean = false): string => {
   if (!txHash) return '#';
 
-  // EVM chains (testnet support)
   const evmExplorers: Record<string, { mainnet: string; testnet?: string }> = {
     ethereum: { mainnet: 'https://etherscan.io', testnet: 'https://sepolia.etherscan.io' },
     base: { mainnet: 'https://basescan.org', testnet: 'https://sepolia.basescan.org' },
     arbitrum: { mainnet: 'https://arbiscan.io', testnet: 'https://sepolia.arbiscan.io' },
     polygon: { mainnet: 'https://polygonscan.com', testnet: 'https://mumbai.polygonscan.com' },
     avalanche: { mainnet: 'https://snowtrace.io', testnet: 'https://testnet.snowtrace.io' },
-    moonbeamTestnet: { mainnet: 'https://moonscan.io', testnet: 'https://moonbase.moonscan.io' },
-    astarShibuya: { mainnet: 'https://astar.subscan.io', testnet: 'https://shibuya.subscan.io' },
-    paseoPassetHub: { mainnet: 'https://assethub-polkadot.subscan.io', testnet: 'https://assethub-paseo.subscan.io' },
   };
 
-  // Check if it's an EVM chain
   const evmChain = chain.replace('Erc4337', '');
   if (evmExplorers[evmChain]) {
     const explorer = isTestnet && evmExplorers[evmChain].testnet
@@ -88,7 +78,6 @@ const getExplorerUrl = (txHash: string, chain: string, isTestnet: boolean = fals
     return `${explorer}/tx/${txHash}`;
   }
 
-  // Non-EVM chains
   const nonEvmExplorers: Record<string, string> = {
     tron: `https://tronscan.org/#/transaction/${txHash}`,
     bitcoin: `https://blockstream.info/tx/${txHash}`,
@@ -97,40 +86,6 @@ const getExplorerUrl = (txHash: string, chain: string, isTestnet: boolean = fals
 
   if (nonEvmExplorers[chain]) {
     return nonEvmExplorers[chain];
-  }
-
-  // Substrate/Polkadot chains - use Subscan (more reliable than Polkascan)
-  const substrateExplorers: Record<string, { mainnet: string; testnet: string }> = {
-    polkadot: {
-      mainnet: 'https://polkadot.subscan.io',
-      testnet: 'https://paseo.subscan.io' // Paseo is Polkadot testnet
-    },
-    hydrationSubstrate: {
-      mainnet: 'https://hydradx.subscan.io',
-      testnet: 'https://hydradx-testnet.subscan.io'
-    },
-    bifrostSubstrate: {
-      mainnet: 'https://bifrost.subscan.io',
-      testnet: 'https://bifrost-testnet.subscan.io'
-    },
-    uniqueSubstrate: {
-      mainnet: 'https://unique.subscan.io',
-      testnet: 'https://unique-testnet.subscan.io'
-    },
-    paseo: {
-      mainnet: 'https://paseo.subscan.io',
-      testnet: 'https://paseo.subscan.io' // Paseo is always testnet
-    },
-    paseoAssethub: {
-      mainnet: 'https://assethub-polkadot.subscan.io',
-      testnet: 'https://assethub-paseo.subscan.io'
-    },
-  };
-
-  if (substrateExplorers[chain]) {
-    const explorer = isTestnet ? substrateExplorers[chain].testnet : substrateExplorers[chain].mainnet;
-    const formattedHash = formatTxHash(txHash, true);
-    return `${explorer}/extrinsic/${formattedHash}`;
   }
 
   return '#';
@@ -145,10 +100,28 @@ const truncateTxHash = (hash: string | null): string => {
 };
 
 const formatValue = (value: string, decimals: number = 18, tokenSymbol?: string): string => {
+  if (!value || value === "0") return "0";
   const num = parseFloat(value);
   if (isNaN(num) || num === 0) return "0";
-  const formatted = (num / Math.pow(10, decimals)).toFixed(6).replace(/\.?0+$/, "");
+
+  const humanValue = num / Math.pow(10, decimals);
+
+  // If it's very small but non-zero, show more decimals
+  let formatted;
+  if (humanValue > 0 && humanValue < 0.000001) {
+    formatted = humanValue.toFixed(10).replace(/\.?0+$/, "");
+  } else if (humanValue > 0 && humanValue < 0.01) {
+    formatted = humanValue.toFixed(6).replace(/\.?0+$/, "");
+  } else {
+    formatted = humanValue.toFixed(4).replace(/\.?0+$/, "");
+  }
+
   return `${formatted} ${tokenSymbol || ""}`.trim();
+};
+
+const formatTime = (timestamp: number | null): string => {
+  if (!timestamp) return "";
+  return new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 const formatDate = (timestamp: number | null): string => {
@@ -173,77 +146,114 @@ const truncateAddress = (address: string | null): string => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
+const groupTransactionsByDate = (transactions: Transaction[]) => {
+  const groups: Record<string, Transaction[]> = {};
+  transactions.forEach(tx => {
+    if (!tx.timestamp) return;
+    const date = new Date(tx.timestamp * 1000).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(tx);
+  });
+  return Object.entries(groups).sort((a, b) => {
+    return new Date(b[0]).getTime() - new Date(a[0]).getTime();
+  });
+};
+
 const TransactionItem = ({
   tx,
   direction,
   isPending,
   getTransactionExplorerUrl,
-  truncateAddress,
-  truncateTxHash,
   formatValue,
-  formatDate,
-  CHAIN_NAMES
 }: {
   tx: Transaction,
   direction: 'in' | 'out',
   isPending: boolean,
   getTransactionExplorerUrl: (tx: Transaction) => string,
-  truncateAddress: (addr: string | null) => string,
-  truncateTxHash: (hash: string | null) => string,
   formatValue: (val: string, dec?: number, sym?: string) => string,
-  formatDate: (ts: number | null) => string,
-  CHAIN_NAMES: Record<string, string>
-}) => (
-  <a
-    key={`${tx.chain}-${tx.txHash}`}
-    href={getTransactionExplorerUrl(tx)}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="flex items-center p-3 md:p-4 rounded-2xl border border-gray-100 bg-white hover:border-gray-200 transition-all shadow-sm group"
-  >
-    <div className="flex items-center w-full overflow-hidden">
-      {/* Direction Icon (Fixed Width) */}
-      <div className={`flex-shrink-0 flex items-center justify-center rounded-full p-2 mr-3 sm:mr-4 ${direction === 'in' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-        {direction === 'in' ? (
-          <ArrowDownLeft className="w-5 h-5 md:w-6 md:h-6" />
-        ) : (
-          <ArrowUpRight className="w-5 h-5 md:w-6 md:h-6" />
-        )}
-      </div>
+}) => {
+  const isSwap = tx.type === 'trade';
+  const Icon = useTokenIcon(tx.chain, tx.tokenSymbol || 'ETH');
+  const walletConfig = useWalletConfig();
 
-      {/* Symbol/Direction Label (Fixed Width) */}
-      <div className="flex-shrink-0 w-24 sm:w-28">
-        <div className="text-sm md:text-base font-bold text-gray-900 font-rubik-medium truncate uppercase">
-          {direction === 'in' ? 'Received' : 'Sent'}
-        </div>
-        <div className="text-[10px] text-gray-500 font-rubik-normal truncate">
-          {direction === 'in' ? `From: ${truncateAddress(tx.from)}` : `To: ${truncateAddress(tx.to)}`}
-        </div>
-      </div>
+  const chainId = tx.chain?.replace('Erc4337', '') || 'ethereum';
+  const config = walletConfig.getById(tx.chain?.endsWith('Erc4337') ? tx.chain : chainId);
+  const chainColor = config?.color || '#627EEA';
 
-      {/* Chain Tag & Time (Fixed Width) */}
-      <div className="flex-shrink-0 w-20 sm:w-24 ml-auto px-2">
-        <div className="text-[9px] md:text-[10px] text-blue-500 font-rubik-medium bg-blue-50 px-2 py-0.5 rounded-full leading-tight whitespace-nowrap inline-block text-center w-full">
-          {CHAIN_NAMES[tx.chain] || tx.chain}
+  // Activity Info
+  return (
+    <a
+      href={getTransactionExplorerUrl(tx)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center p-3 md:px-6 md:py-4 hover:bg-gray-50/50 transition-colors group relative border-b border-gray-50 last:border-0"
+    >
+      <div className="flex items-center w-full relative z-10">
+        {/* Left: Icon Container with Chain Badge */}
+        <div className="relative flex-shrink-0 mr-4">
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center bg-gray-50 border border-gray-100 shadow-sm overflow-hidden p-1.5 transition-transform group-hover:scale-105">
+            <Icon
+              className="w-full h-full"
+              style={{ fill: isSwap ? '#A855F7' : (direction === 'in' ? '#22C55E' : '#3B82F6') }}
+            />
+          </div>
+          {/* Status Overlay Icon */}
+          <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-sm ${isSwap ? 'bg-purple-500' : direction === 'in' ? 'bg-green-500' : 'bg-blue-500'
+            }`}>
+            {isSwap ? <Repeat className="w-2.5 h-2.5 text-white" /> :
+              direction === 'in' ? <ArrowDownLeft className="w-2.5 h-2.5 text-white" /> :
+                <ArrowUpRight className="w-2.5 h-2.5 text-white" />}
+          </div>
         </div>
-        <div className="text-[10px] text-gray-400 font-rubik-normal mt-1 flex items-center justify-center gap-1">
-          {isPending ? <Clock className="h-2 w-2" /> : null}
-          {isPending ? 'Pending' : formatDate(tx.timestamp)}
-        </div>
-      </div>
 
-      {/* Amount (Aligned Right) */}
-      <div className="flex-shrink-0 ml-4 flex flex-col items-end min-w-[90px]">
-        <div className={`text-base md:text-lg font-bold font-rubik-bold truncate ${direction === 'in' ? 'text-green-600' : 'text-gray-900'}`}>
-          {direction === 'in' ? '+' : '-'}{formatValue(tx.value, 18, tx.tokenSymbol)}
+        {/* Middle: Activity Info */}
+        <div className="flex-grow min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-gray-900 font-rubik-bold text-sm md:text-base capitalize">
+              {direction === 'in' ? 'Received' : 'Sent'} {tx.tokenSymbol || 'ETH'}
+            </span>
+            {isPending && (
+              <span className="flex items-center gap-1 text-[10px] bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded-full font-rubik-medium border border-yellow-100 animate-pulse">
+                Pending
+              </span>
+            )}
+            <span className="text-[10px] text-gray-400 font-rubik-medium uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+              {chainId}
+            </span>
+          </div>
+          <div className="flex items-center text-xs text-gray-500 gap-1.5 font-rubik-normal truncate">
+            <span className={tx.status === 'failed' ? 'text-red-500' : 'text-green-500 font-rubik-medium'}>
+              {tx.status === 'success' ? 'Confirmed' : tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+            </span>
+            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+            <span>{formatTime(tx.timestamp)}</span>
+            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+            <span className="text-gray-400">
+              {direction === 'in' ? `From: ${truncateAddress(tx.from)}` : `To: ${truncateAddress(tx.to)}`}
+            </span>
+          </div>
         </div>
-        <div className="text-[10px] text-gray-400 font-mono truncate">
-          {truncateTxHash(tx.txHash)}
+
+        {/* Right: Value */}
+        <div className="text-right flex-shrink-0 ml-4">
+          <div className={`font-rubik-bold text-sm md:text-base ${direction === 'in' ? 'text-green-600' : 'text-gray-900'
+            }`}>
+            {direction === 'in' ? '+' : '-'}{formatValue(tx.value, tx.tokenDecimals, tx.tokenSymbol)}
+          </div>
+          {tx.usdValue !== undefined && (
+            <div className="text-[10px] md:text-xs text-gray-400 font-rubik-normal">
+              ${tx.usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  </a>
-);
+    </a>
+  );
+};
 
 
 
@@ -253,62 +263,62 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
 
   // Create a set of all user wallet addresses for direction detection
   const userAddresses = useMemo(() => {
-    return new Set(wallets.map(w => w.address.toLowerCase()));
+    if (!wallets) return new Set<string>();
+    return new Set(wallets.map(w => w.address?.toLowerCase()).filter(Boolean));
   }, [wallets]);
 
   const fetchTransactions = useCallback(async () => {
     if (!userId) return;
-
-    // Use prop transactions if provided and no chain filter
-    if (propTransactions && !selectedChainId) {
-      setTransactions(propTransactions);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
-
     try {
-      // Unified View: Always fetch transactions from all chains
-      // Backend's getTransactionsAny aggregates from Zerion and other sources
-      const fetchedTransactions = await walletApi.getTransactionsAny(userId, 50);
-
-      // Sort by timestamp
-      const sorted = fetchedTransactions.sort((a, b) => {
-        const timeA = a.timestamp || 0;
-        const timeB = b.timestamp || 0;
-        return timeB - timeA;
-      });
-
-      setTransactions(sorted);
+      const data = await walletApi.getTransactionsAny(userId, 100);
+      setTransactions(data);
+      setLastUpdated(Date.now());
     } catch (err) {
-      console.error('Failed to load transactions:', err);
-      setError('Failed to load transactions');
+      console.error('Failed to fetch transactions:', err);
+      setError('Failed to load activity');
     } finally {
       setLoading(false);
     }
-  }, [userId, propTransactions]); // Removed selectedChainId dependency from fetch logic
+  }, [userId]);
 
-
+  // Subscribe to real-time updates
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    if (!userId) return;
 
-  const refreshFn = fetchTransactions;
+    // Initial fetch
+    fetchTransactions();
+
+    // Subscribe to SSE
+    const unsubscribe = walletApi.subscribeToTransactions(userId, (newBatch) => {
+      setTransactions((prev) => {
+        // Merge and deduplicate by hash + chain
+        const seen = new Set(prev.map(tx => `${tx.chain}:${tx.txHash}`));
+        const filteredNew = newBatch.filter(tx => !seen.has(`${tx.chain}:${tx.txHash}`));
+
+        if (filteredNew.length === 0) return prev;
+
+        const merged = [...filteredNew, ...prev];
+        // Sort by timestamp desc
+        return merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      });
+      setLastUpdated(Date.now());
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId, fetchTransactions]);
 
   // Use prop transactions if provided and we are strictly using props (legacy mode), 
   // BUT if selectedChainId is present, we prefer the fetched data for that chain.
   // Actually, the new logic above handles fetching if selectedChainId is set.
   // If propTransactions is passed AND selectedChainId is passed, maybe we should filter props? 
-  // But the goal is to fetch fresh data.
   // Let's rely on state 'transactions'.
-
-  const finalTransactions = transactions;
-  const isRefreshing = loading;
 
   const getTransactionExplorerUrl = (tx: Transaction): string => {
     // Determine if this is a testnet chain
@@ -325,152 +335,126 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
     return tx.from.toLowerCase() === userAddress.toLowerCase();
   };
 
-  // If hideHeader is true, render without container/wrapper (for toggle component)
+  const groupedTransactions = useMemo(() => {
+    if (!transactions || !Array.isArray(transactions)) return [];
+    const list = showAll ? transactions : transactions.slice(0, 10);
+    return groupTransactionsByDate(list);
+  }, [transactions, showAll]);
+
+  const renderContent = () => {
+    if (error && transactions.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+          <p className="text-red-500 font-rubik-medium mb-4">{error}</p>
+          <button
+            onClick={fetchTransactions}
+            className="px-6 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-sm"
+          >
+            Retry Fetch
+          </button>
+        </div>
+      );
+    }
+
+    if (loading && transactions.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-500 mb-4" />
+          <p className="text-gray-600 font-rubik-medium">Fetching your activity...</p>
+        </div>
+      );
+    }
+
+    if (!transactions || transactions.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="bg-gray-50 rounded-full p-6 mb-4">
+            <Repeat className="w-12 h-12 text-gray-300" />
+          </div>
+          <p className="text-gray-900 text-xl font-rubik-bold mb-2">
+            No Transactions Yet
+          </p>
+          <p className="text-gray-500 max-w-xs mx-auto text-sm">
+            Activity from all your connected networks will appear here once you start transacting.
+          </p>
+        </div>
+      );
+    }
+
+    if (groupedTransactions.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <p className="text-gray-500 font-rubik-normal text-lg">No grouped data found</p>
+          <code className="mt-2 text-xs text-gray-400 bg-gray-50 p-2 rounded">Raw count: {transactions.length}</code>
+        </div>
+      );
+    }
+
+    return (
+      <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl">
+        {groupedTransactions.map(([date, txs]) => (
+          <div key={date}>
+            <div className="px-4 md:px-6 py-3 bg-gray-50 text-[11px] font-rubik-bold text-gray-500 uppercase tracking-widest sticky top-0 z-20 border-y border-gray-100">
+              {date}
+            </div>
+            <div className="divide-y divide-gray-50">
+              {txs.map((tx) => {
+                const direction = userAddresses.has(tx.to?.toLowerCase() || '') ? 'in' : 'out';
+                const isPending = tx.status === 'pending';
+                return (
+                  <TransactionItem
+                    key={`${tx.chain}-${tx.txHash}-${tx.timestamp || Date.now()}`}
+                    tx={tx}
+                    direction={direction}
+                    isPending={isPending}
+                    getTransactionExplorerUrl={getTransactionExplorerUrl}
+                    formatValue={formatValue}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   if (hideHeader) {
     return (
-      <div className="w-full">
-        {error && finalTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-red-500 mb-4 font-rubik-normal">{error}</p>
-            <button
-              onClick={refreshFn}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
-              Retry
-            </button>
-          </div>
-        ) : isRefreshing && finalTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-4" />
-            <p className="text-gray-500 font-rubik-normal text-center">
-              Searching for transactions...
-            </p>
-          </div>
-        ) : finalTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 md:py-20">
-            {/* Empty Mailbox GIF */}
-            <div className="-mt-32">
-              <Image
-                src="/empty-mailbox-illustration-with-spiderweb-and-flie-2025-10-20-04-28-09-utc.gif"
-                alt="Empty mailbox illustration"
-                width={320}
-                height={320}
-                className="object-contain mix-blend-multiply"
-              />
-            </div>
-            <p className="text-gray-600 text-lg md:text-xl font-rubik-medium z-10 -mt-16">
-              No transactions yet
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {(showAll ? finalTransactions : finalTransactions.slice(0, 10)).map((tx) => {
-              const direction = userAddresses.has(tx.to?.toLowerCase() || '') ? 'in' : 'out';
-              const isPending = tx.status === 'pending';
-
-              return (
-                <TransactionItem
-                  key={`${tx.chain}-${tx.txHash}`}
-                  tx={tx}
-                  direction={direction}
-                  isPending={isPending}
-                  getTransactionExplorerUrl={getTransactionExplorerUrl}
-                  truncateAddress={truncateAddress}
-                  truncateTxHash={truncateTxHash}
-                  formatValue={formatValue}
-                  formatDate={formatDate}
-                  CHAIN_NAMES={CHAIN_NAMES}
-                />
-              );
-            })}
-          </div>
-        )}
+      <div className="w-full bg-white min-h-[400px]">
+        {renderContent()}
       </div>
     );
   }
 
   return (
-    <div className={`w-full bg-white rounded-3xl pt-4 pb-20 border-t border-gray-200 shadow-sm ${showAll
-      ? "md:max-w-4xl md:rounded-3xl md:mx-auto min-h-[calc(100vh-450px)]"
+    <div className={`w-full bg-white rounded-3xl pt-4 pb-12 border border-gray-200 shadow-sm ${showAll
+      ? "md:max-w-4xl md:rounded-3xl md:mx-auto min-h-[500px]"
       : "md:max-w-2xl md:mx-auto mt-4 overflow-y-auto max-h-[calc(100vh-450px)]"
       }`}>
-      {/* Top Divider */}
-      <div className="flex justify-center mb-2 px-4 md:px-6">
-        <div className="w-10 h-1 bg-gray-200 rounded-full"></div>
-      </div>
-
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 px-4 md:px-6">
-        <h2 className="text-gray-900 text-lg md:text-2xl font-rubik-bold">
-          {showAll ? "All Transactions" : "Recent Transactions"}
+      <div className="flex items-center justify-between mb-4 px-4 md:px-6">
+        <h2 className="text-gray-900 text-lg md:text-xl font-rubik-bold">
+          {showAll ? "All Activity" : "Recent Activity"}
         </h2>
         <div className="flex items-center gap-4">
           {!showAll && (
-            <Link href="/transactions" className="text-gray-500 text-sm md:text-base hover:opacity-70 transition-opacity">
-              See all
+            <Link href="/transactions" className="text-blue-500 text-sm font-rubik-medium hover:underline flex items-center gap-1">
+              View All <ArrowRight className="w-3 h-3" />
             </Link>
           )}
           <button
-            onClick={refreshFn}
+            onClick={fetchTransactions}
             disabled={loading}
-            className="text-gray-500 text-sm hover:opacity-70 transition-opacity disabled:opacity-50"
+            className="text-gray-400 hover:text-blue-500 transition-all bg-gray-50 p-2 rounded-xl border border-gray-100 hover:border-blue-100"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+            <Loader2 className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
-      {/* Transactions List */}
-      <div className="px-4 md:px-6">
-        {error && finalTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-red-500 mb-4 font-rubik-normal">{error}</p>
-            <button
-              onClick={refreshFn}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
-              Retry
-            </button>
-          </div>
-        ) : finalTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 md:py-20">
-            {/* Empty Mailbox GIF */}
-            <div className="-mt-32">
-              <Image
-                src="/empty-mailbox-illustration-with-spiderweb-and-flie-2025-10-20-04-28-09-utc.gif"
-                alt="Empty mailbox illustration"
-                width={320}
-                height={320}
-                className="object-contain mix-blend-multiply"
-              />
-            </div>
-            <p className="text-gray-600 text-lg md:text-xl font-rubik-medium z-10 -mt-16">
-              No transactions yet
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {(showAll ? finalTransactions : finalTransactions.slice(0, 10)).map((tx) => {
-              const direction = userAddresses.has(tx.to?.toLowerCase() || '') ? 'in' : 'out';
-              const isPending = tx.status === 'pending';
-
-              return (
-                <TransactionItem
-                  key={`${tx.chain}-${tx.txHash}`}
-                  tx={tx}
-                  direction={direction}
-                  isPending={isPending}
-                  getTransactionExplorerUrl={getTransactionExplorerUrl}
-                  truncateAddress={truncateAddress}
-                  truncateTxHash={truncateTxHash}
-                  formatValue={formatValue}
-                  formatDate={formatDate}
-                  CHAIN_NAMES={CHAIN_NAMES}
-                />
-              );
-            })}
-          </div>
-        )}
+      <div className="flex-1">
+        {renderContent()}
       </div>
     </div>
   );

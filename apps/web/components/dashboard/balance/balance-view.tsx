@@ -102,18 +102,25 @@ export function BalanceView({ selectedChainId }: BalanceViewProps) {
     };
   }, [userId]); // Removed selectedChainId dependency to show unified view
 
-  const totalUsdForChain = useMemo(() => {
-    return balances.reduce((sum, b) => sum + (b.usdValue || 0), 0);
+  // Enhance balances with high-precision USD values
+  const assetsWithPrecision = useMemo(() => {
+    return balances.map(b => {
+      let effectiveUsd = b.usdValue || 0;
+      if (b.price !== undefined && b.balanceHuman !== undefined) {
+        effectiveUsd = parseFloat(b.balanceHuman) * b.price;
+      }
+      return { ...b, effectiveUsd };
+    });
   }, [balances]);
+
+  const totalUsdForChain = useMemo(() => {
+    return assetsWithPrecision.reduce((sum, b) => sum + b.effectiveUsd, 0);
+  }, [assetsWithPrecision]);
 
   // Sort: highest USD value first
   const sortedBalances = useMemo(() => {
-    return [...balances].sort((a, b) => {
-      const valA = a.usdValue || 0;
-      const valB = b.usdValue || 0;
-      return valB - valA; // Descending
-    });
-  }, [balances]);
+    return [...assetsWithPrecision].sort((a, b) => b.effectiveUsd - a.effectiveUsd);
+  }, [assetsWithPrecision]);
 
   if (loading) {
     return (
