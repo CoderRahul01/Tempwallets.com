@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Loader2, ArrowUpRight, ArrowDownLeft, ExternalLink, Clock, Repeat, ArrowRight } from "lucide-react";
+import { Loader2, ArrowUpRight, ArrowDownLeft, ExternalLink, Clock, Repeat, ArrowRight, RotateCw } from "lucide-react";
 import { walletApi, Transaction } from "@/lib/api";
 import { useBrowserFingerprint } from "@/hooks/useBrowserFingerprint";
 
@@ -16,7 +16,6 @@ interface RecentTransactionsProps {
   showAll?: boolean;
   transactions?: Transaction[]; // Optional transactions from provider
   hideHeader?: boolean; // Hide header when used in toggle component
-  selectedChainId?: string; // Optional chain filter
 }
 
 const CHAIN_NAMES: Record<string, string> = {
@@ -184,25 +183,23 @@ const TransactionItem = ({
   const config = walletConfig.getById(tx.chain?.endsWith('Erc4337') ? tx.chain : chainId);
   const chainColor = config?.color || '#627EEA';
 
-  // Activity Info
+  const explorerUrl = getTransactionExplorerUrl(tx);
+
   return (
-    <a
-      href={getTransactionExplorerUrl(tx)}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center p-3 md:px-6 md:py-4 hover:bg-gray-50/50 transition-colors group relative border-b border-gray-50 last:border-0"
+    <div
+      className="flex items-center py-4 px-0 md:px-2 hover:bg-gray-50/50 transition-all group relative border-b border-gray-50 last:border-0"
     >
       <div className="flex items-center w-full relative z-10">
         {/* Left: Icon Container with Chain Badge */}
         <div className="relative flex-shrink-0 mr-4">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center bg-gray-50 border border-gray-100 shadow-sm overflow-hidden p-1.5 transition-transform group-hover:scale-105">
+          <div className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center bg-gray-50 border border-gray-100 shadow-sm overflow-hidden p-1.5 transition-transform group-hover:scale-105">
             <Icon
               className="w-full h-full"
-              style={{ fill: isSwap ? '#A855F7' : (direction === 'in' ? '#22C55E' : '#3B82F6') }}
+              style={{ fill: isSwap ? '#A855F7' : (direction === 'in' ? '#10B981' : '#EF4444') }}
             />
           </div>
           {/* Status Overlay Icon */}
-          <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-sm ${isSwap ? 'bg-purple-500' : direction === 'in' ? 'bg-green-500' : 'bg-blue-500'
+          <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-sm ${isSwap ? 'bg-purple-500' : direction === 'in' ? 'bg-emerald-500' : 'bg-red-500'
             }`}>
             {isSwap ? <Repeat className="w-2.5 h-2.5 text-white" /> :
               direction === 'in' ? <ArrowDownLeft className="w-2.5 h-2.5 text-white" /> :
@@ -212,12 +209,12 @@ const TransactionItem = ({
 
         {/* Middle: Activity Info */}
         <div className="flex-grow min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-gray-900 font-rubik-bold text-sm md:text-base capitalize">
-              {direction === 'in' ? 'Received' : 'Sent'} {tx.tokenSymbol || 'ETH'}
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-gray-900 font-rubik-bold text-sm md:text-base leading-tight">
+              {tx.tokenSymbol || 'ETH'}
             </span>
             {isPending && (
-              <span className="flex items-center gap-1 text-[10px] bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded-full font-rubik-medium border border-yellow-100 animate-pulse">
+              <span className="flex items-center gap-1 text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full font-rubik-medium border border-amber-100 animate-pulse">
                 Pending
               </span>
             )}
@@ -225,39 +222,52 @@ const TransactionItem = ({
               {chainId}
             </span>
           </div>
-          <div className="flex items-center text-xs text-gray-500 gap-1.5 font-rubik-normal truncate">
-            <span className={tx.status === 'failed' ? 'text-red-500' : 'text-green-500 font-rubik-medium'}>
+          <div className="flex items-center text-xs text-gray-500 gap-3 font-rubik-normal truncate">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-rubik-bold tracking-tight ${tx.status === 'success'
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+              : tx.status === 'failed'
+                ? 'bg-red-50 text-red-700 border border-red-100'
+                : 'bg-amber-50 text-amber-700 border border-amber-100'
+              }`}>
               {tx.status === 'success' ? 'Confirmed' : tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
             </span>
-            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-            <span>{formatTime(tx.timestamp)}</span>
-            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-            <span className="text-gray-400">
-              {direction === 'in' ? `From: ${truncateAddress(tx.from)}` : `To: ${truncateAddress(tx.to)}`}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400 font-rubik-medium truncate max-w-[80px] sm:max-w-none">
+                {direction === 'in' ? `${truncateAddress(tx.from)}` : `${truncateAddress(tx.to)}`}
+              </span>
+              <a
+                href={explorerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1 hover:bg-blue-50 rounded transition-colors text-blue-500 group/link"
+                onClick={(e) => e.stopPropagation()}
+                title="View on Explorer"
+              >
+                <ExternalLink className="w-3 h-3 group-hover/link:scale-110 transition-transform" />
+              </a>
+            </div>
           </div>
         </div>
 
         {/* Right: Value */}
         <div className="text-right flex-shrink-0 ml-4">
-          <div className={`font-rubik-bold text-sm md:text-base ${direction === 'in' ? 'text-green-600' : 'text-gray-900'
-            }`}>
+          <div className="font-rubik-bold text-sm md:text-base text-gray-900">
             {direction === 'in' ? '+' : '-'}{formatValue(tx.value, tx.tokenDecimals, tx.tokenSymbol)}
           </div>
           {tx.usdValue !== undefined && (
-            <div className="text-[10px] md:text-xs text-gray-400 font-rubik-normal">
+            <div className="text-[10px] md:text-xs text-gray-400 font-rubik-normal mt-0.5">
               ${tx.usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           )}
         </div>
       </div>
-    </a>
+    </div>
   );
 };
 
 
 
-const RecentTransactions = ({ showAll = false, transactions: propTransactions, hideHeader = false, selectedChainId }: RecentTransactionsProps) => {
+const RecentTransactions = ({ showAll = false, transactions: propTransactions, hideHeader = false }: RecentTransactionsProps) => {
   const { wallets } = useWalletV2();
   const { userId } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -272,11 +282,22 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
   }, [wallets]);
 
   const fetchTransactions = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      console.warn('fetchTransactions called with invalid userId:', userId);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const data = await walletApi.getTransactionsAny(userId, 100);
+      // Step 1: Try fetching from DB only for speed
+      let data = await walletApi.getTransactionsAny(userId, 100, true);
+
+      // Step 2: If DB is empty, trigger a full Zerion sync
+      if (data.length === 0) {
+        console.log('No transactions in DB, triggering sync from Zerion...');
+        data = await walletApi.getTransactionsAny(userId, 100, false);
+      }
+
       setTransactions(data);
       setLastUpdated(Date.now());
     } catch (err) {
@@ -335,11 +356,19 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
     return tx.from.toLowerCase() === userAddress.toLowerCase();
   };
 
-  const groupedTransactions = useMemo(() => {
+  const filteredTransactions = useMemo(() => {
     if (!transactions || !Array.isArray(transactions)) return [];
-    const list = showAll ? transactions : transactions.slice(0, 10);
-    return groupTransactionsByDate(list);
+
+    // Global view: Show all confirmed transactions across all chains
+    // Filter out zero-value transactions as they are not meaningful for history
+    const list = transactions.filter(tx => tx.value !== '0' && tx.value !== '0.0');
+
+    return showAll ? list : list.slice(0, 10);
   }, [transactions, showAll]);
+
+  const groupedTransactions = useMemo(() => {
+    return groupTransactionsByDate(filteredTransactions);
+  }, [filteredTransactions]);
 
   const renderContent = () => {
     if (error && transactions.length === 0) {
@@ -383,23 +412,36 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
 
     if (groupedTransactions.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-gray-500 font-rubik-normal text-lg">No grouped data found</p>
-          <code className="mt-2 text-xs text-gray-400 bg-gray-50 p-2 rounded">Raw count: {transactions.length}</code>
+        <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+          <div className="bg-gray-50 rounded-full p-6 mb-4">
+            <Clock className="w-12 h-12 text-gray-300" />
+          </div>
+          <p className="text-gray-900 text-xl font-rubik-bold mb-2">
+            No Activity Found
+          </p>
+          <p className="text-gray-500 max-w-xs mx-auto text-sm mb-6">
+            Your confirmed transactions across all networks will appear here once they are detected.
+          </p>
+          <button
+            onClick={fetchTransactions}
+            className="text-blue-500 text-sm font-rubik-medium hover:underline flex items-center justify-center gap-1.5"
+          >
+            <RotateCw className="w-3.5 h-3.5" /> Refresh Data
+          </button>
         </div>
       );
     }
 
     return (
-      <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl">
+      <div className="divide-y divide-gray-100">
         {groupedTransactions.map(([date, txs]) => (
           <div key={date}>
-            <div className="px-4 md:px-6 py-3 bg-gray-50 text-[11px] font-rubik-bold text-gray-500 uppercase tracking-widest sticky top-0 z-20 border-y border-gray-100">
+            <div className="py-2.5 text-[10px] font-rubik-bold text-gray-400 uppercase tracking-[0.1em] sticky top-0 z-20 bg-white">
               {date}
             </div>
             <div className="divide-y divide-gray-50">
               {txs.map((tx) => {
-                const direction = userAddresses.has(tx.to?.toLowerCase() || '') ? 'in' : 'out';
+                const direction = tx.direction || (userAddresses.has(tx.to?.toLowerCase() || '') ? 'in' : 'out');
                 const isPending = tx.status === 'pending';
                 return (
                   <TransactionItem
@@ -421,7 +463,7 @@ const RecentTransactions = ({ showAll = false, transactions: propTransactions, h
 
   if (hideHeader) {
     return (
-      <div className="w-full bg-white min-h-[400px]">
+      <div className="w-full flex-1 flex flex-col">
         {renderContent()}
       </div>
     );

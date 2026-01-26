@@ -535,6 +535,7 @@ export class WalletController {
     @UserId() userId?: string,
     @Query('userId') queryUserId?: string,
     @Query('limit') limit?: string,
+    @Query('dbOnly') dbOnly?: string,
   ) {
     const finalUserId = userId || queryUserId;
     if (!finalUserId) {
@@ -551,10 +552,10 @@ export class WalletController {
     }
 
     try {
-      const transactions = await this.walletService.getTransactionsAny(
-        finalUserId,
-        limitNum,
-      );
+      const dbOnlyFlag = dbOnly === 'true';
+      const transactions = dbOnlyFlag
+        ? await this.walletService.getTransactionsDb(finalUserId, limitNum)
+        : await this.walletService.getTransactionsAny(finalUserId, limitNum);
       return transactions;
     } catch (error) {
       this.logger.error(

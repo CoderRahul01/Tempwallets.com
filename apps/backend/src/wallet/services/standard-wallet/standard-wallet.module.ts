@@ -22,6 +22,8 @@ import { ChainConfigModule } from '../../config/chain-config.module.js';
         BalanceService,
         ReceiveService,
         SendService,
+        ZerionService,
+        NativeEoaFactory,
     ],
 })
 export class StandardWalletModule { }

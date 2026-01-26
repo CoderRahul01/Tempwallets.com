@@ -765,11 +765,18 @@ export class WalletService {
     // Run sync in parallel for each address
     await Promise.allSettled(syncChains.map(async ([chain, address]) => {
       try {
+        this.logger.debug(`[History] Syncing Zerion transactions for ${address} on ${chain}`);
         const latest = await this.zerionService.getTransactions(address!, chain, 50);
+        this.logger.debug(`[History] Received ${latest.length} transactions from Zerion for ${chain}`);
         if (latest.length > 0) {
           await Promise.all(latest.map(tx => {
-            // SKIP zero-value transactions (usually contract interactions or system calls)
-            if (!tx.value || tx.value === '0') {
+            // Requirement: Only process confirmed transactions
+            if (tx.status !== 'success') {
+              this.logger.debug(`[History] Skipping non-confirmed transaction ${tx.txHash} (Status: ${tx.status})`);
+              return Promise.resolve();
+            }
+            // SKIP native transactions with zero value, BUT keep token transfers
+            if (tx.value === '0' && !tx.tokenAddress) {
               return Promise.resolve();
             }
 
@@ -808,17 +815,22 @@ export class WalletService {
       }
     }));
 
-    // Cleanup: Remove any previously stored zero-value transactions for this user
+    // Cleanup: Remove any previously stored zero-value transactions that aren't actually token transfers
     await this.prisma.blockchainTransaction.deleteMany({
       where: {
         userId,
-        value: '0'
+        value: '0',
+        tokenSymbol: null,
+        usdValue: 0
       }
     });
 
     // Unified view: Fetch authenticated local transactions (now synced with Zerion)
     const dbTransactions = await this.prisma.blockchainTransaction.findMany({
-      where: { userId },
+      where: {
+        userId,
+        status: 'success' // Requirement: Only show confirmed transactions
+      },
       orderBy: { timestamp: 'desc' },
       take: limit,
     });
@@ -832,6 +844,37 @@ export class WalletService {
       tokenAddress: tx.tokenAddress || undefined,
       tokenDecimals: tx.tokenDecimals,
       timestamp: Math.floor(tx.timestamp.getTime() / 1000), // Return timestamp in seconds
+      blockNumber: tx.blockNumber,
+      status: tx.status as 'success' | 'failed' | 'pending',
+      chain: tx.chain,
+      type: tx.type,
+      usdValue: tx.usdValue || 0,
+      direction: (tx.direction as 'in' | 'out') || undefined,
+    }));
+  }
+
+  /**
+   * Fetch transactions directly from the database without syncing with Zerion
+   */
+  async getTransactionsDb(userId: string, limit: number = 100) {
+    const dbTransactions = await this.prisma.blockchainTransaction.findMany({
+      where: {
+        userId,
+        status: 'success' // Requirement: Only show confirmed transactions
+      },
+      orderBy: { timestamp: 'desc' },
+      take: limit,
+    });
+
+    return dbTransactions.map((tx) => ({
+      txHash: tx.txHash,
+      from: tx.from,
+      to: tx.to,
+      value: tx.value,
+      tokenSymbol: tx.tokenSymbol || undefined,
+      tokenAddress: tx.tokenAddress || undefined,
+      tokenDecimals: tx.tokenDecimals,
+      timestamp: Math.floor(tx.timestamp.getTime() / 1000),
       blockNumber: tx.blockNumber,
       status: tx.status as 'success' | 'failed' | 'pending',
       chain: tx.chain,
@@ -957,6 +1000,7 @@ export class WalletService {
       chain: string;
       tokenSymbol?: string;
       tokenAddress?: string;
+      direction?: 'in' | 'out';
     }>,
     void,
     unknown
@@ -990,11 +1034,41 @@ export class WalletService {
       let finishedCount = 0;
 
       const pushResult = (txs: any[]) => {
-        // Filter out already seen transactions
-        const newTxs = txs.filter((tx) => !seenTxHashes.has(`${tx.chain}:${tx.txHash} `));
-        newTxs.forEach((tx) => seenTxHashes.add(`${tx.chain}:${tx.txHash} `));
+        // Filter out already seen transactions and ONLY keep confirmed ones
+        const newTxs = txs.filter((tx) =>
+          !seenTxHashes.has(`${tx.chain}:${tx.txHash}`) &&
+          tx.status === 'success'
+        );
+        newTxs.forEach((tx) => seenTxHashes.add(`${tx.chain}:${tx.txHash}`));
 
         if (newTxs.length > 0) {
+          // Persistence: Save to DB as they are discovered
+          Promise.all(newTxs.map(tx => {
+            const data = {
+              userId,
+              txHash: tx.txHash,
+              chain: tx.chain,
+              from: tx.from,
+              to: tx.to,
+              value: tx.value,
+              tokenSymbol: tx.tokenSymbol || null,
+              tokenAddress: tx.tokenAddress || null,
+              tokenDecimals: tx.tokenDecimals || 18,
+              timestamp: tx.timestamp ? new Date(tx.timestamp * 1000) : new Date(),
+              blockNumber: tx.blockNumber || null,
+              status: tx.status || 'success',
+              type: tx.type || 'transaction',
+              usdValue: tx.usdValue || 0,
+              direction: tx.direction || (tx.from?.toLowerCase() === addresses[this.mapChainToAddressKey(tx.chain) as keyof WalletAddresses]?.toLowerCase() ? 'out' : 'in')
+            };
+
+            return this.prisma.blockchainTransaction.upsert({
+              where: { txHash_chain: { txHash: tx.txHash, chain: tx.chain } },
+              update: data,
+              create: data
+            }).catch(err => this.logger.error(`[SSE Persistence] Failed to save tx ${tx.txHash}: ${err.message}`));
+          }));
+
           results.push(newTxs);
           if (resolveNext) {
             resolveNext();
@@ -1046,10 +1120,10 @@ export class WalletService {
         for (const [chain, address] of chains) {
           try {
             const txs = await this.getTransactions(userId, chain, 10);
-            const newTxs = txs.filter((tx) => !seenTxHashes.has(`${tx.chain}:${tx.txHash} `));
+            const newTxs = txs.filter((tx) => !seenTxHashes.has(`${tx.chain}:${tx.txHash}`));
 
             if (newTxs.length > 0) {
-              newTxs.forEach((tx) => seenTxHashes.add(`${tx.chain}:${tx.txHash} `));
+              newTxs.forEach((tx) => seenTxHashes.add(`${tx.chain}:${tx.txHash}`));
               yield newTxs;
             }
           } catch (error) {
@@ -2616,10 +2690,10 @@ export class WalletService {
       tokenDecimals: authenticTx?.tokenDecimals || tokenDecimals || 18,
       timestamp: authenticTx?.timestamp ? new Date(authenticTx.timestamp * 1000) : new Date(),
       blockNumber: authenticTx?.blockNumber || null,
-      status: (authenticTx?.status || 'pending') as string,
+      status: (authenticTx?.status || 'success') as string, // Default to success for sent transactions
       type: 'send',
       usdValue: authenticTx?.usdValue ?? null,
-      direction: 'out'
+      direction: (authenticTx?.direction || (authenticTx?.from?.toLowerCase() === senderAddress.toLowerCase() ? 'out' : 'in')) as string
     };
 
     try {

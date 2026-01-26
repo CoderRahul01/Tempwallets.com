@@ -69,7 +69,6 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     AptosSequenceManager,
     // Factories
     AccountFactory,
-    NativeEoaFactory,
     Eip7702AccountFactory,
     AptosAccountFactory,
     // Delegation repository for EIP-7702
@@ -83,8 +82,6 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     PimlicoService,
     // Token List service
     TokenListService,
-    // Zerion Service
-    ZerionService,
     // Cache Service
     CacheService,
     // Cache repositories
@@ -103,7 +100,6 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     SeedManager,
     AddressManager,
     AccountFactory,
-    NativeEoaFactory,
     Eip7702AccountFactory,
     AptosAddressManager,
     AptosAccountFactory,
@@ -116,14 +112,13 @@ import { AptosFaucetService } from './aptos/services/aptos-faucet.service.js';
     PimlicoService,
     // Export Token List service
     TokenListService,
-    // Export Zerion Service
-    ZerionService,
     // Export Cache Service
     CacheService,
     // Export cache repositories
     AddressCacheRepository,
     BalanceCacheRepository,
     WalletHistoryRepository,
+    StandardWalletModule,
   ],
 })
 export class WalletModule { }

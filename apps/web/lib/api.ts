@@ -480,8 +480,9 @@ export const walletApi = {
     return fetchApi<AnyChainAsset[]>(`/wallet/assets-any?userId=${encodeURIComponent(userId)}${refreshParam}`);
   },
 
-  async getTransactionsAny(userId: string, limit: number = 100): Promise<Transaction[]> {
-    return fetchApi<Transaction[]>(`/wallet/transactions-any?userId=${encodeURIComponent(userId)}&limit=${limit}`);
+  async getTransactionsAny(userId: string, limit: number = 100, dbOnly: boolean = false): Promise<Transaction[]> {
+    const dbOnlyParam = dbOnly ? '&dbOnly=true' : '';
+    return fetchApi<Transaction[]>(`/wallet/transactions-any?userId=${encodeURIComponent(userId)}&limit=${limit}${dbOnlyParam}`);
   },
 
   /**

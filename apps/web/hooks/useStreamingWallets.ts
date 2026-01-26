@@ -197,8 +197,15 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
 
   // Move loadWalletsBatch outside to fix scope and make it a useCallback
   const loadWalletsBatch = useCallback(async (userId: string) => {
+    if (!userId) {
+      console.warn('loadWalletsBatch called without userId');
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/wallet/addresses?userId=${encodeURIComponent(userId)}`);
+      const url = `${API_BASE_URL}/wallet/addresses?userId=${encodeURIComponent(userId)}`;
+      console.debug('Fetching wallets batch:', url);
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new ApiError(response.status, 'Failed to load wallets');
@@ -247,7 +254,10 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
   }, []);
 
   const loadWallets = useCallback(async (userId: string, forceRefresh: boolean = false) => {
-    if (!userId) return;
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      console.warn('loadWallets called with invalid userId:', userId);
+      return;
+    }
 
     // Prevent duplicate calls for the same userId
     if (isLoadingRef.current[userId] && !forceRefresh) {
@@ -287,6 +297,7 @@ export function useStreamingWallets(): UseStreamingWalletsReturn {
     if (useSSE) {
       try {
         const url = `${API_BASE_URL}/wallet/addresses-stream?userId=${encodeURIComponent(userId)}`;
+        console.debug('Starting SSE stream for wallets:', url);
         setIsStreaming(true);
 
         let streamCompleted = false;

@@ -108,7 +108,6 @@ export function BalanceTransactionsToggle({ selectedChainId }: BalanceTransactio
             key={`transactions-${refreshKey}`}
             showAll={false}
             hideHeader
-            selectedChainId={selectedChainId}
           />
         ) : (
           <LightningNodesProvider>

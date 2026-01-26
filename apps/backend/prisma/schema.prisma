@@ -8,22 +8,22 @@ datasource db {
 }
 
 model User {
-  id              String           @id @default(cuid())
-  email           String?          @unique
-  googleId        String?          @unique
-  fingerprint     String?          @unique
-  name            String?
-  picture         String?
-  xp              Int              @default(0) // Experience points
-  createdAt       DateTime         @default(now())
-  lastLoginAt     DateTime         @updatedAt
-  wallets         Wallet[]
-  preferences     UserPreferences?
-  activities      UserActivity[]
-  sessions        UserSession[]
-  paymentChannels PaymentChannel[]
-  lightningNodes  LightningNode[]
+  id                     String                  @id @default(cuid())
+  email                  String?                 @unique
+  googleId               String?                 @unique
+  fingerprint            String?                 @unique
+  name                   String?
+  picture                String?
+  createdAt              DateTime                @default(now())
+  lastLoginAt            DateTime                @updatedAt
+  xp                     Int                     @default(0)
+  wallets                Wallet[]
   blockchainTransactions BlockchainTransaction[]
+  lightningNodes         LightningNode[]
+  paymentChannels        PaymentChannel[]
+  activities             UserActivity[]
+  preferences            UserPreferences?
+  sessions               UserSession[]
 
   @@index([googleId])
   @@index([fingerprint])
@@ -68,16 +68,14 @@ model WalletSeed {
   @@index([userId])
 }
 
-// Stores wallet history for authenticated users (Google login)
-// Allows users to switch between previously created wallets
 model WalletHistory {
   id         String   @id @default(cuid())
-  userId     String // Google user ID
-  label      String? // User-friendly name like "Wallet 1", "Savings", etc.
-  ciphertext String // Encrypted seed phrase
+  userId     String
+  label      String?
+  ciphertext String
   iv         String
   authTag    String
-  isActive   Boolean  @default(false) // Only one wallet should be active per user
+  isActive   Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   @@index([userId])
@@ -100,7 +98,7 @@ model WalletBalanceCache {
   id             String   @id @default(cuid())
   fingerprint    String
   chain          String
-  cachedBalances Json // Array of TokenBalance objects
+  cachedBalances Json
   lastUpdated    DateTime @default(now()) @updatedAt
   createdAt      DateTime @default(now())
 
@@ -127,10 +125,10 @@ model WalletAddressCache {
 model AptosAccount {
   id             String   @id @default(cuid())
   walletId       String
-  address        String // Normalized (lowercase, 0x + 64 hex chars)
+  address        String
   publicKey      String
   sequenceNumber Int      @default(0)
-  network        String // 'mainnet' | 'testnet' | 'devnet'
+  network        String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   wallet         Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
@@ -142,15 +140,13 @@ model AptosAccount {
   @@map("aptos_account")
 }
 
-// EIP-7702 Delegation tracking
-// Records when an EOA has signed authorization for gasless transactions
 model Eip7702Delegation {
   id                String   @id @default(cuid())
-  walletId          String // User's wallet ID (from Wallet or fingerprint)
-  address           String // EOA address (lowercase, 0x + 40 hex chars)
-  chainId           Int // EVM chain ID
-  delegationAddress String // Smart account implementation address
-  authorizedAt      DateTime @default(now()) // When authorization was signed
+  walletId          String
+  address           String
+  chainId           Int
+  delegationAddress String
+  authorizedAt      DateTime @default(now())
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -160,48 +156,37 @@ model Eip7702Delegation {
   @@map("eip7702_delegation")
 }
 
-// User preferences for notifications, display, and privacy settings
 model UserPreferences {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Notification preferences
-  emailNotifications Boolean @default(true)
-  pushNotifications  Boolean @default(true)
-  transactionAlerts  Boolean @default(true)
-
-  // Display preferences
-  currency   String @default("USD") // Currency code (USD, EUR, etc.)
-  dateFormat String @default("MM/DD/YYYY")
-  theme      String @default("dark") // dark, light, auto
-  language   String @default("en")
-
-  // Privacy settings
-  analyticsEnabled Boolean @default(true)
-  dataSharing      Boolean @default(false)
-
-  // Auto-lock settings (in minutes, 0 = disabled)
-  autoLockMinutes Int @default(30)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  emailNotifications Boolean  @default(true)
+  pushNotifications  Boolean  @default(true)
+  transactionAlerts  Boolean  @default(true)
+  currency           String   @default("USD")
+  dateFormat         String   @default("MM/DD/YYYY")
+  theme              String   @default("dark")
+  language           String   @default("en")
+  analyticsEnabled   Boolean  @default(true)
+  dataSharing        Boolean  @default(false)
+  autoLockMinutes    Int      @default(30)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("user_preferences")
 }
 
-// User activity log for tracking actions
 model UserActivity {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String // login, wallet_created, transaction, profile_updated, etc.
+  type        String
   description String
-  metadata    Json? // Additional data about the activity
+  metadata    Json?
   ipAddress   String?
   userAgent   String?
   createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, createdAt])
@@ -209,41 +194,33 @@ model UserActivity {
   @@map("user_activity")
 }
 
-// Active user sessions/devices
 model UserSession {
   id           String   @id @default(cuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceName   String? // e.g., "Chrome on MacOS"
+  deviceName   String?
   ipAddress    String?
   userAgent    String?
   lastActiveAt DateTime @default(now()) @updatedAt
   createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, lastActiveAt])
   @@map("user_session")
 }
 
-// ============================================================================
-// Lightning Node (Yellow Network Integration)
-// ============================================================================
-
-// Payment Channels - 2-party channels between user and clearnode
-// One channel per user per chain (one-time setup for unified balance access)
 model PaymentChannel {
   id        String    @id @default(cuid())
   userId    String
-  channelId String    @unique // Yellow Network channel ID (bytes32)
-  chain     String // ethereum, base, polygon, etc.
-  chainId   Int // Blockchain chain ID
-  token     String // Token address
-  status    String // active, closed
+  channelId String    @unique
+  chain     String
+  chainId   Int
+  token     String
+  status    String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   closedAt  DateTime?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, chainId])
   @@index([userId])
@@ -252,28 +229,25 @@ model PaymentChannel {
   @@map("payment_channel")
 }
 
-// Lightning Nodes - Multi-party app sessions built on unified balance
-// Core feature for gasless off-chain transactions
 model LightningNode {
-  id              String    @id @default(cuid())
-  userId          String // Creator of the Lightning Node
-  appSessionId    String    @unique // Yellow Network app session ID (bytes32)
-  uri             String // Shareable URI (lightning://...)
-  chain           String // ethereum, base, polygon, etc.
-  token           String // USDC, USDT, etc.
-  status          String // pending, open, closing, closed
-  maxParticipants Int       @default(10)
-  quorum          Int // Minimum weight required for approval
-  protocol        String    @default("NitroRPC/0.4") // Protocol version
-  challenge       Int       @default(3600) // Challenge period in seconds
-  sessionData     String? // Application-specific state (JSON)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id              String                     @id @default(cuid())
+  userId          String
+  appSessionId    String                     @unique
+  uri             String
+  chain           String
+  token           String
+  status          String
+  maxParticipants Int                        @default(10)
+  quorum          Int
+  protocol        String                     @default("NitroRPC/0.4")
+  challenge       Int                        @default(3600)
+  sessionData     String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
   closedAt        DateTime?
-
-  user         User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  participants LightningNodeParticipant[]
-  transactions LightningNodeTransaction[]
+  user            User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participants    LightningNodeParticipant[]
+  transactions    LightningNodeTransaction[]
 
   @@index([userId])
   @@index([appSessionId])
@@ -282,24 +256,18 @@ model LightningNode {
   @@map("lightning_node")
 }
 
-// Lightning Node Participants - Tracks all participants in a Lightning Node
 model LightningNodeParticipant {
-  id              String    @id @default(cuid())
+  id              String        @id @default(cuid())
   lightningNodeId String
-  address         String // Participant wallet address
-  weight          Int // Voting weight for governance
-  balance         String    @default("0") // Current balance in session
-  asset           String // USDC, USDT, etc.
-  // Invitation / membership state
-  // - invited: included in the app session definition but hasn't accepted yet
-  // - joined: user accepted and we validated membership against Yellow
-  status          String    @default("invited")
+  address         String
+  weight          Int
+  balance         String        @default("0")
+  asset           String
   joinedAt        DateTime?
-  // Presence heartbeat (best-effort)
-  lastSeenAt      DateTime?
   leftAt          DateTime?
-
-  lightningNode LightningNode @relation(fields: [lightningNodeId], references: [id], onDelete: Cascade)
+  status          String        @default("invited")
+  lastSeenAt      DateTime?
+  lightningNode   LightningNode @relation(fields: [lightningNodeId], references: [id], onDelete: Cascade)
 
   @@unique([lightningNodeId, address, asset])
   @@index([lightningNodeId])
@@ -307,22 +275,20 @@ model LightningNodeParticipant {
   @@map("lightning_node_participant")
 }
 
-// Lightning Node Transactions - Historical record of all operations
 model LightningNodeTransaction {
-  id              String   @id @default(cuid())
+  id              String        @id @default(cuid())
   lightningNodeId String
-  from            String // Sender address
-  to              String // Recipient address
-  amount          String // Amount transferred
-  asset           String // USDC, USDT, etc.
-  type            String // deposit, transfer, withdraw
-  intent          String? // DEPOSIT, OPERATE, WITHDRAW (for app session operations)
-  txHash          String? // On-chain tx hash (for deposits via resize_channel)
-  status          String // pending, confirmed, failed
-  metadata        Json? // Additional transaction data
-  createdAt       DateTime @default(now())
-
-  lightningNode LightningNode @relation(fields: [lightningNodeId], references: [id], onDelete: Cascade)
+  from            String
+  to              String
+  amount          String
+  asset           String
+  type            String
+  intent          String?
+  txHash          String?
+  status          String
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  lightningNode   LightningNode @relation(fields: [lightningNodeId], references: [id], onDelete: Cascade)
 
   @@index([lightningNodeId])
   @@index([from])
@@ -333,40 +299,24 @@ model LightningNodeTransaction {
   @@map("lightning_node_transaction")
 }
 
-// ============================================================================
-// WalletConnect Integration (EIP-7702 Only)
-// ============================================================================
-
-// WalletConnect Session tracking
-// Stores active WalletConnect sessions for users
 model WcSession {
-  id           String  @id @default(cuid())
-  userId       String // User ID (Google or fingerprint)
-  topic        String  @unique // WalletConnect session topic
-  pairingTopic String? // Pairing topic (optional)
-
-  // dApp metadata
-  dappName        String?
-  dappDescription String?
-  dappUrl         String?
-  dappIcon        String?
-
-  // Session details
-  namespaces Json // Approved namespaces (eip155 chains/methods)
-  expiry     DateTime // Session expiration
-  relay      Json // Relay protocol info
-
-  // EIP-7702 specific
-  eip7702Only      Boolean  @default(true) // Must be true
-  approvedChains   Int[] // EVM chain IDs (e.g., [1, 8453, 42161])
-  approvedAccounts String[] // CAIP-10 account IDs
-
-  // Timestamps
-  createdAt  DateTime @default(now())
-  lastUsedAt DateTime @default(now())
-
-  // Relations
-  requests WcRequest[]
+  id               String      @id @default(cuid())
+  userId           String
+  topic            String      @unique
+  pairingTopic     String?
+  dappName         String?
+  dappDescription  String?
+  dappUrl          String?
+  dappIcon         String?
+  namespaces       Json
+  expiry           DateTime
+  relay            Json
+  eip7702Only      Boolean     @default(true)
+  approvedChains   Int[]
+  approvedAccounts String[]
+  createdAt        DateTime    @default(now())
+  lastUsedAt       DateTime    @default(now())
+  requests         WcRequest[]
 
   @@index([userId])
   @@index([topic])
@@ -374,32 +324,23 @@ model WcSession {
   @@map("wc_session")
 }
 
-// WalletConnect Session Proposals (pending approval)
 model WcProposal {
-  id         String @id @default(cuid())
-  userId     String // User who received the proposal
-  proposalId BigInt // WalletConnect proposal ID (can be very large)
-
-  // dApp proposer details
-  proposerName String?
-  proposerUrl  String?
-  proposerIcon String?
-
-  // Proposal requirements
-  requiredChains  String[] // CAIP-2 chain IDs (e.g., ["eip155:1"])
-  requiredMethods String[] // RPC methods requested
-  requiredEvents  String[] // Events requested
-  optionalChains  String[] // Optional chains
-
-  // Status
+  id              String         @id @default(cuid())
+  userId          String
+  proposalId      BigInt
+  proposerName    String?
+  proposerUrl     String?
+  proposerIcon    String?
+  requiredChains  String[]
+  requiredMethods String[]
+  requiredEvents  String[]
+  optionalChains  String[]
   status          ProposalStatus @default(PENDING)
   approvedAt      DateTime?
   rejectedAt      DateTime?
   rejectionReason String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  expiresAt DateTime // Proposal expiry
+  createdAt       DateTime       @default(now())
+  expiresAt       DateTime
 
   @@index([userId])
   @@index([proposalId])
@@ -407,42 +348,23 @@ model WcProposal {
   @@map("wc_proposal")
 }
 
-enum ProposalStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  EXPIRED
-}
-
-// WalletConnect Session Requests (signing requests)
 model WcRequest {
-  id        String    @id @default(cuid())
-  sessionId String // Foreign key to WcSession
-  session   WcSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  requestId BigInt // WalletConnect request ID (can be very large)
-  topic     String // Session topic
-
-  // Request details
-  method  String // eth_sendTransaction, personal_sign, etc.
-  params  Json // Request parameters
-  chainId String // CAIP-2 chain ID (e.g., "eip155:1")
-
-  // Response
-  status   RequestStatus @default(PENDING)
-  response Json? // Signature or error
-  error    String? // Error message if failed
-
-  // User action
-  approvedAt DateTime?
-  rejectedAt DateTime?
-
-  // EIP-7702 transaction details
-  usedEip7702  Boolean @default(false)
-  gasSponsored Boolean @default(false)
-
-  // Timestamps
-  createdAt DateTime @default(now())
+  id           String        @id @default(cuid())
+  sessionId    String
+  requestId    BigInt
+  topic        String
+  method       String
+  params       Json
+  chainId      String
+  status       RequestStatus @default(PENDING)
+  response     Json?
+  error        String?
+  approvedAt   DateTime?
+  rejectedAt   DateTime?
+  usedEip7702  Boolean       @default(false)
+  gasSponsored Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  session      WcSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
   @@index([topic])
@@ -450,15 +372,6 @@ model WcRequest {
   @@map("wc_request")
 }
 
-enum RequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  FAILED
-  EXPIRED
-}
-
-// Persistent record of on-chain transactions performed via the dashboard
 model BlockchainTransaction {
   id            String   @id @default(cuid())
   userId        String
@@ -470,17 +383,15 @@ model BlockchainTransaction {
   tokenSymbol   String?
   tokenAddress  String?
   tokenDecimals Int      @default(18)
-  timestamp     DateTime // Authentic blockchain timestamp
+  timestamp     DateTime
   blockNumber   Int?
-  status        String   @default("success") // success, failed, pending
-  type          String   @default("transaction") // send, receive, etc.
+  status        String   @default("success")
+  type          String   @default("transaction")
   usdValue      Float?
-  direction     String?  // in, out
+  direction     String?
   metadata      Json?
-  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([txHash, chain])
@@ -488,4 +399,19 @@ model BlockchainTransaction {
   @@index([userId, chain])
   @@index([userId, timestamp])
   @@map("blockchain_transaction")
+}
+
+enum ProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FAILED
+  EXPIRED
 }

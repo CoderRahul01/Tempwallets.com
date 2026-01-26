@@ -2,6 +2,12 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { ValidationPipe, LogLevel } from '@nestjs/common';
 import { TraceIdInterceptor } from './common/trace-id.interceptor.js';
+import { Buffer } from 'buffer';
+
+// Ensure Buffer is globally available for blockchain libraries (Polkadot, etc.)
+if (typeof global !== 'undefined' && !global.Buffer) {
+  global.Buffer = Buffer;
+}
 
 async function bootstrap() {
   // Configure logger based on environment
